@@ -2025,7 +2025,7 @@ function imprimerCuisson() {
     html += '<tr><td style="padding:5px 10px;border-bottom:1px solid #fee2e2;font-weight:600">Type produit</td><td style="padding:5px 10px;border-bottom:1px solid #fee2e2">' + plat.type + '</td></tr>';
     // Temperature cuisson
     html += '<tr style="background:#fff8f8"><td colspan="2" style="padding:6px 10px;border-bottom:1px solid #fee2e2;font-weight:800;color:#dc2626;font-size:11px">Temperature a coeur</td></tr>';
-    html += '<tr><td style="padding:5px 10px;border-bottom:1px solid #fee2e2;font-weight:600">T° mesuree</td><td style="padding:5px 10px;border-bottom:1px solid #fee2e2">' + (plat.temp ? plat.temp + '°C' : '—') + '</td></tr>';
+    html += '<tr><td style="padding:5px 10px;border-bottom:1px solid #fee2e2;font-weight:600">T° mesuree</td><td style="padding:5px 10px;border-bottom:1px solid #fee2e2">' + (plat.temp ? plat.temp + '°C' : '—') + (plat.temp ? ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + (function(){ var pp=String(plat.type||'').toLowerCase(); if(pp.indexOf('volaille')>-1||pp.indexOf('poulet')>-1||pp.indexOf('dinde')>-1)return '74°C min à cœur'; if(pp.indexOf('hach')>-1)return '70°C min à cœur'; return '63°C min à cœur'; })() + ')</span>' : '') + '</td></tr>';
     var confColor = plat.isNC ? '#dc2626' : '#16a34a';
     html += '<tr><td style="padding:5px 10px;' + (plat.isNC?'border-bottom:1px solid #fee2e2;':'') + 'font-weight:600">Conformite</td><td style="padding:5px 10px;' + (plat.isNC?'border-bottom:1px solid #fee2e2;':'') + 'color:' + confColor + ';font-weight:700">' + plat.conf + '</td></tr>';
     if (plat.isNC) html += '<tr style="background:#fff0f0"><td style="padding:5px 10px;color:#dc2626;font-weight:700' + (plat.remiseT0?';border-bottom:1px solid #fee2e2':'') + '">Action corrective</td><td style="padding:5px 10px;color:#dc2626;font-weight:700' + (plat.remiseT0?';border-bottom:1px solid #fee2e2':'') + '">' + (plat.action||'A definir') + '</td></tr>';
@@ -2138,6 +2138,7 @@ function imprimerTemperatures() {
   filled.forEach(function(enc, i) {
     var borderColor = enc.isNC ? '#dc2626' : '#0891b2';
     var confColor = enc.isNC ? '#dc2626' : '#16a34a';
+    var seuilTxt = (function(){ var t=(String(enc.type||'')+' '+String(enc.precision||'')).toLowerCase(); if(t.indexOf('congel')>-1||t.indexOf('surgel')>-1||t.indexOf('néga')>-1)return '-18°C max'; if(t.indexOf('chaud')>-1)return '+63°C min'; if(t.indexOf('cellule')>-1)return '+10°C en 2h max'; if(t.indexOf('frigo')>-1||t.indexOf('réfrig')>-1||t.indexOf('frais')>-1||t.indexOf('posit')>-1)return '+4°C max'; return '—'; })();
     html += '<div style="border:2px solid ' + borderColor + ';border-radius:10px;margin-bottom:12px;overflow:hidden">';
     html += '<div style="background:' + borderColor + ';color:white;padding:8px 12px;display:flex;justify-content:space-between">';
     var encLabel = 'Enceinte N' + (i+1);
@@ -2148,7 +2149,7 @@ function imprimerTemperatures() {
     html += '</div>';
     html += '<table style="width:100%;border-collapse:collapse;font-size:10pt">';
     html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Type</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + enc.type + '</td></tr>';
-    html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">T relevee</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (enc.temp ? enc.temp + 'C' : '—') + '</td></tr>';
+    html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">T relevee</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (enc.temp ? enc.temp + '°C' : '—') + (seuilTxt && seuilTxt !== '—' ? ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + seuilTxt + ')</span>' : '') + '</td></tr>';
     html += '<tr><td style="padding:6px 10px;' + (enc.isNC?'border-bottom:1px solid #e5e7eb;':'') + 'font-weight:600">Conformite</td><td style="padding:6px 10px;' + (enc.isNC?'border-bottom:1px solid #e5e7eb;':'') + 'color:' + confColor + ';font-weight:700">' + enc.conf + '</td></tr>';
     if (enc.isNC) html += '<tr style="background:#fff8f8"><td style="padding:6px 10px;color:#dc2626;font-weight:700">Action corrective</td><td style="padding:6px 10px;color:#dc2626;font-weight:700">' + (enc.action||'A definir') + '</td></tr>';
     html += '</table></div>';
@@ -2321,6 +2322,23 @@ function imprimerModuleParBloc(pageId, titre, blocs, type) {
       if (isMesure) mesures.push({label:lbl, valeur:v});
       else idents.push({label:lbl, valeur:v});
     });
+
+    // V117 — capter aussi les seuils affichés (encadrés, maxima) pour qu'ils figurent dans le PDF
+    try {
+      bloc.querySelectorAll('[id*="seuil"]').forEach(function(se) {
+        if (se.tagName === 'INPUT' || se.tagName === 'SELECT' || se.tagName === 'TEXTAREA') return;
+        if (se.children && se.children.length) return;
+        var sv = (se.textContent || '').trim();
+        if (!sv || sv === '—' || sv.length > 40) return;
+        if (!/°c|%|min|max|≤|≥|\d/i.test(sv)) return;
+        mesures.push({ label: 'Seuil réglementaire', valeur: sv });
+      });
+      bloc.querySelectorAll('div').forEach(function(dv) {
+        if (dv.children && dv.children.length) return;
+        var tv = (dv.textContent || '').trim();
+        if (/^Max\s+[\d+\-]/.test(tv) && tv.length < 25) mesures.push({ label: 'Seuil', valeur: tv });
+      });
+    } catch(e){}
 
     // Section Identification
     if (idents.length > 0) {
@@ -5953,7 +5971,7 @@ function imprimerReception() {
         html += '<div class="produit-data"><table>';
         html += '<tr><td>N° de lot</td><td><strong>' + (p.lot||'—') + '</strong></td></tr>';
         html += '<tr><td>DLC / DLUO</td><td>' + (p.dlc||'—') + '</td></tr>';
-        html += '<tr><td>T° relevée</td><td>' + (p.temp !== '—' ? p.temp + '°C' : '—') + '</td></tr>';
+        html += '<tr><td>T° relevée</td><td>' + (p.temp !== '—' ? p.temp + '°C' : '—') + (p.seuil ? ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + p.seuil + ')</span>' : '') + '</td></tr>';
         html += '<tr><td>Conformité T°</td><td style="color:' + confColor + ';font-weight:700">' + (p.conformite||'—') + '</td></tr>';
         if (p.nc && p.actionCorrective) {
           html += '<tr><td style="color:#dc2626;font-weight:700">Action corrective</td><td style="color:#dc2626;font-weight:700">' + p.actionCorrective + '</td></tr>';
@@ -5995,7 +6013,7 @@ function imprimerReception() {
         html += '<div class="produit-body"><div class="produit-data"><table>';
         html += '<tr><td>N° de lot</td><td><strong>' + (p.lot||'—') + '</strong></td></tr>';
         html += '<tr><td>DLC / DLUO</td><td>' + (p.dlc||'—') + '</td></tr>';
-        html += '<tr><td>T° relevée</td><td>' + (p.temp !== '—' ? p.temp + '°C' : '—') + '</td></tr>';
+        html += '<tr><td>T° relevée</td><td>' + (p.temp !== '—' ? p.temp + '°C' : '—') + (p.seuil ? ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + p.seuil + ')</span>' : '') + '</td></tr>';
         html += '<tr><td>Conformité T°</td><td style="color:' + confColor + ';font-weight:700">' + (p.conformite||'—') + '</td></tr>';
         html += '<tr><td>Emballage</td><td style="color:' + embColor + ';font-weight:700">' + (p.emballage||'—') + '</td></tr>';
         html += '</table></div>';
@@ -6018,7 +6036,7 @@ function imprimerReception() {
       html += '<div class="produit-data"><table>';
       html += '<tr><td>N° de lot</td><td><strong>' + (p.lot||'—') + '</strong></td></tr>';
       html += '<tr><td>DLC / DLUO</td><td>' + (p.dlc||'—') + '</td></tr>';
-      html += '<tr><td>T° relevée</td><td>' + (p.temp !== '—' ? p.temp + '°C' : '—') + '</td></tr>';
+      html += '<tr><td>T° relevée</td><td>' + (p.temp !== '—' ? p.temp + '°C' : '—') + (p.seuil ? ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + p.seuil + ')</span>' : '') + '</td></tr>';
       html += '<tr><td>Conformité T°</td><td style="color:' + confColor + ';font-weight:700">' + (p.conformite||'—') + '</td></tr>';
       if (p.nc && p.actionCorrective) {
         html += '<tr><td style="color:#dc2626;font-weight:700">Action corrective</td><td style="color:#dc2626;font-weight:700">' + p.actionCorrective + '</td></tr>';
@@ -10812,9 +10830,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     if (mod.special === 'nc_recap') {
       // Récapitulatif global de toutes les NCs de tous les modules avec leurs actions correctives
       var allModules = ['page-affichage','page-hygiene','page-documents','page-reception',
+                        'page-temperatures','page-cuisson','page-refroidissement',
                         'page-ouverture','page-fermeture','page-nc','page-huiles',
                         'page-etiquetage','page-pertes','page-dechets','page-nuisibles'];
       var totalNCs = [];
+      var _uidSeq = 0;
 
       // ═══ NOUVEAU : association directe NC ↔ Action via le DOM (pas par ordre) ═══
       function findActionForElement(element, page) {
@@ -10969,12 +10989,12 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           if (pid === 'page-reception' && sd.reception) {
             var rec = sd.reception;
             if (rec.vehicule && /non conforme/i.test(rec.vehicule.hygiene || '')) {
-              totalNCs.push({ module: moduleName, label: 'Hygiène véhicule non conforme', action: rec.vehicule.hygieneAction || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: '' });
+              totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Hygiène véhicule non conforme', action: rec.vehicule.hygieneAction || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: '' });
             }
             if (rec.vehicule && Array.isArray(rec.vehicule.compartiments)) {
               rec.vehicule.compartiments.forEach(function(cp) {
                 if (cp && cp.nc) {
-                  totalNCs.push({ module: moduleName, label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — non conforme', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: (cp.tsonde || cp.tbord || '') });
+                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — non conforme', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: (cp.tsonde || cp.tbord || '') });
                 }
               });
             }
@@ -10982,10 +11002,26 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               rec.produits.forEach(function(p) {
                 if (p && p.nc) {
                   var pLabel = (p.type || 'Produit') + (p.lot && p.lot !== 'Non renseigné' ? ' — Lot ' + p.lot : '');
-                  totalNCs.push({ module: moduleName, label: pLabel, action: p.actionPropre || p.actionCorrective || '', responsable: p.responsable || rec.signataire || sd.signataire || '', heure: p.heure || '', date: sessionDate, seuil: p.seuil || '', valeur: p.valeurRelevee || p.temp || '' });
+                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pLabel, action: p.actionPropre || p.actionCorrective || '', responsable: p.responsable || rec.signataire || sd.signataire || '', heure: p.heure || '', date: sessionDate, seuil: p.seuil || '', valeur: p.valeurRelevee || p.temp || '' });
                 }
               });
             }
+            return;
+          }
+
+          // V117 — Températures Enceintes : détail par enceinte (nom, seuil, valeur, action)
+          if (pid === 'page-temperatures' && Array.isArray(sd.temperatures)) {
+            sd.temperatures.forEach(function(enc) {
+              if (!enc || !enc.isNC) return;
+              var st = (String(enc.type||'') + ' ' + String(enc.precision||'')).toLowerCase();
+              var seuilE = (st.indexOf('congel')>-1||st.indexOf('surgel')>-1||st.indexOf('néga')>-1) ? '-18°C max'
+                         : (st.indexOf('chaud')>-1) ? '+63°C min'
+                         : (st.indexOf('cellule')>-1) ? '+10°C en 2h max'
+                         : (st.indexOf('frigo')>-1||st.indexOf('réfrig')>-1||st.indexOf('frais')>-1||st.indexOf('posit')>-1) ? '+4°C max' : '';
+              var encName = (enc.type || 'Enceinte') + (enc.refNum ? ' N°' + enc.refNum : '') + (enc.precision ? ' — ' + enc.precision : '');
+              var valE = enc.temp !== '' && enc.temp != null ? ((parseFloat(enc.temp) >= 0 ? '+' : '') + enc.temp + '°C') : '';
+              totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: encName + ' — T° hors seuil', action: enc.action || '', responsable: sd.signataire || '', heure: '', date: sessionDate, seuil: seuilE, valeur: valE });
+            });
             return;
           }
 
@@ -11215,7 +11251,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       totalNCs.forEach(function(nc) {
         var lblNorm = String(nc.label || '').toLowerCase().trim();
         var dateKey = nc.date || '';
-        var key = nc.module + '|' + lblNorm + '|' + dateKey;
+        var key = nc.uid ? ('uid|' + nc.uid) : (nc.module + '|' + lblNorm + '|' + dateKey);
         var existing = deduped[key];
         if (!existing) {
           deduped[key] = nc;
@@ -11230,6 +11266,8 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       var dedupedArr = Object.keys(deduped).map(function(k) { return deduped[k]; });
       var finalNCs = [];
       dedupedArr.forEach(function(nc) {
+        // V117 — lignes détaillées (produits réception, enceintes) : jamais fusionnées entre elles
+        if (nc.uid) { finalNCs.push(nc); return; }
         var lblNorm = String(nc.label || '').toLowerCase().trim();
         var dup = finalNCs.find(function(existing) {
           if (existing.module !== nc.module) return false;
