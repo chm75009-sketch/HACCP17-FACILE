@@ -7185,6 +7185,7 @@ function showPage(id, noReset) {
       afficherBandeauDerniereSession(id);
       if (id === 'page-nc') setTimeout(alimenterRegistreNC, 300);
       if (id === 'page-dashboard') setTimeout(initDashboard, 300);
+      if (id === 'page-exports') setTimeout(chargerHistoriqueControles, 300);
       startBrouillonAuto(id);
       setTimeout(function(){ restaurerBrouillon(id); }, 200);
     }, 100);
@@ -11886,6 +11887,78 @@ function getDonneesPeriode(pageId, dateDebut, dateFin) {
       return d >= from && d <= to;
     });
   } catch(e) { return []; }
+}
+
+// V117 — Historique des contrôles : consulter / ré-éditer / imprimer un contrôle validé
+function chargerHistoriqueControles() {
+  try {
+    var page = document.getElementById('page-exports');
+    if (!page) return;
+    var modules = [
+      {id:'page-affichage', titre:'Affichages réglementaires', code:'affichage'},
+      {id:'page-hygiene', titre:'Hygiène & Tenue Personnel', code:'hygiene'},
+      {id:'page-temperatures', titre:'Températures Enceintes', code:'temperatures'},
+      {id:'page-documents', titre:'Contrôle Documentaire', code:'documents'},
+      {id:'page-reception', titre:'Réception & Traçabilité', code:'reception'},
+      {id:'page-cuisson', titre:'Cuisson & Remise en T°', code:'cuisson'},
+      {id:'page-ouverture', titre:'Nettoyage Ouverture', code:'ouverture'},
+      {id:'page-fermeture', titre:'Nettoyage Fermeture', code:'fermeture'},
+      {id:'page-refroidissement', titre:'Refroidissement Rapide', code:'refroidissement'},
+      {id:'page-huiles', titre:'Huiles de Friture', code:'huiles'},
+      {id:'page-etiquetage', titre:'Étiquetage Interne', code:'etiquetage'},
+      {id:'page-pertes', titre:'Pertes & Invendus', code:'pertes'},
+      {id:'page-dechets', titre:'Déchets & Biodéchets', code:'dechets'},
+      {id:'page-nuisibles', titre:'Suivi Nuisibles', code:'nuisibles'}
+    ];
+    var today = new Date().toISOString().split('T')[0];
+    var entries = [];
+    modules.forEach(function(m) {
+      var sess = [];
+      try { sess = getDonneesPeriode(m.id, '2000-01-01', today) || []; } catch(e) {}
+      sess.forEach(function(s) {
+        var sig = (s.data && (s.data.signe || s.data.signataire)) || (s.data && s.data.reception && s.data.reception.signataire) || '';
+        entries.push({ code: m.code, titre: m.titre, ts: s.timestamp, sig: sig });
+      });
+    });
+    entries.sort(function(a, b) { return new Date(b.ts) - new Date(a.ts); });
+
+    var html = '<div class="bloc-section-title" style="margin-top:8px">🗂️ Historique des contrôles</div>';
+    if (entries.length === 0) {
+      html += '<div style="color:#6b7280;font-size:13px;padding:8px 0">Aucun contrôle enregistré pour le moment.</div>';
+    } else {
+      html += '<div style="font-size:12px;color:#6b7280;margin-bottom:10px">Retrouvez, consultez et réimprimez n\'importe quel contrôle validé.</div>';
+      entries.forEach(function(e) {
+        var d = new Date(e.ts);
+        var ok = !isNaN(d.getTime());
+        var dateStr = ok ? (d.toLocaleDateString('fr-FR') + ' à ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0')) : '';
+        var dateISO = ok ? d.toISOString().split('T')[0] : today;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px;background:#fff">' +
+                  '<div style="font-size:13px"><strong style="color:#1e293b">' + e.titre + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (e.sig ? ' — ' + e.sig : '') + '</span></div>' +
+                  '<button class="btn-p" style="white-space:nowrap;padding:8px 14px;font-size:13px" onclick="reimprimerControle(\'' + e.code + '\',\'' + dateISO + '\')">Voir / Imprimer</button>' +
+                '</div>';
+      });
+    }
+
+    var box = document.getElementById('histo_controles_section');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'histo_controles_section';
+      box.style.cssText = 'margin:14px 0';
+      var fwrap = page.querySelector('.fwrap') || page;
+      fwrap.insertBefore(box, fwrap.firstChild);
+    }
+    box.innerHTML = html;
+  } catch(e) { console.warn('historique controles err:', e.message || e); }
+}
+
+function reimprimerControle(code, dateISO) {
+  try {
+    if (typeof lancerPackDDPP === 'function') {
+      lancerPackDDPP(dateISO, dateISO, [code]);
+    } else if (typeof showToast === 'function') {
+      showToast('Génération indisponible', 'warn');
+    }
+  } catch(e) { console.warn('reimprimer controle err:', e.message || e); }
 }
 
 function afficherBandeauDerniereSession(pageId) {
