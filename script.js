@@ -5823,6 +5823,12 @@ function collecterDonnees() {
       conformite: confEl && confEl.querySelector('.status-btn.active-bad') ? '❌ Non conforme' : (confEl && confEl.querySelector('.status-btn.active-ok') ? '✅ Conforme' : '—'),
       nc: isNC,
       actionCorrective: ncActionTxt,
+      // V117 — champs séparés pour le tableau récap (Réception)
+      actionPropre: (ncTempType + (ncTempDetail ? ' — ' + ncTempDetail : '')) || ncEmbTxt,
+      responsable: ncTempResp,
+      heure: ncTempHeure,
+      seuil: document.getElementById('conf_seuil_' + id) ? (document.getElementById('conf_seuil_' + id).value || '') : '',
+      valeurRelevee: tempEl ? (tempEl.value || '') : '',
       actionEmballage: ncEmbTxt,
       emballage: embBtn,
       obs: document.getElementById('obs_emb_' + id) ? document.getElementById('obs_emb_' + id).value || '' : ''
@@ -10959,6 +10965,30 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
             }
           } catch(e) {}
 
+          // V117 — Réception : lire le détail directement dans sa propre liste (même source que le PDF)
+          if (pid === 'page-reception' && sd.reception) {
+            var rec = sd.reception;
+            if (rec.vehicule && /non conforme/i.test(rec.vehicule.hygiene || '')) {
+              totalNCs.push({ module: moduleName, label: 'Hygiène véhicule non conforme', action: rec.vehicule.hygieneAction || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: '' });
+            }
+            if (rec.vehicule && Array.isArray(rec.vehicule.compartiments)) {
+              rec.vehicule.compartiments.forEach(function(cp) {
+                if (cp && cp.nc) {
+                  totalNCs.push({ module: moduleName, label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — non conforme', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: (cp.tsonde || cp.tbord || '') });
+                }
+              });
+            }
+            if (Array.isArray(rec.produits)) {
+              rec.produits.forEach(function(p) {
+                if (p && p.nc) {
+                  var pLabel = (p.type || 'Produit') + (p.lot && p.lot !== 'Non renseigné' ? ' — Lot ' + p.lot : '');
+                  totalNCs.push({ module: moduleName, label: pLabel, action: p.actionPropre || p.actionCorrective || '', responsable: p.responsable || rec.signataire || sd.signataire || '', heure: p.heure || '', date: sessionDate, seuil: p.seuil || '', valeur: p.valeurRelevee || p.temp || '' });
+                }
+              });
+            }
+            return;
+          }
+
           // Statuts NC
           if (sd.statuts && Array.isArray(sd.statuts)) {
             sd.statuts.forEach(function(s) {
@@ -10999,7 +11029,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 // V113 — I : fallback responsable depuis émargement de la session
                 responsable: responsable || sd.signataire || '',
                 heure: heure,
-                date: sessionDate
+                date: sessionDate,
+                seuil: '',
+                valeur: ''
               });
             });
           }
@@ -11018,11 +11050,19 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                   return nl.indexOf(ac) > -1 || ac.indexOf(nl) > -1;
                 });
               }
-              var action = '', responsable = '', heure = '';
+              var action = '', responsable = '', heure = '', seuil = '', valeur = '';
               if (matchedAction) {
                 action = (matchedAction.type || '') + (matchedAction.detail ? ' — ' + matchedAction.detail : '');
                 responsable = matchedAction.responsable || '';
                 heure = matchedAction.heure || '';
+              }
+              // V117 — priorité aux infos enregistrées avec la NC (température / NC auto)
+              if (nc && typeof nc === 'object') {
+                if (!action && nc.action) action = nc.action;
+                if (!responsable && nc.responsable) responsable = nc.responsable;
+                if (!heure && nc.heureAction) heure = nc.heureAction;
+                if (nc.seuil) seuil = nc.seuil;
+                if (nc.valeur) valeur = nc.valeur;
               }
               totalNCs.push({
                 module: moduleName,
@@ -11031,7 +11071,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 // V113 — I : fallback responsable depuis émargement de la session
                 responsable: responsable || sd.signataire || '',
                 heure: heure,
-                date: sessionDate
+                date: sessionDate,
+                seuil: seuil,
+                valeur: valeur
               });
             });
           }
