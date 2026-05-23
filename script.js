@@ -10976,11 +10976,13 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           var sd = sess.data;
           var sessionTs = sess.timestamp || sd.timestamp || '';
           var sessionDate = '';
+          var sessionHeure = '';
           try {
             if (sessionTs) {
               var dObj = new Date(sessionTs);
               if (!isNaN(dObj.getTime())) {
                 sessionDate = dObj.toLocaleDateString('fr-FR');
+                sessionHeure = dObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               }
             }
           } catch(e) {}
@@ -10989,20 +10991,23 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           if (pid === 'page-reception' && sd.reception) {
             var rec = sd.reception;
             if (rec.vehicule && /non conforme/i.test(rec.vehicule.hygiene || '')) {
-              totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Hygiène véhicule non conforme', action: rec.vehicule.hygieneAction || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: '' });
+              totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Hygiène véhicule non conforme', action: rec.vehicule.hygieneAction || '', responsable: rec.signataire || sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '', valeur: '' });
             }
             if (rec.vehicule && Array.isArray(rec.vehicule.compartiments)) {
               rec.vehicule.compartiments.forEach(function(cp) {
                 if (cp && cp.nc) {
-                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — non conforme', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: '', date: sessionDate, seuil: '', valeur: (cp.tsonde || cp.tbord || '') });
+                  var sc = (cp.type || '').toLowerCase();
+                  var seuilC = (sc.indexOf('congel')>-1||sc.indexOf('surgel')>-1||sc.indexOf('néga')>-1||sc.indexOf('negative')>-1) ? '-18°C max' : (sc.indexOf('chaud')>-1 ? '+63°C min' : '+4°C max');
+                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — T° hors seuil', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilC, valeur: (cp.tsonde || cp.tbord || '') });
                 }
               });
             }
             if (Array.isArray(rec.produits)) {
               rec.produits.forEach(function(p) {
                 if (p && p.nc) {
-                  var pLabel = (p.type || 'Produit') + (p.lot && p.lot !== 'Non renseigné' ? ' — Lot ' + p.lot : '');
-                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pLabel, action: p.actionPropre || p.actionCorrective || '', responsable: p.responsable || rec.signataire || sd.signataire || '', heure: p.heure || '', date: sessionDate, seuil: p.seuil || '', valeur: p.valeurRelevee || p.temp || '' });
+                  var pType = (p.type && !/sélectionn|^\s*--/i.test(p.type)) ? p.type : 'Produit non précisé';
+                  var pLabel = pType + (p.lot && p.lot !== 'Non renseigné' ? ' — Lot ' + p.lot : '');
+                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pLabel, action: p.actionPropre || p.actionCorrective || '', responsable: p.responsable || rec.signataire || sd.signataire || '', heure: p.heure || sessionHeure, date: sessionDate, seuil: p.seuil || '', valeur: p.valeurRelevee || p.temp || '' });
                 }
               });
             }
@@ -11020,7 +11025,38 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                          : (st.indexOf('frigo')>-1||st.indexOf('réfrig')>-1||st.indexOf('frais')>-1||st.indexOf('posit')>-1) ? '+4°C max' : '';
               var encName = (enc.type || 'Enceinte') + (enc.refNum ? ' N°' + enc.refNum : '') + (enc.precision ? ' — ' + enc.precision : '');
               var valE = enc.temp !== '' && enc.temp != null ? ((parseFloat(enc.temp) >= 0 ? '+' : '') + enc.temp + '°C') : '';
-              totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: encName + ' — T° hors seuil', action: enc.action || '', responsable: sd.signataire || '', heure: '', date: sessionDate, seuil: seuilE, valeur: valE });
+              totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: encName + ' — T° hors seuil', action: enc.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilE, valeur: valE });
+            });
+            return;
+          }
+
+          // V117 — Cuisson : détail par plat (cuisson + remise en T°)
+          if (pid === 'page-cuisson' && Array.isArray(sd.cuisson)) {
+            sd.cuisson.forEach(function(pl) {
+              var pn = (pl && pl.nom && pl.nom !== '—') ? pl.nom : ((pl && pl.type) || 'Plat');
+              if (pl && pl.isNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pn + ' — cuisson insuffisante', action: pl.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+63°C min', valeur: (pl.temp ? (parseFloat(pl.temp) >= 0 ? '+' : '') + pl.temp + '°C' : '') });
+              if (pl && pl.isRemiseNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pn + ' — remise en T° non conforme', action: pl.remiseAction || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+63°C min', valeur: (pl.remiseTf ? (parseFloat(pl.remiseTf) >= 0 ? '+' : '') + pl.remiseTf + '°C' : '') });
+            });
+            return;
+          }
+
+          // V117 — Refroidissement : détail par produit
+          if (pid === 'page-refroidissement' && Array.isArray(sd.refroidissement)) {
+            sd.refroidissement.forEach(function(pr) {
+              if (pr && pr.isNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: ((pr.type && pr.type !== '—') ? pr.type : 'Produit') + ' — refroidissement trop lent', action: pr.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+10°C en 2h max', valeur: (pr.t2 ? (parseFloat(pr.t2) >= 0 ? '+' : '') + pr.t2 + '°C' : '') });
+            });
+            return;
+          }
+
+          // V117 — Huiles de friture : détail par friteuse (T° max 175°C, TPM max 25%)
+          if (pid === 'page-huiles' && Array.isArray(sd.huiles)) {
+            sd.huiles.forEach(function(fr) {
+              if (!fr) return;
+              var frName = (fr.nom && fr.nom !== '') ? fr.nom : ((fr.type && fr.type !== 'Non renseigne') ? fr.type : 'Friteuse');
+              var tNC = fr.temp && fr.temp !== '—' && parseFloat(fr.temp) > 175;
+              var pNC = fr.tpm && fr.tpm !== '—' && parseFloat(fr.tpm) > 25;
+              if (tNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: frName + ' — température huile trop élevée', action: 'Thermostat baissé', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '175°C max', valeur: fr.temp + '°C' });
+              if (pNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: frName + ' — composés polaires (TPM) trop élevés', action: "Changement d'huile", responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '25% max', valeur: fr.tpm + '%' });
             });
             return;
           }
@@ -11789,6 +11825,10 @@ function sauvegarderDonnesModule(pageId) {
     if (pageId === 'page-refroidissement' && typeof collecterDonneesRefroidissement === 'function') {
       try { data.refroidissement = collecterDonneesRefroidissement(); }
       catch(eR) { console.warn('collecterDonneesRefroidissement erreur:', eR.message||eR); }
+    }
+    if (pageId === 'page-huiles' && typeof huilePdfData === 'object' && huilePdfData && Array.isArray(huilePdfData.friteuses)) {
+      try { data.huiles = huilePdfData.friteuses; }
+      catch(eH) { console.warn('huiles erreur:', eH.message||eH); }
     }
 
 var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
