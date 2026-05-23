@@ -5781,15 +5781,18 @@ function collecterDonnees() {
     var typeSel = document.getElementById('comp_type_' + cid);
     var tbord = document.getElementById('comp_tbord_' + cid);
     var tsonde = document.getElementById('comp_tsonde_' + cid);
-    var conf = document.getElementById('comp_conf_' + cid);
+    var statusGrp = document.getElementById('comp_status_' + cid);
+    var seuilReg = document.getElementById('comp_seuil_reg_' + cid);
     var action = document.getElementById('comp_action_' + cid);
+    var compNC = statusGrp ? !!statusGrp.querySelector('.status-btn.active-bad') : false;
     data.vehicule.compartiments.push({
       cid: cid,
-      type: typeSel ? typeSel.options[typeSel.selectedIndex].text : '',
+      type: typeSel && typeSel.options[typeSel.selectedIndex] ? typeSel.options[typeSel.selectedIndex].text : '',
       tbord: tbord ? tbord.value : '',
       tsonde: tsonde ? tsonde.value : '',
-      conformite: conf ? conf.textContent : '',
-      nc: conf ? conf.classList.contains('bad') : false,
+      seuil: seuilReg ? (seuilReg.value || '') : '',
+      conformite: compNC ? 'Non conforme' : 'Conforme',
+      nc: compNC,
       action: action ? action.value : ''
     });
   });
@@ -10984,6 +10987,15 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 sessionDate = dObj.toLocaleDateString('fr-FR');
                 sessionHeure = dObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               }
+              // Fallback : lire date et heure directement dans le texte (formats "23/05/2026", "11h25", "11:25")
+              if (!sessionDate) {
+                var mD = String(sessionTs).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                if (mD) sessionDate = mD[0];
+              }
+              if (!sessionHeure) {
+                var mH = String(sessionTs).match(/(\d{1,2})\s*[:hH]\s*(\d{2})/);
+                if (mH) sessionHeure = ('0' + mH[1]).slice(-2) + ':' + mH[2];
+              }
             }
           } catch(e) {}
 
@@ -10997,8 +11009,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               rec.vehicule.compartiments.forEach(function(cp) {
                 if (cp && cp.nc) {
                   var sc = (cp.type || '').toLowerCase();
-                  var seuilC = (sc.indexOf('congel')>-1||sc.indexOf('surgel')>-1||sc.indexOf('néga')>-1||sc.indexOf('negative')>-1) ? '-18°C max' : (sc.indexOf('chaud')>-1 ? '+63°C min' : '+4°C max');
-                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — T° hors seuil', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilC, valeur: (cp.tsonde || cp.tbord || '') });
+                  var seuilC = cp.seuil || ((sc.indexOf('congel')>-1||sc.indexOf('surgel')>-1||sc.indexOf('néga')>-1||sc.indexOf('negative')>-1) ? '-18°C max' : (sc.indexOf('chaud')>-1 ? '+63°C min' : '+4°C max'));
+                  var valC = (cp.tsonde || cp.tbord || '');
+                  if (valC && !/°c/i.test(valC)) valC = (parseFloat(valC) >= 0 ? '+' : '') + valC + '°C';
+                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — T° hors seuil', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilC, valeur: valC });
                 }
               });
             }
