@@ -2124,18 +2124,18 @@ function collecterDonneesRefroidissement() {
   }
   return prods;
 }
-function imprimerTemperatures() {
-  var enceintes = collecterDonneesTemperatures();
+function imprimerTemperatures(dataOverride, signataireOverride, tsOverride) {
+  var enceintes = (dataOverride && Array.isArray(dataOverride)) ? dataOverride : collecterDonneesTemperatures();
   var sigPrenom = document.getElementById('temp_sig_prenom');
   var sigNom = document.getElementById('temp_sig_nom');
-  var signataire = sigPrenom && sigNom ? (sigPrenom.value + ' ' + sigNom.value).trim() : '—';
+  var signataire = signataireOverride || (sigPrenom && sigNom ? (sigPrenom.value + ' ' + sigNom.value).trim() : '—');
   var filled = enceintes.filter(function(e){ return e.temp || e.type !== '—'; });
   if (filled.length === 0) { showToast('Aucune enceinte saisie', 'warn'); return; }
   var ncCount = filled.filter(function(e){ return e.isNC; }).length;
   var html = '<div style="padding:0 16px 20px;font-family:Arial,sans-serif">';
   html += '<div style="background:linear-gradient(135deg,#0891b2,#22d3ee);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   html += '<div style="font-weight:800;font-size:15px">Temperatures Enceintes Froides</div>';
-  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + getNowStr() + '</div>';
+  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + (tsOverride || getNowStr()) + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Signe : ' + signataire + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
@@ -9200,6 +9200,77 @@ function confirmerSansHuilePDF() {
   showConfirm('🫙', 'Huiles — sans PDF', 'Sans PDF vous n\'avez pas de preuve legale. Continuez seulement si vous imprimez ce document.', 'Continuer quand même', '', function(ok){ if(ok){ document.getElementById('modalHuilePdf').classList.remove('visible'); showPage('page-guide'); } });
 }
 
+// Réimpression Huiles : beau rapport « 1 bloc par friteuse » depuis les données enregistrées
+function imprimerHuilesData(friteuses, signataire, ts) {
+  if (!Array.isArray(friteuses)) friteuses = [];
+  var filled = friteuses.filter(function(f){ return f && ((f.temp && f.temp !== '—') || (f.tpm && f.tpm !== '—') || (f.type && f.type !== 'Non renseigne')); });
+  if (filled.length === 0) { if (typeof showToast === 'function') showToast('Aucune friteuse enregistrée', 'warn'); return; }
+  function estNC(f) {
+    var c = String(f.conformite || '').toLowerCase();
+    if (c.indexOf('nc') > -1 || c.indexOf('✗') > -1 || c.indexOf('non conf') > -1) return true;
+    var t = parseFloat(f.temp), p = parseFloat(f.tpm);
+    if (!isNaN(t) && t > 175) return true;
+    if (!isNaN(p) && p > 25) return true;
+    return false;
+  }
+  var ncCount = filled.filter(estNC).length;
+  var html = '<div style="padding:0 16px 20px;font-family:Arial,sans-serif">';
+  html += '<div style="background:linear-gradient(135deg,#b45309,#f59e0b);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
+  html += '<div style="font-weight:800;font-size:15px">Huiles de Friture</div>';
+  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom || '') + ' — ' + (ts || getNowStr()) + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Signe : ' + (signataire || '—') + '</div>';
+  if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
+  html += '</div>';
+  filled.forEach(function(f, i) {
+    var nc = estNC(f);
+    var borderColor = nc ? '#dc2626' : '#b45309';
+    var confColor = nc ? '#dc2626' : '#16a34a';
+    html += '<div style="border:2px solid ' + borderColor + ';border-radius:10px;margin-bottom:12px;overflow:hidden">';
+    html += '<div style="background:' + borderColor + ';color:white;padding:8px 12px;display:flex;justify-content:space-between">';
+    var label = 'Friteuse N' + (f.num || (i + 1));
+    if (f.nom) label += ' — ' + f.nom;
+    html += '<span style="font-weight:800;font-size:13px">' + label + '</span>';
+    if (nc) html += '<span style="font-size:11px;font-weight:700">NC</span>';
+    html += '</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:10pt">';
+    html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Type d\'huile</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (f.type || '—') + '</td></tr>';
+    html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">Temperature</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (f.temp && f.temp !== '—' ? f.temp + '°C' : '—') + ' <span style="color:#b45309;font-weight:600;font-size:9px">(seuil : 175°C max)</span></td></tr>';
+    html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">TPM</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (f.tpm && f.tpm !== '—' ? f.tpm + '%' : '—') + ' <span style="color:#b45309;font-weight:600;font-size:9px">(seuil : 25% max)</span></td></tr>';
+    html += '<tr><td style="padding:6px 10px;font-weight:600">Conformite</td><td style="padding:6px 10px;color:' + confColor + ';font-weight:700">' + (f.conformite || (nc ? 'Non conforme' : 'Conforme')) + '</td></tr>';
+    html += '</table></div>';
+  });
+  html += '<div style="font-size:8pt;color:#9ca3af;text-align:center;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px">HACCP Pro — À conserver par vos soins 3 ans minimum — Preuve légale en cas de contrôle DDPP</div>';
+  html += '</div>';
+  var existing = document.getElementById('printOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'printOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:99999;overflow-y:auto;-webkit-overflow-scrolling:touch';
+  var tb = document.createElement('div');
+  tb.className = 'no-print';
+  tb.style.cssText = 'background:#b45309;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1';
+  var tbTitle = document.createElement('div');
+  tbTitle.style.cssText = 'color:white;font-weight:800;font-size:13px';
+  tbTitle.textContent = 'Huiles — ' + filled.length + ' friteuse(s)';
+  var tbBtns = document.createElement('div');
+  tbBtns.style.cssText = 'display:flex;gap:8px';
+  var btnImpr = document.createElement('button');
+  btnImpr.textContent = 'Imprimer';
+  btnImpr.style.cssText = 'background:#10b981;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:12px';
+  btnImpr.onclick = function() { window.print(); };
+  var btnFerm = document.createElement('button');
+  btnFerm.textContent = 'Fermer';
+  btnFerm.style.cssText = 'background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:12px';
+  btnFerm.onclick = function() { var el = document.getElementById('printOverlay'); if (el) el.remove(); };
+  tbBtns.appendChild(btnImpr); tbBtns.appendChild(btnFerm);
+  tb.appendChild(tbTitle); tb.appendChild(tbBtns);
+  var ct = document.createElement('div');
+  ct.innerHTML = html;
+  overlay.appendChild(tb); overlay.appendChild(ct);
+  document.body.appendChild(overlay);
+  overlay.scrollTop = 0;
+}
+
 var huilePdfData = {};
 
 
@@ -12125,6 +12196,16 @@ function reimprimerControleCloud(ts) {
         imprimerReception(row.contenu.reception, photosMap);
         return;
       }
+      var estHuiles = /huile/i.test(String(titre)) || (pageId === 'page-huiles');
+      if (estHuiles && row.contenu && Array.isArray(row.contenu.huiles) && typeof imprimerHuilesData === 'function') {
+        imprimerHuilesData(row.contenu.huiles, (row.contenu.signe || row.contenu.signataire || ''), row.contenu.timestamp);
+        return;
+      }
+      var estTemp = /temp[ée]ratures?/i.test(String(titre)) || (pageId === 'page-temperatures');
+      if (estTemp && row.contenu && Array.isArray(row.contenu.temperatures) && typeof imprimerTemperatures === 'function') {
+        imprimerTemperatures(row.contenu.temperatures, (row.contenu.signe || row.contenu.signataire || ''), row.contenu.timestamp);
+        return;
+      }
       if (typeof imprimerModuleAplat === 'function') {
         imprimerModuleAplat(pageId, titre, row.contenu);
         return;
@@ -12161,6 +12242,16 @@ function reimprimerControle(code, ts) {
       for (var j = 0; j < entries.length; j++) {
         if (String(entries[j].timestamp).split('T')[0] === jour) { entry = entries[j]; break; }
       }
+    }
+    // Huiles : beau rapport par friteuse depuis les données enregistrées
+    if (entry && entry.data && code === 'huiles' && Array.isArray(entry.data.huiles) && typeof imprimerHuilesData === 'function') {
+      imprimerHuilesData(entry.data.huiles, (entry.data.signe || entry.data.signataire || ''), entry.data.timestamp);
+      return;
+    }
+    // Températures : beau rapport par enceinte depuis les données enregistrées
+    if (entry && entry.data && code === 'temperatures' && Array.isArray(entry.data.temperatures) && typeof imprimerTemperatures === 'function') {
+      imprimerTemperatures(entry.data.temperatures, (entry.data.signe || entry.data.signataire || ''), entry.data.timestamp);
+      return;
     }
     // Document COMPLET reconstruit depuis les données enregistrées
     if (entry && entry.data && typeof imprimerModuleAplat === 'function') {
