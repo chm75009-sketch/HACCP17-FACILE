@@ -12434,6 +12434,7 @@ function initDashboard() {
         histEl.innerHTML = recent.map(function(e) {
           // V110 — calcul icône selon statut réel : ⚠️ si NC sur ce module/date, sinon ✅
           var icone = '✅';
+          var blockHTML = '';
           try {
             var pidIcone = null;
             var modMap = {
@@ -12459,16 +12460,41 @@ function initDashboard() {
                 if (entIc.timestamp.split('T')[0] !== e.date) continue;
                 var stIc = entIc.data.statuts || [];
                 var hasNC = stIc.some(function(s){ return s && s.statut && s.statut !== 'Conforme' && s.statut !== 'Respecté' && s.statut !== 'Effectué' && s.statut !== 'À jour' && s.statut !== 'Présente' && s.statut !== 'Présent' && s.statut !== 'N/A' && s.statut !== 'Aucun cas' && s.statut !== 'RAS' && s.statut !== 'Oui'; });
-                if (hasNC) { icone = '⚠️'; break; }
+                if (hasNC) { icone = '⚠️'; }
+                
+                // ── Enrichir l'affichage pour Températures enceintes ──
+                if (e.module === 'Températures enceintes' && entIc.data.donnees && entIc.data.donnees.enclosures) {
+                  var encs = entIc.data.donnees.enclosures;
+                  var filled = encs.filter(function(enc){ return enc.temp || enc.type !== '—'; });
+                  if (filled.length > 0) {
+                    blockHTML += '<div style="margin-top:8px;border-left:3px solid ' + (hasNC?'#dc2626':'#0891b2') + ';padding-left:10px">';
+                    filled.forEach(function(enc, ei) {
+                      var bc = enc.isNC ? '#dc2626' : '#0891b2';
+                      blockHTML += '<div style="margin:6px 0;border:1px solid ' + bc + ';border-radius:6px;overflow:hidden;background:#f8fafc">';
+                      blockHTML += '<div style="background:' + bc + ';color:white;padding:4px 8px;font-weight:700;font-size:10px">Enceinte N' + (ei+1) + (enc.precision?' — '+enc.precision:'') + (enc.refNum?' ('+enc.refNum+')':'') + '</div>';
+                      blockHTML += '<div style="padding:4px 8px;font-size:10px">';
+                      blockHTML += '<div><strong>Type:</strong> ' + enc.type + '</div>';
+                      blockHTML += '<div><strong>T°:</strong> ' + (enc.temp?enc.temp+'°C':'—') + ' <span style="color:#0891b2;font-size:9px">(seuil: ' + (enc.seuil||'—') + ')</span></div>';
+                      blockHTML += '<div><strong>Conf:</strong> <span style="color:' + (enc.isNC?'#dc2626':'#16a34a') + ';font-weight:600">' + enc.conf + '</span></div>';
+                      if (enc.isNC && enc.action) blockHTML += '<div style="color:#dc2626"><strong>Action:</strong> ' + enc.action + '</div>';
+                      blockHTML += '</div></div>';
+                    });
+                    blockHTML += '</div>';
+                  }
+                }
+                break;
               }
             }
           } catch(eIc) {}
-          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0">' +
-            '<div>' +
-              '<div style="font-size:13px;font-weight:600;color:var(--text)">' + (e.module||'Module') + '</div>' +
-              '<div style="font-size:11px;color:var(--dim)">' + e.date + ' — Signé : ' + (e.signe||'—') + '</div>' +
+          return '<div style="border-bottom:1px solid #f0f0f0;padding:10px 0">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center">' +
+              '<div>' +
+                '<div style="font-size:13px;font-weight:600;color:var(--text)">' + (e.module||'Module') + '</div>' +
+                '<div style="font-size:11px;color:var(--dim)">' + e.date + ' — Signé : ' + (e.signe||'—') + '</div>' +
+              '</div>' +
+              '<span style="font-size:18px">' + icone + '</span>' +
             '</div>' +
-            '<span style="font-size:18px">' + icone + '</span>' +
+            blockHTML +
           '</div>';
         }).join('');
       }
