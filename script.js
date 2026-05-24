@@ -5890,8 +5890,8 @@ function previewPhotoBL(input) {
   };
   reader.readAsDataURL(input.files[0]);
 }
-function imprimerReception() {
-  var data = collecterDonnees();
+function imprimerReception(dataOverride) {
+  var data = dataOverride || collecterDonnees();
   var existing = document.getElementById('printOverlay');
   if (existing) existing.remove();
 
@@ -12070,11 +12070,20 @@ async function chargerHistoriqueControlesCloud() {
 function reimprimerControleCloud(ts) {
   try {
     var row = window._histoCloudRows && window._histoCloudRows[ts];
-    if (row && row.contenu && typeof imprimerModuleAplat === 'function') {
+    if (row && row.contenu) {
       var pageId = row.contenu.pageId || '';
       var titre = row.module || (row.contenu && row.contenu.module) || '';
-      imprimerModuleAplat(pageId, titre, row.contenu);
-      return;
+      // V120 — Réception : réutiliser le rapport COMPLET d'origine (véhicule, compartiments,
+      // chaque produit détaillé, non-conformités) au lieu de l'affichage simplifié.
+      var estReception = /r[ée]ception/i.test(String(titre)) || (pageId === 'page-reception');
+      if (estReception && row.contenu.reception && typeof imprimerReception === 'function') {
+        imprimerReception(row.contenu.reception);
+        return;
+      }
+      if (typeof imprimerModuleAplat === 'function') {
+        imprimerModuleAplat(pageId, titre, row.contenu);
+        return;
+      }
     }
     if (typeof showToast === 'function') showToast('Contrôle introuvable', 'warn');
   } catch(e) { console.warn('reimprimer cloud err:', e.message || e); }
@@ -16662,7 +16671,9 @@ if (!ETAB_ID) {
       if (actuelle > precedente) {
         try {
           var arr = JSON.parse(localStorage.getItem(k));
-          var nouveaux = arr.slice(precedente);
+          // Les contrôles sont rangés du plus récent au plus ancien (unshift).
+          // Les nouveaux sont donc EN TÊTE de la pile, pas à la fin.
+          var nouveaux = arr.slice(0, Math.max(0, actuelle - precedente));
           snapshot[k] = actuelle;
 
           var m = k.match(/haccp_module_data_page-([^_]+)_/);
