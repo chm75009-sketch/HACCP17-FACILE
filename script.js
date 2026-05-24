@@ -16678,3 +16678,124 @@ nouveaux.forEach(function(entry) {
     });
   }, 3000);
 })();
+
+// ════════════════════════════════════════════════════════════════
+// V119 — Bouton "Mes rapports de contrôle"
+// Accès direct, toujours visible, à TOUS les rapports PDF de chaque contrôle.
+// Lit les contrôles dans Supabase et reconstruit le rapport complet du module.
+// ════════════════════════════════════════════════════════════════
+function fermerMesRapports() {
+  var o = document.getElementById('mesRapportsOverlay');
+  if (o) o.remove();
+}
+
+function ouvrirMesRapports() {
+  var existing = document.getElementById('mesRapportsOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'mesRapportsOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#f8fafc;z-index:99998;overflow:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box';
+
+  var head = document.createElement('div');
+  head.style.cssText = 'background:#1e1b4b;color:white;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1';
+  var hTitle = document.createElement('div');
+  hTitle.style.cssText = 'font-weight:800;font-size:15px';
+  hTitle.textContent = '📂 Mes rapports de contrôle';
+  var hClose = document.createElement('button');
+  hClose.type = 'button';
+  hClose.textContent = 'Fermer';
+  hClose.style.cssText = 'background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit';
+  hClose.onclick = fermerMesRapports;
+  head.appendChild(hTitle);
+  head.appendChild(hClose);
+
+  var hint = document.createElement('div');
+  hint.style.cssText = 'background:#fef3c7;border-bottom:1px solid #fcd34d;padding:8px 16px;font-size:11.5px;color:#92400e;text-align:center';
+  hint.textContent = 'Touchez « Voir / Imprimer » puis, sur iPhone, utilisez Partager → Imprimer pour enregistrer le PDF.';
+
+  var content = document.createElement('div');
+  content.id = 'mesRapportsListe';
+  content.style.cssText = 'padding:14px 16px';
+  content.innerHTML = '<div style="text-align:center;color:#6b7280;padding:30px 0;font-size:14px">Chargement de vos contrôles…</div>';
+
+  overlay.appendChild(head);
+  overlay.appendChild(hint);
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+  overlay.scrollTop = 0;
+
+  (async function() {
+    try { if (typeof chargerControlesCloudCache === 'function') await chargerControlesCloudCache(); } catch(e) {}
+    var rows = window._histoCloudRows || {};
+    var keys = Object.keys(rows).sort(function(a, b) { return new Date(b) - new Date(a); });
+    if (keys.length === 0) {
+      content.innerHTML = '<div style="text-align:center;color:#6b7280;padding:30px 16px;font-size:14px">Aucun contrôle trouvé pour le moment.<br><span style="font-size:12px">Vos contrôles validés apparaîtront ici automatiquement.</span></div>';
+      return;
+    }
+    var html = '<div style="font-size:12px;color:#6b7280;margin-bottom:12px">' + keys.length + ' contrôle' + (keys.length > 1 ? 's' : '') + ' enregistré' + (keys.length > 1 ? 's' : '') + '. Touchez un contrôle pour ouvrir son rapport complet.</div>';
+    keys.forEach(function(ts) {
+      var r = rows[ts] || {};
+      var contenu = r.contenu || {};
+      var d = new Date(ts);
+      var ok = !isNaN(d.getTime());
+      var dateStr = ok ? (d.toLocaleDateString('fr-FR') + ' à ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0')) : '';
+      var sig = (contenu && (contenu.signe || contenu.signataire)) || '';
+      var tsAttr = String(ts).replace(/'/g, "\\'");
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:10px;background:#fff">' +
+                '<div style="font-size:13px;min-width:0"><strong style="color:#1e293b">' + (r.module || 'Contrôle') + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
+                '<button type="button" class="btn-p" style="white-space:nowrap;padding:9px 14px;font-size:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer" onclick="reimprimerControleCloud(\'' + tsAttr + '\')">Voir / Imprimer</button>' +
+              '</div>';
+    });
+    content.innerHTML = html;
+  })();
+}
+
+(function() {
+  if (typeof document === 'undefined') return;
+  var PAGES_PUBLIQUES = ['page-presentation', 'page-inscription', 'page-login', 'page-admin'];
+
+  function majVisibiliteBoutonRapports() {
+    var btn = document.getElementById('btnMesRapports');
+    if (!btn) return;
+    var act = document.querySelector('.page.active');
+    var actId = act ? act.id : '';
+    var connecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID);
+    btn.style.display = (connecte && PAGES_PUBLIQUES.indexOf(actId) === -1) ? 'flex' : 'none';
+  }
+
+  function injecterBoutonRapports() {
+    if (document.getElementById('btnMesRapports')) return;
+    var btn = document.createElement('button');
+    btn.id = 'btnMesRapports';
+    btn.type = 'button';
+    btn.innerHTML = '📂 Mes rapports';
+    btn.style.cssText = 'position:fixed;right:16px;bottom:88px;z-index:9000;' +
+      'display:none;align-items:center;gap:6px;' +
+      'background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;border:none;' +
+      'border-radius:30px;padding:13px 18px;font-size:14px;font-weight:800;' +
+      'font-family:inherit;cursor:pointer;box-shadow:0 6px 20px rgba(30,27,75,.35)';
+    btn.onclick = ouvrirMesRapports;
+    document.body.appendChild(btn);
+    majVisibiliteBoutonRapports();
+  }
+
+  // Suivre les changements de page pour afficher/masquer le bouton
+  try {
+    var origShowPage = window.showPage;
+    if (typeof origShowPage === 'function') {
+      window.showPage = function() {
+        var r = origShowPage.apply(this, arguments);
+        setTimeout(majVisibiliteBoutonRapports, 60);
+        return r;
+      };
+    }
+  } catch(e) {}
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injecterBoutonRapports);
+  } else {
+    injecterBoutonRapports();
+  }
+  setInterval(majVisibiliteBoutonRapports, 2000);
+})();
