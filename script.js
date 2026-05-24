@@ -5905,7 +5905,14 @@ function imprimerReception(dataOverride, photosOverride) {
       return (b && b.src && b.src.indexOf('data:image') > -1) ? b.src : '';
     }
     var el = document.getElementById('photo_' + ref);
-    return (el && el.src && el.src.indexOf('data:image') > -1) ? el.src : '';
+    var s = (el && el.src && el.src.indexOf('data:image') > -1) ? el.src : '';
+    // Anti-doublon : si la photo de ce produit est en réalité celle du bon de livraison,
+    // ne pas la réafficher (le BL a déjà son propre cadre dédié plus haut)
+    if (s) {
+      var blS = (photosOverride && photosOverride['bl']) ? photosOverride['bl'] : (function(){ var bb = document.querySelector('#preview_bl img'); return (bb && bb.src && bb.src.indexOf('data:image') > -1) ? bb.src : ''; })();
+      if (blS && s === blS) return '';
+    }
+    return s;
   }
   var existing = document.getElementById('printOverlay');
   if (existing) existing.remove();
@@ -8944,6 +8951,69 @@ function downloadRefroiPDF() {
 }
 function confirmerSansRefroiPDF() { showConfirm('❄️', 'Refroidissement — sans PDF', 'Sans PDF vous n\'avez pas de preuve legale. Continuez seulement si vous imprimez ce document.', 'Continuer quand même', '', function(ok){ if(ok) fermerModalRefroi(); }); }
 function fermerModalRefroi() { document.getElementById('modalRefroiPdf').classList.remove('visible'); showPage('page-guide'); }
+
+// Réimpression Refroidissement : beau rapport « 1 bloc par préparation » depuis les données enregistrées
+function imprimerRefroidissementData(prods, signataire, ts) {
+  if (!Array.isArray(prods)) prods = [];
+  var filled = prods.filter(function(p){ return p && ((p.t0 && p.t0 !== '') || (p.t2 && p.t2 !== '') || (p.type && p.type !== '—')); });
+  if (filled.length === 0) { if (typeof showToast === 'function') showToast('Aucune préparation enregistrée', 'warn'); return; }
+  var ncCount = filled.filter(function(p){ return p.isNC; }).length;
+  var html = '<div style="padding:0 16px 20px;font-family:Arial,sans-serif">';
+  html += '<div style="background:linear-gradient(135deg,#0e7490,#06b6d4);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
+  html += '<div style="font-weight:800;font-size:15px">Refroidissement Rapide</div>';
+  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom || '') + ' — ' + (ts || getNowStr()) + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Signe : ' + (signataire || '—') + '</div>';
+  if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
+  html += '</div>';
+  filled.forEach(function(p, i) {
+    var nc = !!p.isNC;
+    var borderColor = nc ? '#dc2626' : '#0e7490';
+    var confColor = nc ? '#dc2626' : '#16a34a';
+    html += '<div style="border:2px solid ' + borderColor + ';border-radius:10px;margin-bottom:12px;overflow:hidden">';
+    html += '<div style="background:' + borderColor + ';color:white;padding:8px 12px;display:flex;justify-content:space-between">';
+    var label = 'Produit N' + (i + 1);
+    if (p.type && p.type !== '—') label += ' — ' + p.type;
+    html += '<span style="font-weight:800;font-size:13px">' + label + '</span>';
+    if (nc) html += '<span style="font-size:11px;font-weight:700">NC</span>';
+    html += '</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:10pt">';
+    html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;width:45%;font-weight:600">T° de depart</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (p.t0 ? p.t0 + '°C' : '—') + '</td></tr>';
+    html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">T° apres 2h</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (p.t2 ? p.t2 + '°C' : '—') + ' <span style="color:#0e7490;font-weight:600;font-size:9px">(seuil : +10°C en 2h max)</span></td></tr>';
+    html += '<tr><td style="padding:6px 10px;' + (nc?'border-bottom:1px solid #e5e7eb;':'') + 'font-weight:600">Conformite</td><td style="padding:6px 10px;' + (nc?'border-bottom:1px solid #e5e7eb;':'') + 'color:' + confColor + ';font-weight:700">' + (p.conf || (nc?'Non conforme':'Conforme')) + '</td></tr>';
+    if (nc) html += '<tr style="background:#fff8f8"><td style="padding:6px 10px;color:#dc2626;font-weight:700">Action corrective</td><td style="padding:6px 10px;color:#dc2626;font-weight:700">' + (p.action || 'A definir') + '</td></tr>';
+    html += '</table></div>';
+  });
+  html += '<div style="font-size:8pt;color:#9ca3af;text-align:center;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px">HACCP Pro — À conserver par vos soins 3 ans minimum — Preuve légale en cas de contrôle DDPP</div>';
+  html += '</div>';
+  var existing = document.getElementById('printOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'printOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:99999;overflow-y:auto;-webkit-overflow-scrolling:touch';
+  var tb = document.createElement('div');
+  tb.className = 'no-print';
+  tb.style.cssText = 'background:#0e7490;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1';
+  var tbTitle = document.createElement('div');
+  tbTitle.style.cssText = 'color:white;font-weight:800;font-size:13px';
+  tbTitle.textContent = 'Refroidissement — ' + filled.length + ' produit(s)';
+  var tbBtns = document.createElement('div');
+  tbBtns.style.cssText = 'display:flex;gap:8px';
+  var btnImpr = document.createElement('button');
+  btnImpr.textContent = 'Imprimer';
+  btnImpr.style.cssText = 'background:#10b981;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:12px';
+  btnImpr.onclick = function() { window.print(); };
+  var btnFerm = document.createElement('button');
+  btnFerm.textContent = 'Fermer';
+  btnFerm.style.cssText = 'background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:12px';
+  btnFerm.onclick = function() { var el = document.getElementById('printOverlay'); if (el) el.remove(); };
+  tbBtns.appendChild(btnImpr); tbBtns.appendChild(btnFerm);
+  tb.appendChild(tbTitle); tb.appendChild(tbBtns);
+  var ct = document.createElement('div');
+  ct.innerHTML = html;
+  overlay.appendChild(tb); overlay.appendChild(ct);
+  document.body.appendChild(overlay);
+  overlay.scrollTop = 0;
+}
 
 // ══════════════════════════════
 // MODULE 7 — HUILES DE FRITURE
@@ -12196,6 +12266,11 @@ function reimprimerControleCloud(ts) {
         imprimerReception(row.contenu.reception, photosMap);
         return;
       }
+      var estRefroi = /refroidiss/i.test(String(titre)) || (pageId === 'page-refroidissement');
+      if (estRefroi && row.contenu && Array.isArray(row.contenu.refroidissement) && typeof imprimerRefroidissementData === 'function') {
+        imprimerRefroidissementData(row.contenu.refroidissement, (row.contenu.signe || row.contenu.signataire || ''), row.contenu.timestamp);
+        return;
+      }
       var estHuiles = /huile/i.test(String(titre)) || (pageId === 'page-huiles');
       if (estHuiles && row.contenu && Array.isArray(row.contenu.huiles) && typeof imprimerHuilesData === 'function') {
         imprimerHuilesData(row.contenu.huiles, (row.contenu.signe || row.contenu.signataire || ''), row.contenu.timestamp);
@@ -12242,6 +12317,11 @@ function reimprimerControle(code, ts) {
       for (var j = 0; j < entries.length; j++) {
         if (String(entries[j].timestamp).split('T')[0] === jour) { entry = entries[j]; break; }
       }
+    }
+    // Refroidissement : beau rapport par préparation depuis les données enregistrées
+    if (entry && entry.data && code === 'refroidissement' && Array.isArray(entry.data.refroidissement) && typeof imprimerRefroidissementData === 'function') {
+      imprimerRefroidissementData(entry.data.refroidissement, (entry.data.signe || entry.data.signataire || ''), entry.data.timestamp);
+      return;
     }
     // Huiles : beau rapport par friteuse depuis les données enregistrées
     if (entry && entry.data && code === 'huiles' && Array.isArray(entry.data.huiles) && typeof imprimerHuilesData === 'function') {
