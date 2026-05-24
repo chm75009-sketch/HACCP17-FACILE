@@ -2219,10 +2219,10 @@ function imprimerModule(pageId, titre) {
 
 // V80 — PDF "1 bloc par élément" : un bloc visuel séparé avec bandeau coloré, identification, mesures, actions correctives, bilan élément
 // type = 'repete' (Produit N°1, Plat N°2…) | 'thematique' (Tenue, Bijoux, Mains…)
-function imprimerModuleParBloc(pageId, titre, blocs, type) {
+function genererRapportParBlocHTML(pageId, titre, blocs, type) {
   type = type || 'repete';
   var data = collectPageDataUniversel(pageId);
-  if (!data) { showToast('Erreur collecte', 'err'); return; }
+  if (!data) { return ''; }
 
   var css = '<style>' +
     'body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:0;padding:0}' +
@@ -2498,6 +2498,16 @@ function imprimerModuleParBloc(pageId, titre, blocs, type) {
   html += '<div class="footer">HACCP Pro — À conserver par vos soins 3 ans minimum — Preuve légale en cas de contrôle DDPP</div>';
   html += '</div>';
 
+  return html;
+}
+
+function imprimerModuleParBloc(pageId, titre, blocs, type) {
+  var html = genererRapportParBlocHTML(pageId, titre, blocs, type);
+  if (!html) { showToast('Erreur collecte', 'err'); return; }
+  afficherRapportOverlay(html, titre);
+}
+
+function afficherRapportOverlay(html, titre) {
   // Overlay (réutilise le même mécanisme)
   var existing = document.getElementById('printOverlay');
   if (existing) existing.remove();
@@ -2509,7 +2519,7 @@ function imprimerModuleParBloc(pageId, titre, blocs, type) {
   _tb.style.cssText = 'background:#1e1b4b;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1';
   var _tbT = document.createElement('div');
   _tbT.style.cssText = 'color:white;font-weight:800;font-size:13px';
-  _tbT.textContent = titre || data.module || pageId;
+  _tbT.textContent = titre || 'Contrôle';
   var _tbB = document.createElement('div');
   _tbB.style.cssText = 'display:flex;gap:8px';
   var _bI = document.createElement('button');
@@ -12017,6 +12027,24 @@ function sauvegarderDonnesModule(pageId) {
       try { data.huiles = huilePdfData.friteuses; }
       catch(eH) { console.warn('huiles erreur:', eH.message||eH); }
     }
+    // Nuisibles (organisé en rubriques) : garder le rapport complet tel quel pour le réafficher à l'identique
+    if (pageId === 'page-nuisibles' && typeof genererRapportParBlocHTML === 'function') {
+      try {
+        var pageNuis = document.getElementById(pageId);
+        if (pageNuis) {
+          var blocsRep = [];
+          pageNuis.querySelectorAll(':scope .fblock[id]').forEach(function(b){ if (/_\d+$/.test(b.id||'')) blocsRep.push(b); });
+          var blocsNuis, typeNuis;
+          if (blocsRep.length > 0) { blocsNuis = blocsRep; typeNuis = 'repete'; }
+          else {
+            var blocsThem = [];
+            pageNuis.querySelectorAll(':scope .fblock').forEach(function(b){ if (b.querySelector('.fblock-title')) blocsThem.push(b); });
+            blocsNuis = blocsThem; typeNuis = 'thematique';
+          }
+          if (blocsNuis.length > 0) data.rapportHTML = genererRapportParBlocHTML(pageId, 'Suivi Nuisibles', blocsNuis, typeNuis);
+        }
+      } catch(eN) { console.warn('snapshot nuisibles err:', eN.message||eN); }
+    }
 
 var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
     var entry = {
@@ -12266,6 +12294,11 @@ function reimprimerControleCloud(ts) {
         imprimerReception(row.contenu.reception, photosMap);
         return;
       }
+      var estNuis = /nuisible/i.test(String(titre)) || (pageId === 'page-nuisibles');
+      if (estNuis && row.contenu && row.contenu.rapportHTML && typeof afficherRapportOverlay === 'function') {
+        afficherRapportOverlay(row.contenu.rapportHTML, titre || 'Suivi Nuisibles');
+        return;
+      }
       var estRefroi = /refroidiss/i.test(String(titre)) || (pageId === 'page-refroidissement');
       if (estRefroi && row.contenu && Array.isArray(row.contenu.refroidissement) && typeof imprimerRefroidissementData === 'function') {
         imprimerRefroidissementData(row.contenu.refroidissement, (row.contenu.signe || row.contenu.signataire || ''), row.contenu.timestamp);
@@ -12317,6 +12350,11 @@ function reimprimerControle(code, ts) {
       for (var j = 0; j < entries.length; j++) {
         if (String(entries[j].timestamp).split('T')[0] === jour) { entry = entries[j]; break; }
       }
+    }
+    // Nuisibles : rapport complet (rubriques) gardé tel quel
+    if (entry && entry.data && code === 'nuisibles' && entry.data.rapportHTML && typeof afficherRapportOverlay === 'function') {
+      afficherRapportOverlay(entry.data.rapportHTML, titre || 'Suivi Nuisibles');
+      return;
     }
     // Refroidissement : beau rapport par préparation depuis les données enregistrées
     if (entry && entry.data && code === 'refroidissement' && Array.isArray(entry.data.refroidissement) && typeof imprimerRefroidissementData === 'function') {
