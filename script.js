@@ -7184,7 +7184,7 @@ function showPage(id, noReset) {
       initHeuresAuto(id);
       afficherBandeauDerniereSession(id);
       if (id === 'page-nc') setTimeout(alimenterRegistreNC, 300);
-      if (id === 'page-dashboard') setTimeout(initDashboard, 300);
+      if (id === 'page-dashboard') { setTimeout(initDashboard, 300); try { if (typeof chargerHistoriqueControlesCloud === 'function') chargerHistoriqueControlesCloud(); } catch(eDc){} }
       if (id === 'page-exports') setTimeout(chargerHistoriqueControles, 300);
       startBrouillonAuto(id);
       setTimeout(function(){ restaurerBrouillon(id); }, 200);
@@ -10330,6 +10330,8 @@ function selPeriodeDDPP(btn) {
 // V116 — Livraison 3 : wrapper qui récupère les photos de la période avant de lancer le Pack DDPP,
 // puis les injecte directement dans chaque bloc de contrôle après le rendu.
 async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
+  // V118 — D'abord, récupérer tous les contrôles depuis Supabase (tous appareils)
+  try { if (typeof chargerControlesCloudCache === 'function') await chargerControlesCloudCache(); } catch(ePc) {}
   // 1) Récupérer les contrôles de la période qui ont des photos
   var photosParModule = {}; // { codeModule: [ {ts: ISO, photos: [url,...]}, ... ] }
 
@@ -11880,6 +11882,18 @@ function getDonneesPeriode(pageId, dateDebut, dateFin) {
   try {
     var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
     var stored = JSON.parse(lsGet(key) || '[]');
+    // V118 — Compléter avec les contrôles du cloud (Supabase) si disponibles.
+    // Le cloud fait autorité (tous appareils). On ajoute juste les contrôles locaux
+    // plus récents que le dernier connu du cloud (pas encore synchronisés).
+    try {
+      var cloud = (typeof window !== 'undefined' && window._cloudCache && window._cloudCache[pageId]) ? window._cloudCache[pageId] : null;
+      if (cloud && cloud.length) {
+        var newestCloud = 0;
+        cloud.forEach(function(c){ var t = new Date(c.timestamp).getTime(); if (t > newestCloud) newestCloud = t; });
+        var extras = stored.filter(function(e){ return new Date(e.timestamp).getTime() > newestCloud; });
+        stored = cloud.concat(extras);
+      }
+    } catch(eCloud) {}
     var from = new Date(dateDebut);
     var to = new Date(dateFin); to.setHours(23,59,59);
     return stored.filter(function(e) {
@@ -11948,7 +11962,115 @@ function chargerHistoriqueControles() {
       fwrap.insertBefore(box, fwrap.firstChild);
     }
     box.innerHTML = html;
+    // V118 — Puis on va chercher TOUS les contrôles dans Supabase (tous appareils, survit au vidage du navigateur)
+    try { if (typeof chargerHistoriqueControlesCloud === 'function') chargerHistoriqueControlesCloud(); } catch(eCloud) {}
   } catch(e) { console.warn('historique controles err:', e.message || e); }
+}
+
+// V118 — Récupère TOUS les contrôles du cloud (Supabase) et remplit le cache mémoire.
+// Ce cache sert à l'historique, au Pack et au tableau de bord.
+window._histoCloudRows = window._histoCloudRows || {};
+window._cloudCache = window._cloudCache || {};
+async function chargerControlesCloudCache() {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return null;
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return null;
+    var url = SUPABASE_URL + '/rest/v1/controles_haccp'
+      + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+      + '&select=module,date_controle,signature,contenu'
+      + '&order=date_controle.desc'
+      + '&limit=1000';
+    var resp = await fetch(url, {
+      method: 'GET',
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
+    });
+    if (!resp.ok) return null;
+    var rows = await resp.json();
+    if (!Array.isArray(rows)) return null;
+    var cache = {};
+    var histo = {};
+    rows.forEach(function(r) {
+      var contenu = r.contenu;
+      if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
+      var ts = r.date_controle;
+      histo[ts] = { module: r.module, contenu: contenu };
+      // Regrouper par module (page) pour le Pack et le tableau de bord
+      var pid = (contenu && contenu.pageId) ? contenu.pageId : null;
+      if (pid) {
+        if (!cache[pid]) cache[pid] = [];
+        cache[pid].push({ pageId: pid, timestamp: ts, data: contenu });
+      }
+    });
+    window._cloudCache = cache;
+    window._histoCloudRows = histo;
+    return rows;
+  } catch(e) { console.warn('cache cloud err:', e.message || e); return null; }
+}
+
+// V118 — Historique depuis Supabase : affiche TOUS les contrôles enregistrés dans le cloud
+async function chargerHistoriqueControlesCloud() {
+  try {
+    var rows = await chargerControlesCloudCache();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      // Pas de données cloud : on rafraîchit quand même le tableau de bord si ouvert (cas local)
+      try {
+        var actE = document.querySelector('.page.active');
+        if (actE && actE.id === 'page-dashboard' && typeof initDashboard === 'function') initDashboard();
+      } catch(eR0) {}
+      return;
+    }
+
+    var html = '<div class="bloc-section-title" style="margin-top:8px">🗂️ Historique des contrôles</div>';
+    html += '<div style="font-size:12px;color:#6b7280;margin-bottom:10px">Retrouvez, consultez et réimprimez n\'importe quel contrôle validé (synchronisé sur tous vos appareils).</div>';
+    rows.forEach(function(r) {
+      var contenu = r.contenu;
+      if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
+      var ts = r.date_controle;
+      window._histoCloudRows[ts] = { module: r.module, contenu: contenu };
+      var d = new Date(ts);
+      var ok = !isNaN(d.getTime());
+      var dateStr = ok ? (d.toLocaleDateString('fr-FR') + ' à ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0')) : '';
+      var sig = r.signature || (contenu && (contenu.signe || contenu.signataire)) || '';
+      var tsAttr = String(ts).replace(/'/g, "\\'");
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px;background:#fff">' +
+                '<div style="font-size:13px"><strong style="color:#1e293b">' + (r.module || 'Contrôle') + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
+                '<button class="btn-p" style="white-space:nowrap;padding:8px 14px;font-size:13px" onclick="reimprimerControleCloud(\'' + tsAttr + '\')">Voir / Imprimer</button>' +
+              '</div>';
+    });
+
+    var box = document.getElementById('histo_controles_section');
+    if (!box) {
+      var page = document.getElementById('page-exports');
+      if (page) {
+        box = document.createElement('div');
+        box.id = 'histo_controles_section';
+        box.style.cssText = 'margin:14px 0';
+        var fwrap = page.querySelector('.fwrap') || page;
+        fwrap.insertBefore(box, fwrap.firstChild);
+      }
+    }
+    if (box) box.innerHTML = html;
+
+    // Rafraîchir le tableau de bord avec les données cloud s'il est ouvert
+    try {
+      var act = document.querySelector('.page.active');
+      if (act && act.id === 'page-dashboard' && typeof initDashboard === 'function') initDashboard();
+    } catch(eR) {}
+  } catch(e) { console.warn('historique cloud err:', e.message || e); }
+}
+
+// V118 — Réimpression d'un contrôle depuis le contenu complet stocké dans Supabase
+function reimprimerControleCloud(ts) {
+  try {
+    var row = window._histoCloudRows && window._histoCloudRows[ts];
+    if (row && row.contenu && typeof imprimerModuleAplat === 'function') {
+      var pageId = row.contenu.pageId || '';
+      var titre = row.module || (row.contenu && row.contenu.module) || '';
+      imprimerModuleAplat(pageId, titre, row.contenu);
+      return;
+    }
+    if (typeof showToast === 'function') showToast('Contrôle introuvable', 'warn');
+  } catch(e) { console.warn('reimprimer cloud err:', e.message || e); }
 }
 
 function reimprimerControle(code, ts) {
