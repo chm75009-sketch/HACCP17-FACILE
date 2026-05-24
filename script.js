@@ -11989,13 +11989,20 @@ async function chargerControlesCloudCache() {
     if (!Array.isArray(rows)) return null;
     var cache = {};
     var histo = {};
+    var seen = {};
+    var rowsUniques = [];
     rows.forEach(function(r) {
       var contenu = r.contenu;
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
+      var pid = (contenu && contenu.pageId) ? contenu.pageId : null;
+      // Clé anti-doublon : même module + même heure de contrôle d'origine = même contrôle
+      var cle = (pid || r.module || '') + '|' + ((contenu && contenu.timestamp) ? contenu.timestamp : ts) + '|' + ((contenu && (contenu.signe || contenu.signataire)) || '');
+      if (seen[cle]) return; // doublon → ignoré
+      seen[cle] = true;
+      rowsUniques.push(r);
       histo[ts] = { module: r.module, contenu: contenu };
       // Regrouper par module (page) pour le Pack et le tableau de bord
-      var pid = (contenu && contenu.pageId) ? contenu.pageId : null;
       if (pid) {
         if (!cache[pid]) cache[pid] = [];
         cache[pid].push({ pageId: pid, timestamp: ts, data: contenu });
@@ -12003,7 +12010,7 @@ async function chargerControlesCloudCache() {
     });
     window._cloudCache = cache;
     window._histoCloudRows = histo;
-    return rows;
+    return rowsUniques;
   } catch(e) { console.warn('cache cloud err:', e.message || e); return null; }
 }
 
@@ -16664,12 +16671,6 @@ if (!ETAB_ID) {
           nouveaux.forEach(function(entry) {
             var donnees = entry.data || entry;
             var moduleNom = (donnees && donnees.module) || moduleCourt;
-            enregistrerControleHACCP(moduleNom, donnees);
-          });
-nouveaux.forEach(function(entry) {
-            var donnees = entry.data || entry;
-            var moduleNom = (donnees && donnees.module) || moduleCourt;
-         
             enregistrerControleHACCP(moduleNom, donnees);
           });
           console.info('[HACCP Espion v3] ✓ ' + nouveaux.length + ' contrôle(s) "' + moduleCourt + '" envoyé(s) au cloud');
