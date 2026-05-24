@@ -2531,8 +2531,8 @@ function imprimerModuleParBloc(pageId, titre, blocs, type) {
   overlay.scrollTop = 0;
 }
 
-function imprimerModuleAplat(pageId, titre) {
-  var data = collectPageDataUniversel(pageId);
+function imprimerModuleAplat(pageId, titre, dataOverride) {
+  var data = dataOverride || collectPageDataUniversel(pageId);
   if (!data) { showToast('Erreur collecte', 'err'); return; }
 
   var css = '<style>' +
@@ -2605,7 +2605,7 @@ function imprimerModuleAplat(pageId, titre) {
     '<th style="width:35%;padding:6px 8px;border:2px solid #1e1b4b;background:#1e1b4b;color:white">Action corrective</th>' +
     '</tr>';
     var actIdx2 = data.actions.slice();
-    var pageElForRecap = document.getElementById(pageId);
+    var pageElForRecap = dataOverride ? null : document.getElementById(pageId);
     data.statuts.forEach(function(s) {
       var cls, ico;
       if (s.nc) { cls = 'nc'; ico = '❌'; }
@@ -11934,7 +11934,7 @@ function chargerHistoriqueControles() {
         var dateISO = ok ? d.toISOString().split('T')[0] : today;
         html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px;background:#fff">' +
                   '<div style="font-size:13px"><strong style="color:#1e293b">' + e.titre + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (e.sig ? ' — ' + e.sig : '') + '</span></div>' +
-                  '<button class="btn-p" style="white-space:nowrap;padding:8px 14px;font-size:13px" onclick="reimprimerControle(\'' + e.code + '\',\'' + dateISO + '\')">Voir / Imprimer</button>' +
+                  '<button class="btn-p" style="white-space:nowrap;padding:8px 14px;font-size:13px" onclick="reimprimerControle(\'' + e.code + '\',\'' + e.ts + '\')">Voir / Imprimer</button>' +
                 '</div>';
       });
     }
@@ -11951,10 +11951,43 @@ function chargerHistoriqueControles() {
   } catch(e) { console.warn('historique controles err:', e.message || e); }
 }
 
-function reimprimerControle(code, dateISO) {
+function reimprimerControle(code, ts) {
   try {
+    var pageId = 'page-' + code;
+    var titres = {
+      affichage:'Affichages réglementaires', hygiene:'Hygiène & Tenue Personnel',
+      temperatures:'Températures Enceintes', documents:'Contrôle Documentaire',
+      reception:'Réception & Traçabilité', cuisson:'Cuisson & Remise en T°',
+      ouverture:'Nettoyage Ouverture', fermeture:'Nettoyage Fermeture',
+      refroidissement:'Refroidissement Rapide', huiles:'Huiles de Friture',
+      etiquetage:'Étiquetage Interne', pertes:'Pertes & Invendus',
+      dechets:'Déchets & Biodéchets', nuisibles:'Suivi Nuisibles'
+    };
+    var titre = titres[code] || code;
+    var today = new Date().toISOString().split('T')[0];
+    var entries = [];
+    try { entries = getDonneesPeriode(pageId, '2000-01-01', today) || []; } catch(e) {}
+    // Retrouver le contrôle exact par son horodatage
+    var entry = null;
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i].timestamp === ts) { entry = entries[i]; break; }
+    }
+    // Tolérance : si pas trouvé à l'identique, prendre le premier du même jour
+    if (!entry && ts) {
+      var jour = String(ts).split('T')[0];
+      for (var j = 0; j < entries.length; j++) {
+        if (String(entries[j].timestamp).split('T')[0] === jour) { entry = entries[j]; break; }
+      }
+    }
+    // Document COMPLET reconstruit depuis les données enregistrées
+    if (entry && entry.data && typeof imprimerModuleAplat === 'function') {
+      imprimerModuleAplat(pageId, titre, entry.data);
+      return;
+    }
+    // Dernier recours : ancienne synthèse Pack DDPP
     if (typeof lancerPackDDPP === 'function') {
-      lancerPackDDPP(dateISO, dateISO, [code]);
+      var d = ts ? String(ts).split('T')[0] : today;
+      lancerPackDDPP(d, d, [code]);
     } else if (typeof showToast === 'function') {
       showToast('Génération indisponible', 'warn');
     }
