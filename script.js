@@ -342,8 +342,11 @@ async function lierPhotoAuControle(photo) {
       photosActuelles = controle.photos.slice();
     }
 
-    // Évite les doublons
-    if (photosActuelles.indexOf(photo.url) !== -1) {
+    // Évite les doublons (compat : anciennes entrées = simple URL, nouvelles = objet {u,r,s})
+    var urlExiste = photosActuelles.some(function(it){
+      return (typeof it === 'string' ? it : (it && it.u)) === photo.url;
+    });
+    if (urlExiste) {
       await photoQueueDB.photos.update(photo.id, {
         controleSupabaseId: controle.id,
         linkedAt: new Date().toISOString()
@@ -351,7 +354,8 @@ async function lierPhotoAuControle(photo) {
       return;
     }
 
-    photosActuelles.push(photo.url);
+    // On range l'URL AVEC son étiquette : à quel produit (ou bon de livraison) elle appartient
+    photosActuelles.push({ u: photo.url, r: (photo.controleId != null ? String(photo.controleId) : ''), s: (photo.source || '') });
 
     var updResp = await fetch(SUPABASE_URL + '/rest/v1/controles_haccp?id=eq.' + encodeURIComponent(controle.id), {
       method: 'PATCH',
@@ -5890,8 +5894,19 @@ function previewPhotoBL(input) {
   };
   reader.readAsDataURL(input.files[0]);
 }
-function imprimerReception(dataOverride) {
+function imprimerReception(dataOverride, photosOverride) {
   var data = dataOverride || collecterDonnees();
+  // Photo d'un produit (clé = numéro) ou du bon de livraison (clé = 'bl').
+  // À la réouverture, on prend l'URL rangée dans le cloud ; sinon, la photo affichée à l'écran.
+  function _photoDe(ref) {
+    if (photosOverride && photosOverride[ref]) return photosOverride[ref];
+    if (String(ref) === 'bl') {
+      var b = document.querySelector('#preview_bl img');
+      return (b && b.src && b.src.indexOf('data:image') > -1) ? b.src : '';
+    }
+    var el = document.getElementById('photo_' + ref);
+    return (el && el.src && el.src.indexOf('data:image') > -1) ? el.src : '';
+  }
   var existing = document.getElementById('printOverlay');
   if (existing) existing.remove();
 
@@ -5918,6 +5933,15 @@ function imprimerReception(dataOverride) {
   if (data.transporteur) html += '<div style="font-size:11px;opacity:.85">Transporteur : ' + data.transporteur + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Date : ' + (data.timestamp||'—') + ' | Signé : ' + (data.signataire||'—') + '</div>';
   html += '</div>';
+
+  // ── Photo du bon de livraison ──
+  var _blSrc = _photoDe('bl');
+  if (_blSrc) {
+    html += '<div style="border:1px solid #bfdbfe;border-radius:8px;margin-bottom:14px;overflow:hidden">';
+    html += '<div style="background:#eff6ff;padding:6px 12px;font-weight:700;color:#1d4ed8;font-size:11px">📄 Photo du bon de livraison</div>';
+    html += '<div style="padding:10px 12px;text-align:center"><img src="' + _blSrc + '" alt="Bon de livraison" style="max-width:100%;max-height:220px;border:1px solid #e5e7eb;border-radius:6px"/></div>';
+    html += '</div>';
+  }
 
   // ── Infos camion ──
   if (data.vehicule) {
@@ -5962,8 +5986,8 @@ function imprimerReception(dataOverride) {
 
       // Produits de ce compartiment
       produitsDuCompart.forEach(function(p, i) {
-        var photoEl = document.getElementById('photo_' + p.num);
-        var hasPhoto = photoEl && photoEl.src && photoEl.src.indexOf('data:image') > -1;
+        var photoEl = { src: _photoDe(p.num) };
+        var hasPhoto = !!photoEl.src;
         var confColor = (p.conformite||'').indexOf('Non') > -1 ? '#dc2626' : '#16a34a';
         var embColor = (p.emballage === 'Abîmé' || p.emballage === 'Refusé') ? '#dc2626' : '#16a34a';
 
@@ -6006,8 +6030,8 @@ function imprimerReception(dataOverride) {
     if (orphelins.length > 0) {
       html += '<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;padding:8px 12px;margin-top:14px;color:#991b1b;font-size:11px;font-weight:700">⚠️ Produits non rattachés à un compartiment</div>';
       orphelins.forEach(function(p, i) {
-        var photoEl = document.getElementById('photo_' + p.num);
-        var hasPhoto = photoEl && photoEl.src && photoEl.src.indexOf('data:image') > -1;
+        var photoEl = { src: _photoDe(p.num) };
+        var hasPhoto = !!photoEl.src;
         var confColor = (p.conformite||'').indexOf('Non') > -1 ? '#dc2626' : '#16a34a';
         var embColor = (p.emballage === 'Abîmé' || p.emballage === 'Refusé') ? '#dc2626' : '#16a34a';
         html += '<div class="produit-bloc">';
@@ -6027,8 +6051,8 @@ function imprimerReception(dataOverride) {
   } else {
     // Pas de compartiments : ancien comportement (liste plate)
     produits.forEach(function(p, i) {
-      var photoEl = document.getElementById('photo_' + p.num);
-      var hasPhoto = photoEl && photoEl.src && photoEl.src.indexOf('data:image') > -1;
+      var photoEl = { src: _photoDe(p.num) };
+      var hasPhoto = !!photoEl.src;
       var confColor = (p.conformite||'').indexOf('Non') > -1 ? '#dc2626' : '#16a34a';
       var embColor = (p.emballage === 'Abîmé' || p.emballage === 'Refusé') ? '#dc2626' : '#16a34a';
 
@@ -10461,9 +10485,13 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
         if (codeMod === 'reception') {
           var photosGenerales = []; // BL et autres photos sans numéro de produit
           var photosParProduit = {}; // { num: [url, ...] }
-          meilleur.photos.forEach(function(u) {
-            var n = _produitNumDansUrl(u);
-            if (n != null) {
+          meilleur.photos.forEach(function(item) {
+            // Compat : ancienne entrée = simple URL ; nouvelle = objet {u:url, r:référence, s:source}
+            var u = (typeof item === 'string') ? item : (item && item.u);
+            if (!u) return;
+            var ref = (item && typeof item === 'object') ? (item.r || '') : '';
+            var n = (ref && ref !== 'bl') ? ref : _produitNumDansUrl(u);
+            if (n != null && n !== '' && n !== 'bl') {
               if (!photosParProduit[n]) photosParProduit[n] = [];
               photosParProduit[n].push(u);
             } else {
@@ -10487,7 +10515,8 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
           }
         } else {
           // Autres modules (Documents, Nuisibles…) → toutes les photos en bas du bloc
-          bloc.insertAdjacentHTML('beforeend', _photosGroupesHtml(meilleur.photos));
+          var urlsAll = meilleur.photos.map(function(item){ return (typeof item === 'string') ? item : (item && item.u); }).filter(Boolean);
+          bloc.insertAdjacentHTML('beforeend', _photosGroupesHtml(urlsAll));
         }
       });
     } catch(e) {
@@ -11977,7 +12006,7 @@ async function chargerControlesCloudCache() {
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return null;
     var url = SUPABASE_URL + '/rest/v1/controles_haccp'
       + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
-      + '&select=module,date_controle,signature,contenu'
+      + '&select=module,date_controle,signature,contenu,photos'
       + '&order=date_controle.desc'
       + '&limit=1000';
     var resp = await fetch(url, {
@@ -12001,7 +12030,7 @@ async function chargerControlesCloudCache() {
       if (seen[cle]) return; // doublon → ignoré
       seen[cle] = true;
       rowsUniques.push(r);
-      histo[ts] = { module: r.module, contenu: contenu };
+      histo[ts] = { module: r.module, contenu: contenu, photos: r.photos };
       // Regrouper par module (page) pour le Pack et le tableau de bord
       if (pid) {
         if (!cache[pid]) cache[pid] = [];
@@ -12033,7 +12062,7 @@ async function chargerHistoriqueControlesCloud() {
       var contenu = r.contenu;
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
-      window._histoCloudRows[ts] = { module: r.module, contenu: contenu };
+      window._histoCloudRows[ts] = { module: r.module, contenu: contenu, photos: r.photos };
       var d = new Date(ts);
       var ok = !isNaN(d.getTime());
       var dateStr = ok ? (d.toLocaleDateString('fr-FR') + ' à ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0')) : '';
@@ -12077,7 +12106,23 @@ function reimprimerControleCloud(ts) {
       // chaque produit détaillé, non-conformités) au lieu de l'affichage simplifié.
       var estReception = /r[ée]ception/i.test(String(titre)) || (pageId === 'page-reception');
       if (estReception && row.contenu.reception && typeof imprimerReception === 'function') {
-        imprimerReception(row.contenu.reception);
+        // V121 — Replacer chaque photo (et le bon de livraison) à sa place grâce à son étiquette
+        var photosMap = {};
+        try {
+          var pj = row.photos;
+          if (typeof pj === 'string') pj = JSON.parse(pj);
+          if (Array.isArray(pj)) {
+            pj.forEach(function(item) {
+              var u = (typeof item === 'string') ? item : (item && item.u);
+              if (!u) return;
+              var ref = (item && typeof item === 'object') ? (item.r || '') : '';
+              var src = (item && typeof item === 'object') ? (item.s || '') : '';
+              var cle = ref ? ref : (src === 'bon_livraison' ? 'bl' : '');
+              if (cle && !photosMap[cle]) photosMap[cle] = u;
+            });
+          }
+        } catch(ePh) {}
+        imprimerReception(row.contenu.reception, photosMap);
         return;
       }
       if (typeof imprimerModuleAplat === 'function') {
