@@ -6263,12 +6263,10 @@ var MODULES = [
   {id:'temperatures', cat:'quotidien', num:2,  ico:'🌡️', name:'Relevé — Températures Frigos & Congélateurs',       color:'c2',  badge:'⚠ 1',      ddpp:true,  freq:'Quotidien',   alert:true,  fn:''},
   {id:'hygiene',      cat:'quotidien', num:3,  ico:'🖐️', name:'Contrôle — Hygiène & Tenue du personnel',           color:'c3',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'nettoyage',   cat:'quotidien', num:4,  ico:'🧹', name:'Nettoyage',                                    desc:'Ouverture & Fermeture',  color:'c5',  badge:'',  ddpp:true,  freq:'Quotidien',  alert:false, fn:'', secteurs:['resto','bp','rapide','boucherie','collective']},
-  ,
   {id:'cuisson',      cat:'quotidien', num:5,  ico:'🍳', name:'Contrôle — Cuisson & Remise en T°',                 color:'c5',  badge:'Auj. 5',    ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'refroidissement',cat:'quotidien',num:6, ico:'❄️', name:'Contrôle — Refroidissement rapide',                 color:'c6',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'huiles',       cat:'quotidien', num:7,  ico:'🫙', name:'Contrôle — Huiles de friture',                      color:'c7',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'etiquetage',   cat:'quotidien', num:8,  ico:'🏷️', name:'Édition — Étiquettes produits & DLC',               color:'c8',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
-  ,
   {id:'pertes',       cat:'quotidien', num:10, ico:'🗑️', name:'Suivi — Pertes & Invendus',                         color:'c10', badge:'Auj. 1',    ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'nuisibles',    cat:'periodique',num:11, ico:'🐛', name:'Suivi — Nuisibles & Rongeurs',                      color:'c12', badge:'RAS',       ddpp:true,  freq:'Périodique',  alert:false, fn:''},
   {id:'dechets',      cat:'periodique',num:12, ico:'♻️', name:'Suivi — Déchets & Biodéchets',                      color:'c13', badge:'OK',        ddpp:true,  freq:'Périodique',  alert:false, fn:''},
@@ -12045,6 +12043,24 @@ function sauvegarderDonnesModule(pageId) {
         }
       } catch(eN) { console.warn('snapshot nuisibles err:', eN.message||eN); }
     }
+    // Hygiène (organisé en blocs thématiques : Tenue, Bijoux, Mains…) : garder le rapport complet tel quel pour le réafficher à l'identique
+    if (pageId === 'page-hygiene' && typeof genererRapportParBlocHTML === 'function') {
+      try {
+        var pageHyg = document.getElementById(pageId);
+        if (pageHyg) {
+          var blocsRepH = [];
+          pageHyg.querySelectorAll(':scope .fblock[id]').forEach(function(b){ if (/_\d+$/.test(b.id||'')) blocsRepH.push(b); });
+          var blocsHyg, typeHyg;
+          if (blocsRepH.length > 0) { blocsHyg = blocsRepH; typeHyg = 'repete'; }
+          else {
+            var blocsThemH = [];
+            pageHyg.querySelectorAll(':scope .fblock').forEach(function(b){ if (b.querySelector('.fblock-title')) blocsThemH.push(b); });
+            blocsHyg = blocsThemH; typeHyg = 'thematique';
+          }
+          if (blocsHyg.length > 0) data.rapportHTML = genererRapportParBlocHTML(pageId, 'Hygiène & Tenue Personnel', blocsHyg, typeHyg);
+        }
+      } catch(eH2) { console.warn('snapshot hygiene err:', eH2.message||eH2); }
+    }
 
 var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
     var entry = {
@@ -12354,6 +12370,11 @@ function reimprimerControle(code, ts) {
     // Nuisibles : rapport complet (rubriques) gardé tel quel
     if (entry && entry.data && code === 'nuisibles' && entry.data.rapportHTML && typeof afficherRapportOverlay === 'function') {
       afficherRapportOverlay(entry.data.rapportHTML, titre || 'Suivi Nuisibles');
+      return;
+    }
+    // Hygiène : rapport complet (thèmes Tenue/Bijoux/Mains…) gardé tel quel
+    if (entry && entry.data && code === 'hygiene' && entry.data.rapportHTML && typeof afficherRapportOverlay === 'function') {
+      afficherRapportOverlay(entry.data.rapportHTML, titre || 'Hygiène & Tenue Personnel');
       return;
     }
     // Refroidissement : beau rapport par préparation depuis les données enregistrées
