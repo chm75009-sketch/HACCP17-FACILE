@@ -12829,7 +12829,6 @@ function sauvegarderHistorique(module, signe) {
       heure: getNowStr(),
       signe: signe,
       etab: ETAB.nom || '',
-      secteur: (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? SECTEUR_ACTIF : (ETAB.secteur || ''),
     });
     // Garder seulement 3 ans (1095 jours max, limiter à 500 entrées)
     if (historique.length > 500) historique = historique.slice(-500);
@@ -15110,10 +15109,7 @@ function chargerHistorique() {
   historique.reverse();
 
   var now = new Date();
-  var _curSecteur = (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? SECTEUR_ACTIF : (ETAB.secteur || '');
   var filtered = historique.filter(function(h) {
-    // Masque les tests des autres secteurs ; les anciennes entrées sans secteur restent visibles.
-    if (h.secteur && _curSecteur && h.secteur !== _curSecteur) return false;
     if (_histFilter === 'all') return true;
     var d = new Date(h.date);
     if (_histFilter === 'today') return h.date === now.toISOString().split('T')[0];
