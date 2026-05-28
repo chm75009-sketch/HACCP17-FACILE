@@ -12947,7 +12947,10 @@ var _PACK_DDPP_SELECTION = null; // null = export complet ; tableau = export fil
 
 function exporterSelection(source) {
   var prefix = (source === 'guide') ? 'chk-guide-' : 'chk-exp-';
-  var modules = ['reception','temperatures','hygiene','cuisson','nc','documents'];
+  // V120 — Tous les modules gérés par le Pack DDPP (les cases inexistantes sont ignorées)
+  var modules = ['affichage','hygiene','temperatures','documents','reception',
+                 'cuisson','ouverture','fermeture','nc','refroidissement',
+                 'huiles','etiquetage','pertes','dechets','nuisibles'];
   var selectionnes = [];
   for (var i = 0; i < modules.length; i++) {
     var chk = document.getElementById(prefix + modules[i]);
@@ -12959,6 +12962,26 @@ function exporterSelection(source) {
   }
   _PACK_DDPP_SELECTION = selectionnes;
   // Réutilise le modal de sélection de période existant
+  genererPackDDPP();
+}
+
+// ══ V120 — Export individuel COHÉRENT avec le Pack DDPP ══
+// Réutilise le renderer du Pack DDPP (lancerPackDDPP) filtré sur UN SEUL module :
+// même page de garde, mêmes blocs de conformité, mêmes seuils réglementaires et
+// mêmes rendus spéciaux (températures, cuisson, refroidissement, NC) que le Pack complet.
+// Affiche le sélecteur de période, comme le Pack DDPP. Le PDF d'un module exporté seul
+// devient ainsi strictement identique à ce même module dans le Pack DDPP global.
+function exportModuleIndividuel(id) {
+  // Codes acceptés = ceux gérés par le renderer Pack DDPP (lancerPackDDPP)
+  var codesPack = ['affichage','hygiene','temperatures','documents','reception',
+                   'cuisson','ouverture','fermeture','nc','refroidissement',
+                   'huiles','etiquetage','pertes','dechets','nuisibles'];
+  if (codesPack.indexOf(id) === -1) {
+    showToast('Module non disponible pour export individuel', 'warn', 3000);
+    return;
+  }
+  _PACK_DDPP_SELECTION = [id];
+  // Même flux que le Pack DDPP : sélection de période puis rendu filtré
   genererPackDDPP();
 }
 
