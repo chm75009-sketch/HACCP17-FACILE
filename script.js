@@ -10661,6 +10661,11 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
           // Photos générales (BL, photos orphelines) → en bas du bloc réception
           if (photosGenerales.length > 0) {
             bloc.insertAdjacentHTML('beforeend', _photosGroupesHtml(photosGenerales));
+            // V121 — Si le bon de livraison vient d'être injecté ici (depuis Supabase),
+            // on marque le bloc pour que le patch local Dexie ne le réinjecte pas (anti-doublon).
+            if (photosGenerales.some(function(u){ return String(u||'').toLowerCase().indexOf('bon_livraison') > -1; })) {
+              bloc.setAttribute('data-bl-photo-done', '1');
+            }
           }
         } else {
           // Autres modules (Documents, Nuisibles…) → toutes les photos en bas du bloc
@@ -12980,21 +12985,11 @@ function exportModuleIndividuel(id) {
     showToast('Module non disponible pour export individuel', 'warn', 3000);
     return;
   }
-  // V120 — Réception : rendu dédié (imprimerReception via downloadPDF) qui gère déjà la
-  // photo du bon de livraison nativement, SANS doublon (cf. patch_photo_bl.js). Le faire
-  // passer par le Pack DDPP réinjecterait la photo (Supabase + Dexie) → doublon. On garde
-  // donc son PDF de contrôle dédié, qui est l'un des rendus de référence attendus.
-  if (id === 'reception') {
-    try {
-      pdfData = collecterDonnees();
-      downloadPDF();
-      showToast('PDF Réception généré', 'ok', 3000);
-    } catch(e) {
-      console.error('Export Réception erreur:', e && (e.message || e));
-      showToast('Erreur génération PDF — ouvrez le module Réception et validez-le', 'warn', 4000);
-    }
-    return;
-  }
+  // V121 — Réception : passe MAINTENANT par le même flux que tous les autres modules
+  // (sélecteur de période Aujourd'hui / Hier / 7 jours / 30 jours / personnalisé + rendu
+  // Pack DDPP filtré). La photo du bon de livraison reste injectée UNE SEULE FOIS grâce au
+  // marqueur data-bl-photo-done partagé entre l'injection Supabase (lancerPackDDPPAvecPhotos)
+  // et le patch local Dexie (patch_photo_bl.js) → plus de doublon, période rétablie.
   _PACK_DDPP_SELECTION = [id];
   // Même flux que le Pack DDPP : sélection de période puis rendu filtré
   genererPackDDPP();
