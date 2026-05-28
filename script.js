@@ -10825,7 +10825,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     {id:'page-cuisson',         titre:'6. Cuisson & Remise en T°',       special:'cuisson',        code:'cuisson'},
     {id:'page-ouverture',       titre:'7. Nettoyage Ouverture',          special:null,             code:'ouverture'},
     {id:'page-fermeture',       titre:'8. Nettoyage Fermeture',          special:null,             code:'fermeture'},
- //{id:'page-nc',              titre:'9. NC & Actions Correctives',     special:'nc_detail',     code:'nc'},
+    {id:'page-nc',              titre:'9. NC & Actions Correctives',     special:'nc_detail',     code:'nc'},
     {id:'page-refroidissement', titre:'10. Refroidissement Rapide',      special:'refroidissement',code:'refroidissement'},
     {id:'page-huiles',          titre:'11. Huiles de Friture',           special:null,             code:'huiles'},
     {id:'page-etiquetage',      titre:'12. Étiquetage Interne',          special:null,             code:'etiquetage'},
@@ -11842,6 +11842,31 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       // NCs (récap)
       if (sessData.ncs && sessData.ncs.length > 0) {
         html += '<div style="padding:6px 10px;background:#fef2f2;border-top:1px solid #fecaca;font-size:11px;font-weight:700;color:#991b1b">⚡ ' + sessData.ncs.length + ' non-conformité(s) détectée(s)</div>';
+      }
+
+      // Huiles de friture : relevés par friteuse (T° max 175°C, TPM max 25%)
+      if (sessData.huiles && sessData.huiles.length > 0) {
+        var _hOk = 0, _hNc = 0;
+        sessData.huiles.forEach(function(f){
+          var _t = parseFloat(f.temp), _p = parseFloat(f.tpm);
+          var _nc = (String(f.conformite||'').toLowerCase().indexOf('nc') > -1) || (!isNaN(_t)&&_t>175) || (!isNaN(_p)&&_p>25);
+          if (_nc) _hNc++; else _hOk++;
+        });
+        html += '<div style="padding:6px 10px;font-size:11px;font-weight:700;color:' + (_hNc>0?'#dc2626':'#1e1b4b') + ';border-bottom:1px solid #e5e7eb">Friteuses : ' + sessData.huiles.length + ' relevé(s)' + (_hNc>0?' — ⚡ '+_hNc+' NC':'') + '</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
+        html += '<tr style="background:#f3f4f6"><th style="padding:4px 8px;text-align:left">Friteuse</th><th style="padding:4px 8px">Type</th><th style="padding:4px 8px">T°</th><th style="padding:4px 8px">TPM</th><th style="padding:4px 8px">Conformité</th><th style="padding:4px 8px">Action</th></tr>';
+        sessData.huiles.forEach(function(f, fi) {
+          var _tF = parseFloat(f.temp), _pF = parseFloat(f.tpm);
+          var _ncF = (String(f.conformite||'').toLowerCase().indexOf('nc') > -1) || (!isNaN(_tF)&&_tF>175) || (!isNaN(_pF)&&_pF>25);
+          var _col = _ncF ? '#dc2626' : '#16a34a';
+          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">N°' + (fi+1) + '</td>';
+          html += '<td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (f.type||'—') + '</td>';
+          html += '<td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (f.temp?f.temp+'°C':'—') + '</td>';
+          html += '<td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (f.tpm?f.tpm+'%':'—') + '</td>';
+          html += '<td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;color:' + _col + ';font-weight:700">' + (f.conformite||(_ncF?'NC':'Conforme')) + '</td>';
+          html += '<td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:9.5px">' + (_ncF ? (f.action || 'À définir') : '—') + '</td></tr>';
+        });
+        html += '</table>';
       }
 
       html += '</div>'; // /wrapper V116 fin de session standard

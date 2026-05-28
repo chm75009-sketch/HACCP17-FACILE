@@ -96,33 +96,7 @@
       return _originalValiderReception.apply(this, arguments);
     };
 
-    // ── 4) imprimerReception : injecter la photo BL dans le PDF de réception ──
-    var _originalImprimerReception = window.imprimerReception;
-    window.imprimerReception = function() {
-      var resultat = _originalImprimerReception.apply(this, arguments);
-      setTimeout(function() {
-        var overlay = document.getElementById('printOverlay');
-        if (!overlay) return;
-        if (overlay.querySelector('.patch-bl-photo')) return;
-        var blOk = document.getElementById('ph_bl_ok');
-        var blImg = document.getElementById('photo_bl_img');
-        if (!blOk || !blOk.checked) return;
-        if (!blImg || !blImg.src || blImg.src.indexOf('data:image') === -1) return;
-        var header = overlay.querySelector('.header');
-        if (!header) return;
-        var photoBlock = document.createElement('div');
-        photoBlock.className = 'patch-bl-photo';
-        photoBlock.style.cssText = 'border:1.5px solid #2563eb;border-radius:8px;margin:0 0 14px;overflow:hidden;break-inside:avoid';
-        photoBlock.innerHTML =
-          '<div style="background:#eff6ff;padding:6px 12px;font-weight:700;color:#1d4ed8;font-size:11px">📄 Photo du bon de livraison</div>' +
-          '<div style="padding:10px 12px;text-align:center">' +
-            '<img src="' + blImg.src + '" alt="Bon de livraison" style="max-width:100%;max-height:300px;border:1px solid #d1d5db;border-radius:4px"/>' +
-          '</div>';
-        header.parentNode.insertBefore(photoBlock, header.nextSibling);
-        console.info('[Patch Photo BL] ✓ Photo BL injectée dans le PDF Réception');
-      }, 150);
-      return resultat;
-    };
+    // ── 4) imprimerReception : DÉSACTIVÉ — script.js rend désormais la photo BL nativement (script.js:5954-5961). L'injection ici créait un doublon dans le PDF Réception.
 
     // ── 5) NOUVEAU : Pack DDPP — récupère la photo BL depuis Supabase + Dexie locale ──
     if (typeof window.lancerPackDDPPAvecPhotos === 'function') {
