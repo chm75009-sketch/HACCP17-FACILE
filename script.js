@@ -17101,8 +17101,9 @@ function ouvrirMesRapports() {
     var act = document.querySelector('.page.active');
     var actId = act ? act.id : '';
     var connecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID);
-    // Bouton flottant visible uniquement sur la page d'accueil
-    btn.style.display = (connecte && actId === 'page-home') ? 'flex' : 'none';
+    // Bouton flottant visible uniquement sur les pages d'accueil (guidé + expert)
+    var estAccueil = (actId === 'page-guide' || actId === 'page-home');
+    btn.style.display = (connecte && estAccueil) ? 'flex' : 'none';
   }
 
   function injecterBoutonRapports() {
