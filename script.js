@@ -17095,15 +17095,14 @@ function ouvrirMesRapports() {
 
 (function() {
   if (typeof document === 'undefined') return;
-  var PAGES_PUBLIQUES = ['page-presentation', 'page-inscription', 'page-login', 'page-admin'];
-
   function majVisibiliteBoutonRapports() {
     var btn = document.getElementById('btnMesRapports');
     if (!btn) return;
     var act = document.querySelector('.page.active');
     var actId = act ? act.id : '';
     var connecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID);
-    btn.style.display = (connecte && PAGES_PUBLIQUES.indexOf(actId) === -1) ? 'flex' : 'none';
+    // Bouton flottant visible uniquement sur la page d'accueil
+    btn.style.display = (connecte && actId === 'page-home') ? 'flex' : 'none';
   }
 
   function injecterBoutonRapports() {
