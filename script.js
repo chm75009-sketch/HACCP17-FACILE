@@ -12980,6 +12980,21 @@ function exportModuleIndividuel(id) {
     showToast('Module non disponible pour export individuel', 'warn', 3000);
     return;
   }
+  // V120 — Réception : rendu dédié (imprimerReception via downloadPDF) qui gère déjà la
+  // photo du bon de livraison nativement, SANS doublon (cf. patch_photo_bl.js). Le faire
+  // passer par le Pack DDPP réinjecterait la photo (Supabase + Dexie) → doublon. On garde
+  // donc son PDF de contrôle dédié, qui est l'un des rendus de référence attendus.
+  if (id === 'reception') {
+    try {
+      pdfData = collecterDonnees();
+      downloadPDF();
+      showToast('PDF Réception généré', 'ok', 3000);
+    } catch(e) {
+      console.error('Export Réception erreur:', e && (e.message || e));
+      showToast('Erreur génération PDF — ouvrez le module Réception et validez-le', 'warn', 4000);
+    }
+    return;
+  }
   _PACK_DDPP_SELECTION = [id];
   // Même flux que le Pack DDPP : sélection de période puis rendu filtré
   genererPackDDPP();
