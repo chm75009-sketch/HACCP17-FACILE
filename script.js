@@ -17111,7 +17111,7 @@ function ouvrirMesRapports() {
     btn.id = 'btnMesRapports';
     btn.type = 'button';
     btn.innerHTML = '📂 Mes rapports';
-    btn.style.cssText = 'position:fixed;right:16px;bottom:88px;z-index:9000;' +
+    btn.style.cssText = 'position:fixed;right:16px;top:calc(76px + env(safe-area-inset-top,0px));z-index:9000;' +
       'display:none;align-items:center;gap:6px;' +
       'background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;border:none;' +
       'border-radius:30px;padding:13px 18px;font-size:14px;font-weight:800;' +
