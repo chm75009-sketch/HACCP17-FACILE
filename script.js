@@ -17395,7 +17395,8 @@ function ouvrirMesRapports() {
       +   '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin:0 4px 6px">Contrôles sur la période</div>'
       +   '<div style="background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.06);overflow:hidden">'+rows+'</div>'
       +   '<button onclick="inspPackDDPP()" style="width:100%;margin-top:16px;padding:17px;border:none;border-radius:14px;background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;font-family:Outfit,sans-serif;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 6px 22px rgba(67,56,202,.3)">📄 Générer le Pack DDPP complet</button>'
-      +   '<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:8px">Tous les contrôles de la période, prêts à imprimer / envoyer</div>'
+      +   '<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:8px;margin-bottom:12px">Tous les contrôles de la période, prêts à imprimer / envoyer</div>'
+      +   '<button onclick="inspExportPerso()" style="width:100%;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">🗂️ Export personnalisé (par module)</button>'
       + '</div>';
   }
 
@@ -17424,6 +17425,7 @@ function ouvrirMesRapports() {
     render();
   };
   window.inspToggleScore = function(){ _lsSet('haccp_insp_score', scoreVisible() ? '0' : '1'); render(); };
+  window.inspExportPerso = function(){ if (typeof showPage==='function') showPage('page-pack-ddpp'); };
   window.inspPackDDPP = function(){
     var p = currentPeriod();
     try {
