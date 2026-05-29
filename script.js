@@ -17230,3 +17230,207 @@ function ouvrirMesRapports() {
   }
   setInterval(majVisibiliteBoutonRapports, 2000);
 })();
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODE INSPECTEUR — Présenter sa conformité lors d'un contrôle DDPP
+   Écran épuré, conçu pour être tendu à l'inspecteur : identité de
+   l'établissement, état de conformité (calculé sur de vraies données),
+   check-list des contrôles, et génération du Pack DDPP en un geste.
+   Défaut : 7 derniers jours. Le score peut être masqué (interrupteur).
+═══════════════════════════════════════════════════════════════════ */
+(function(){
+  // Modules affichés dans la check-list (cœur du quotidien)
+  var INSP_CHECK = [
+    {id:'page-reception',      label:'Réception & traçabilité', ico:'📦'},
+    {id:'page-temperatures',   label:'Températures enceintes',  ico:'🌡️'},
+    {id:'page-hygiene',        label:'Hygiène & tenue',         ico:'🖐️'},
+    {id:'page-cuisson',        label:'Cuisson / remise en T°',  ico:'🍳'},
+    {id:'page-refroidissement',label:'Refroidissement rapide',  ico:'❄️'},
+    {id:'page-ouverture',      label:'Nettoyage ouverture',     ico:'🧹'},
+    {id:'page-fermeture',      label:'Nettoyage fermeture',     ico:'🧽'},
+    {id:'page-huiles',         label:'Huiles de friture',       ico:'🫒'},
+    {id:'page-documents',      label:'Documents obligatoires',  ico:'📄'},
+    {id:'page-nuisibles',      label:'Suivi nuisibles',         ico:'🐀'}
+  ];
+  // Tous les modules pris en compte pour le calcul du score
+  var INSP_ALL = ['page-reception','page-temperatures','page-hygiene','page-ouverture',
+    'page-cuisson','page-refroidissement','page-huiles','page-etiquetage','page-fermeture',
+    'page-pertes','page-dechets','page-nuisibles','page-documents','page-affichage','page-audits',
+    'page-plat-temoin','page-liaison-thermique','page-registre-convives','page-analyses-micro'];
+  var NC_STATUTS = ['Non conforme','Non respecté','Non effectué','Manquante','Manquant','Absent','Absente'];
+  var _inspReturn = 'page-guide';
+
+  function _ls(k){ try { return (typeof lsGet==='function') ? lsGet(k) : localStorage.getItem(k); } catch(e){ return null; } }
+  function _lsSet(k,v){ try { if (typeof lsSet==='function') lsSet(k,v); else localStorage.setItem(k,v); } catch(e){} }
+  function todayStr(){ return new Date().toISOString().split('T')[0]; }
+  function daysAgoStr(n){ return new Date(Date.now()-n*86400000).toISOString().split('T')[0]; }
+
+  function currentPeriod(){
+    try { var p = JSON.parse(_ls('haccp_insp_period')||'null'); if (p&&p.from&&p.to&&p.key) return p; } catch(e){}
+    return {key:'7j', from:daysAgoStr(7), to:todayStr(), label:'7 derniers jours'};
+  }
+  function periodByKey(k){
+    var m = {
+      jour:{key:'jour',from:todayStr(),to:todayStr(),label:"Aujourd'hui"},
+      '7j':{key:'7j',from:daysAgoStr(7),to:todayStr(),label:'7 derniers jours'},
+      '30j':{key:'30j',from:daysAgoStr(30),to:todayStr(),label:'30 derniers jours'}
+    };
+    return m[k] || null;
+  }
+  function scoreVisible(){ return _ls('haccp_insp_score') !== '0'; }
+
+  function secteurLabel(){
+    var s = (typeof ETAB!=='undefined' && ETAB.secteur) ? ETAB.secteur : (typeof SECTEUR_ACTIF!=='undefined'?SECTEUR_ACTIF:'resto');
+    var map = {resto:'Restauration traditionnelle',rapide:'Restauration rapide',bp:'Boulangerie / Pâtisserie',
+      collective:'Restauration collective',gms:'Commerce alimentaire',boucherie:'Boucherie / Charcuterie',
+      poissonnerie:'Poissonnerie',primeur:'Primeur / Fruits & légumes'};
+    return map[s] || 'Établissement du secteur alimentaire';
+  }
+
+  // Calcul du taux de conformité réel sur la période, à partir des statuts enregistrés
+  function calcStats(from,to){
+    var totalPts=0, ncPts=0, nbControles=0;
+    var detail={};
+    INSP_ALL.forEach(function(pid){
+      var entries=[];
+      try { entries = (typeof getDonneesPeriode==='function') ? (getDonneesPeriode(pid,from,to)||[]) : []; } catch(e){}
+      var nc=0, pts=0;
+      entries.forEach(function(en){
+        if (!en || !en.data) return;
+        var sts = en.data.statuts || [];
+        sts.forEach(function(st){
+          if (!st || !st.statut) return;
+          pts++; totalPts++;
+          if (NC_STATUTS.indexOf(st.statut) >= 0){ nc++; ncPts++; }
+        });
+      });
+      nbControles += entries.length;
+      detail[pid] = {n:entries.length, nc:nc, pts:pts};
+    });
+    var score = totalPts>0 ? Math.round((totalPts-ncPts)/totalPts*100) : null;
+    return {totalPts:totalPts, ncPts:ncPts, nbControles:nbControles, score:score, detail:detail};
+  }
+
+  function banner(stats){
+    if (stats.nbControles === 0)
+      return {bg:'#475569', ico:'•', txt:'AUCUN CONTRÔLE SUR LA PÉRIODE', sub:'Aucune donnée enregistrée sur cette période'};
+    var s = stats.score;
+    if (s >= 90) return {bg:'linear-gradient(135deg,#059669,#10b981)', ico:'✅', txt:'ÉTABLISSEMENT À JOUR', sub:'Contrôles réalisés et conformes'};
+    if (s >= 70) return {bg:'linear-gradient(135deg,#d97706,#f59e0b)', ico:'⚠️', txt:'QUELQUES POINTS À RÉGULARISER', sub:'Des non-conformités sont enregistrées'};
+    return {bg:'linear-gradient(135deg,#dc2626,#ef4444)', ico:'⚠️', txt:'VIGILANCE — NON-CONFORMITÉS', sub:'Plusieurs points sont à traiter'};
+  }
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function render(){
+    var host = document.getElementById('page-inspecteur');
+    if (!host) return;
+    var p = currentPeriod();
+    var stats = calcStats(p.from, p.to);
+    var b = banner(stats);
+    var now = new Date();
+    var dateStr = now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var heure = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    var etabNom = (typeof ETAB!=='undefined' && ETAB.nom) ? ETAB.nom : (_ls('haccp_etab') || 'Mon établissement');
+    var showScore = scoreVisible();
+
+    // Boutons de période rapide
+    var quick = [{k:'jour',l:"Aujourd'hui"},{k:'7j',l:'7 jours'},{k:'30j',l:'30 jours'}];
+    var periodBtns = quick.map(function(q){
+      var on = (p.key===q.k);
+      return '<button onclick="inspSetPeriode(\''+q.k+'\')" style="flex:1;padding:9px 6px;border-radius:10px;font-family:Outfit,sans-serif;font-weight:800;font-size:12px;cursor:pointer;border:1px solid '+(on?'#3b82f6':'rgba(255,255,255,.18)')+';background:'+(on?'#3b82f6':'rgba(255,255,255,.06)')+';color:'+(on?'#fff':'rgba(255,255,255,.7)')+'">'+q.l+'</button>';
+    }).join('');
+
+    // Check-list
+    var rows = INSP_CHECK.map(function(m){
+      var d = stats.detail[m.id] || {n:0,nc:0};
+      var done = d.n>0, hasNC = d.nc>0;
+      var mark = !done ? '⬜' : (hasNC ? '⚠️' : '✅');
+      var note = !done ? 'Non renseigné' : (d.n+' contrôle'+(d.n>1?'s':'')+(hasNC?' · '+d.nc+' NC':''));
+      var col  = !done ? '#64748b' : (hasNC ? '#d97706' : '#059669');
+      return '<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #f1f5f9">'
+        + '<div style="font-size:18px;width:22px;text-align:center">'+m.ico+'</div>'
+        + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#0f172a">'+esc(m.label)+'</div>'
+        + '<div style="font-size:11px;color:'+col+';font-weight:600;margin-top:1px">'+esc(note)+'</div></div>'
+        + '<div style="font-size:17px">'+mark+'</div></div>';
+    }).join('');
+
+    var scoreBlock = showScore && stats.score!=null
+      ? '<div style="font-size:34px;font-weight:900;color:#fff;font-family:Outfit,sans-serif;line-height:1;margin-top:6px">'+stats.score+'%<span style="font-size:13px;font-weight:700;opacity:.85;margin-left:6px">de conformité</span></div>'
+      : '';
+
+    host.innerHTML =
+      // ── Barre du haut ──
+      '<div style="background:#0f172a;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">'
+      +   '<button onclick="inspQuitter()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">✕ Quitter</button>'
+      +   '<div style="color:rgba(255,255,255,.5);font-size:11px;font-weight:700;letter-spacing:1px">MODE INSPECTEUR</div>'
+      + '</div>'
+      // ── Identité + bandeau d'état ──
+      + '<div style="background:'+b.bg+';padding:18px 16px 22px;text-align:center">'
+      +   '<div style="color:#fff;font-size:20px;font-weight:900;font-family:Outfit,sans-serif">'+esc(etabNom)+'</div>'
+      +   '<div style="color:rgba(255,255,255,.85);font-size:12px;margin-top:2px">'+esc(secteurLabel())+'</div>'
+      +   '<div style="color:rgba(255,255,255,.7);font-size:11px;margin-top:1px">📅 '+esc(dateStr)+' · '+heure+'</div>'
+      +   '<div style="margin-top:14px;font-size:30px">'+b.ico+'</div>'
+      +   '<div style="color:#fff;font-size:18px;font-weight:900;font-family:Outfit,sans-serif;letter-spacing:.3px">'+b.txt+'</div>'
+      +   '<div style="color:rgba(255,255,255,.8);font-size:12px;margin-top:2px">'+esc(b.sub)+'</div>'
+      +   scoreBlock
+      + '</div>'
+      // ── Réglages : période + score ──
+      + '<div style="background:#0f172a;padding:14px 16px 16px">'
+      +   '<div style="color:rgba(255,255,255,.55);font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Période · '+esc(p.label)+'</div>'
+      +   '<div style="display:flex;gap:8px">'+periodBtns+'</div>'
+      +   '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;background:rgba(255,255,255,.05);border-radius:10px;padding:8px 10px">'
+      +     '<span style="color:rgba(255,255,255,.6);font-size:12px;font-weight:700">Précise :</span>'
+      +     '<input type="date" id="insp_from" value="'+p.from+'" style="flex:1;min-width:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:6px;font-size:12px;font-family:Outfit,sans-serif">'
+      +     '<input type="date" id="insp_to" value="'+p.to+'" style="flex:1;min-width:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:6px;font-size:12px;font-family:Outfit,sans-serif">'
+      +     '<button onclick="inspApplyCustom()" style="background:#3b82f6;border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">OK</button>'
+      +   '</div>'
+      +   '<div onclick="inspToggleScore()" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;cursor:pointer">'
+      +     '<span style="color:rgba(255,255,255,.75);font-size:13px;font-weight:700">Afficher le score de conformité</span>'
+      +     '<span style="width:44px;height:24px;border-radius:14px;background:'+(showScore?'#10b981':'rgba(255,255,255,.2)')+';position:relative;transition:.15s;flex-shrink:0"><span style="position:absolute;top:2px;left:'+(showScore?'22px':'2px')+';width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s"></span></span>'
+      +   '</div>'
+      + '</div>'
+      // ── Check-list des contrôles ──
+      + '<div style="background:#f8fafc;border-radius:18px 18px 0 0;padding:16px 14px 24px;min-height:30vh">'
+      +   '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin:0 4px 6px">Contrôles sur la période</div>'
+      +   '<div style="background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.06);overflow:hidden">'+rows+'</div>'
+      +   '<button onclick="inspPackDDPP()" style="width:100%;margin-top:16px;padding:17px;border:none;border-radius:14px;background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;font-family:Outfit,sans-serif;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 6px 22px rgba(67,56,202,.3)">📄 Générer le Pack DDPP complet</button>'
+      +   '<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:8px;margin-bottom:12px">Tous les contrôles de la période, prêts à imprimer / envoyer</div>'
+      +   '<button onclick="inspExportPerso()" style="width:100%;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">🗂️ Export personnalisé (par module)</button>'
+      + '</div>';
+  }
+
+  // ── API globale (appelée depuis le HTML) ──
+  window.ouvrirModeInspecteur = function(ret){
+    _inspReturn = ret || ((_ls('haccp_mode')==='expert') ? 'page-home' : 'page-guide');
+    if (typeof showPage==='function') showPage('page-inspecteur');
+    render();
+    // Rafraîchir avec les contrôles du cloud (tous appareils) puis re-rendre
+    try {
+      if (typeof chargerControlesCloudCache==='function') {
+        chargerControlesCloudCache().then(function(){
+          var pg = document.getElementById('page-inspecteur');
+          if (pg && pg.classList.contains('active')) render();
+        }).catch(function(){});
+      }
+    } catch(e){}
+  };
+  window.inspQuitter = function(){ if (typeof showPage==='function') showPage(_inspReturn||'page-guide'); };
+  window.inspSetPeriode = function(k){ var p = periodByKey(k); if (!p) return; _lsSet('haccp_insp_period', JSON.stringify(p)); render(); };
+  window.inspApplyCustom = function(){
+    var f = document.getElementById('insp_from'), t = document.getElementById('insp_to');
+    if (!f || !t || !f.value || !t.value){ if (typeof showToast==='function') showToast('Sélectionnez une période','warn'); return; }
+    var from=f.value, to=t.value; if (from>to){ var tmp=from; from=to; to=tmp; }
+    _lsSet('haccp_insp_period', JSON.stringify({key:'custom', from:from, to:to, label:'Période précise'}));
+    render();
+  };
+  window.inspToggleScore = function(){ _lsSet('haccp_insp_score', scoreVisible() ? '0' : '1'); render(); };
+  window.inspExportPerso = function(){ if (typeof showPage==='function') showPage('page-pack-ddpp'); };
+  window.inspPackDDPP = function(){
+    var p = currentPeriod();
+    try {
+      if (typeof lancerPackDDPPAvecPhotos==='function') { window._PACK_DDPP_SELECTION = null; lancerPackDDPPAvecPhotos(p.from, p.to, null); return; }
+    } catch(e){}
+    try { if (typeof genererPackDDPP==='function') genererPackDDPP(); } catch(e){}
+  };
+})();
