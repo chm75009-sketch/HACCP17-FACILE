@@ -6328,6 +6328,10 @@ function filtrerExportsParSecteur() {
       if (ligne) ligne.style.display = visible ? '' : 'none';
       if (!visible) chk.checked = false; // évite d'exporter un module masqué
     });
+    // V123 — Mode guidé : masque aussi le raccourci d'accueil « Que voulez-vous faire ? »
+    // du module non pertinent (ex. carte « Je contrôle mon huile de friture » en boucherie).
+    var carte = document.getElementById('guidecard-' + m.id);
+    if (carte) carte.style.display = visible ? '' : 'none';
   });
 }
 
