@@ -6333,6 +6333,10 @@ function filtrerExportsParSecteur() {
     var carte = document.getElementById('guidecard-' + m.id);
     if (carte) carte.style.display = visible ? '' : 'none';
   });
+  // V124 — Mode guidé : bloc « Restauration collective » (plat témoin, liaison, convives,
+  // analyses micro) affiché uniquement pour ce secteur, pour parité avec le mode Expert.
+  var blocColl = document.getElementById('guideblock-collective');
+  if (blocColl) blocColl.style.display = (sect === 'collective') ? '' : 'none';
 }
 
 function switchCat(cat, tab) {
