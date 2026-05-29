@@ -6265,7 +6265,7 @@ var MODULES = [
   {id:'nettoyage',   cat:'quotidien', num:4,  ico:'🧹', name:'Nettoyage',                                    desc:'Ouverture & Fermeture',  color:'c5',  badge:'',  ddpp:true,  freq:'Quotidien',  alert:false, fn:'', secteurs:['resto','bp','rapide','boucherie','collective']},
   {id:'cuisson',      cat:'quotidien', num:5,  ico:'🍳', name:'Contrôle — Cuisson & Remise en T°',                 color:'c5',  badge:'Auj. 5',    ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'refroidissement',cat:'quotidien',num:6, ico:'❄️', name:'Contrôle — Refroidissement rapide',                 color:'c6',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
-  {id:'huiles',       cat:'quotidien', num:7,  ico:'🫙', name:'Contrôle — Huiles de friture',                      color:'c7',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
+  {id:'huiles',       cat:'quotidien', num:7,  ico:'🫙', name:'Contrôle — Huiles de friture',                      color:'c7',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:'', secteurs:['resto','bp','rapide','collective']},
   {id:'etiquetage',   cat:'quotidien', num:8,  ico:'🏷️', name:'Édition — Étiquettes produits & DLC',               color:'c8',  badge:'OK',        ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'pertes',       cat:'quotidien', num:10, ico:'🗑️', name:'Suivi — Pertes & Invendus',                         color:'c10', badge:'Auj. 1',    ddpp:true,  freq:'Quotidien',   alert:false, fn:''},
   {id:'nuisibles',    cat:'periodique',num:11, ico:'🐛', name:'Suivi — Nuisibles & Rongeurs',                      color:'c12', badge:'RAS',       ddpp:true,  freq:'Périodique',  alert:false, fn:''},
@@ -6289,7 +6289,16 @@ var currentCat = 'quotidien';
 
 function renderMods(cat) {
   var grid = document.getElementById('modsGrid');
-  var mods = MODULES.filter(function(m) { return m.cat === cat; });
+  // V122 — Filtrage par secteur : un module portant une étiquette `secteurs` n'est affiché
+  // que si le secteur actif y figure (ex. Plat témoin 72h, Liaison chaude/froide, Registre
+  // des convives, Analyses microbio → restauration collective uniquement ; Huiles de friture
+  // → tous sauf boucherie). Les modules sans `secteurs` restent visibles partout.
+  var sect = (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? SECTEUR_ACTIF : '';
+  var mods = MODULES.filter(function(m) {
+    if (m.cat !== cat) return false;
+    if (m.secteurs && m.secteurs.indexOf(sect) === -1) return false;
+    return true;
+  });
   grid.innerHTML = mods.map(function(m, i) {
     return '<button class="mod ' + m.color + '" onclick="openModule(\'' + m.id + '\')" style="animation-delay:' + (i*0.04) + 's">' +
       '<div class="mod-ico">' + m.ico + '</div>' +
@@ -6300,6 +6309,26 @@ function renderMods(cat) {
       '<div class="mod-freq">' + m.freq + '</div>' +
       '</button>';
   }).join('');
+}
+
+// V122 — Masque, dans les listes « Export par module » (Guide + Expert), les boutons
+// des modules non pertinents pour le secteur actif (même source de vérité que renderMods :
+// l'étiquette `secteurs` de MODULES). Ex. la friteuse disparaît de l'export en boucherie.
+function filtrerExportsParSecteur() {
+  var sect = (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? SECTEUR_ACTIF : '';
+  if (!sect) return;
+  MODULES.forEach(function(m) {
+    if (!m.secteurs) return; // module universel : toujours proposé
+    var visible = m.secteurs.indexOf(sect) > -1;
+    ['chk-guide-' + m.id, 'chk-exp-' + m.id].forEach(function(chkId) {
+      var chk = document.getElementById(chkId);
+      if (!chk) return;
+      // La ligne = le conteneur direct (case + bouton). On masque toute la ligne.
+      var ligne = chk.parentElement;
+      if (ligne) ligne.style.display = visible ? '' : 'none';
+      if (!visible) chk.checked = false; // évite d'exporter un module masqué
+    });
+  });
 }
 
 function switchCat(cat, tab) {
@@ -7185,6 +7214,10 @@ function showPage(id, noReset) {
   // V80 — Injecter/rafraîchir le bandeau de responsabilité dans le module si applicable
   if (typeof injecterAvertissementResponsabilite === 'function') {
     setTimeout(injecterAvertissementResponsabilite, 50);
+  }
+  // V122 — Aligner les listes « Export par module » sur le secteur actif (idempotent)
+  if (typeof filtrerExportsParSecteur === 'function') {
+    try { filtrerExportsParSecteur(); } catch(e) {}
   }
   // V80 — Marquer les champs facultatifs (au cas où des champs dynamiques aient été ajoutés)
   if (typeof marquerChampsFacultatifsAuto === 'function') {
@@ -10839,6 +10872,19 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     {id:'page-nuisibles',       titre:'15. Suivi Nuisibles',             special:null,             code:'nuisibles'},
     {id:'page-nc',              titre:'16. Récapitulatif NC',            special:'nc_recap',       code:'nc_recap'},
   ];
+
+  // V122 — Filtrage par secteur : on retire les sections des modules non pertinents pour le
+  // secteur actif (même source de vérité que renderMods : l'étiquette `secteurs` de MODULES).
+  // Ex. « Huiles de friture » est exclu du Pack d'une boucherie. Les modules sans `secteurs`
+  // restent inclus partout.
+  var _sectPack = (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? SECTEUR_ACTIF : '';
+  if (_sectPack) {
+    modules = modules.filter(function(m){
+      var def = MODULES.filter(function(x){ return x.id === m.code; })[0];
+      if (def && def.secteurs && def.secteurs.indexOf(_sectPack) === -1) return false;
+      return true;
+    });
+  }
 
   // V52 — Filtrage si export personnalisé (sélection partielle)
   var isFiltre = (selectionIds && selectionIds.length > 0);
@@ -14631,6 +14677,8 @@ function confirmerSansNuisPDF() { showConfirm('🐛', 'Nuisibles — sans PDF', 
 function fermerModalNuis() { document.getElementById('modalNuisPdf').classList.remove('visible'); showPage('page-guide'); }
 
 renderMods('quotidien');
+// V122 — Aligne les listes d'export par module sur le secteur dès le chargement
+try { if (typeof filtrerExportsParSecteur === 'function') filtrerExportsParSecteur(); } catch(e) {}
 
 // ── NUISIBLES — DOCUMENTS LOCAUX MULTI-FICHIERS — NE PAS MODIFIER ──
 function nuisGetDocs(type) {
