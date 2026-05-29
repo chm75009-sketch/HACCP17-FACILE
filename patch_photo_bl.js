@@ -131,6 +131,8 @@
         for (var i = 0; i < blocsReception.length; i++) {
           var bloc = blocsReception[i];
           if (bloc.querySelector('.patch-bl-pack-ddpp')) continue;
+          // V121 — anti-doublon : l'injection Supabase (lancerPackDDPPAvecPhotos) a déjà posé la photo BL
+          if (bloc.getAttribute('data-bl-photo-done') === '1') continue;
 
           var imgsExistantes = bloc.querySelectorAll('img');
           var dejaInjectee = false;
@@ -139,6 +141,10 @@
               dejaInjectee = true;
               break;
             }
+          }
+          // V121 — filet de sécurité : un groupe « Bon de livraison » est déjà présent dans le bloc
+          if (!dejaInjectee && bloc.textContent && bloc.textContent.indexOf('Bon de livraison') > -1) {
+            dejaInjectee = true;
           }
           if (dejaInjectee) {
             console.info('[Patch Photo BL Pack DDPP] Bloc ' + i + ' : photo BL déjà présente (depuis Supabase)');
@@ -170,6 +176,7 @@
                 '</div>' +
               '</div>';
             bloc.insertAdjacentHTML('beforeend', photoHtml);
+            bloc.setAttribute('data-bl-photo-done', '1'); // V121 — anti-doublon
             console.info('[Patch Photo BL Pack DDPP] ✓ Photo BL injectée dans bloc Réception ' + i);
           } else {
             console.info('[Patch Photo BL Pack DDPP] Bloc ' + i + ' : pas de photo BL trouvée en mémoire locale');
