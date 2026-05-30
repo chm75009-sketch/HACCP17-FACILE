@@ -9382,7 +9382,7 @@ function ajouterFriteuse() {
   var huileOpts = TYPES_HUILE.map(function(h){ return '<option>' + h + '</option>'; }).join('');
   div.innerHTML =
     '<div class="fblock-title"><span>🫙 Friteuse N°' + id + '</span>' + delBtn + '</div>' +
-    '<div class="frow"><div class="flabel">Nom / Numéro <span style="font-weight:400;color:var(--mid);font-size:11px">(facultatif)</span></div><input class="finput" id="fr_nom_' + id + '" placeholder="Ex : Friteuse 1, FR-01..."/></div>' +
+    '<div class="frow"><div class="flabel">Nom / Numéro (libre)</div><input class="finput" id="fr_nom_' + id + '" placeholder="Ex : Friteuse 1, FR-01..."/></div>' +
     '<div class="frow"><div class="flabel">Type d\'huile utilisée</div>' +
       '<select class="fselect" id="fr_huile_' + id + '"><option value="">-- Sélectionner --</option>' + huileOpts + '</select>' +
     '</div>' +
@@ -9750,7 +9750,7 @@ function ajouterEtiquette() {
         '<button onclick="calcDLC(' + id + ')" style="padding:8px 12px;background:#0f766e;color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">📅 Auto</button>' +
       '</div>' +
     '</div>' +
-    '<div class="frow"><div class="flabel">Zone de stockage <span style="font-weight:400;color:var(--mid);font-size:11px">(facultatif)</span></div><input class="finput" id="etiq_zone_' + id + '" placeholder="Ex : Chambre froide 1 / Rayon A"/></div>' +
+    '<div class="frow"><div class="flabel">Zone de stockage</div><input class="finput" id="etiq_zone_' + id + '" placeholder="Ex : Chambre froide 1 / Rayon A"/></div>' +
     (SECTEUR_ACTIF === 'collective' ? '<div class="frow"><div class="flabel" style="color:#0891b2;font-weight:700">⚖️ Grammage portion (Gemrcn)</div>' +
       '<div style="display:flex;gap:8px;align-items:center">' +
         '<input class="finput" type="number" id="etiq_grammage_' + id + '" placeholder="Ex : 150" style="flex:1"/><span style="font-size:13px;color:var(--mid)">g</span>' +
