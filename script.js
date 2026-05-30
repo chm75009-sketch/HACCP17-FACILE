@@ -8253,6 +8253,39 @@ function selHyg(btn, type) {
       if (existingNcAuto) {
         existingNcAuto.style.display = 'flex';
       }
+      // V-NC16 — Bloc pré-écrit : injecter en TÊTE le menu "Non-conformité
+      // constatée" (catalogue) pour garder l'ordre logique NC → action partout.
+      // On tague d'abord le select/input d'action existant pour que les
+      // fonctions de lecture ne confondent pas le constat avec l'action.
+      try {
+        var _lblX = frow.querySelector('.flabel');
+        var _fullX = _lblX ? _lblX.textContent.trim().replace(/[⚠️🔴⚡*]/g,'').trim() : '';
+        var _catX = (typeof getCatalogueNC === 'function') ? getCatalogueNC(_fullX) : null;
+        var _actSelX = existingAction.querySelector('select');
+        if (_catX && _actSelX && !existingAction.querySelector('.nc-constat-select')) {
+          if (!_actSelX.classList.contains('nc-act-select')) _actSelX.classList.add('nc-act-select');
+          var _detX = existingAction.querySelector('input[type="text"]');
+          if (_detX && !_detX.classList.contains('nc-act-detail')) _detX.classList.add('nc-act-detail');
+          window._haccp_ga_counter = (window._haccp_ga_counter || 0) + 1;
+          var _cidX = 'gax_' + Date.now() + '_' + window._haccp_ga_counter;
+          var _coptsX = _catX.ncs.map(function(n){ return '<option>' + n + '</option>'; }).join('');
+          var _wrapX = document.createElement('div');
+          _wrapX.innerHTML =
+            '<div style="font-size:11px;color:#15803d;font-weight:700;margin:0 0 8px">✔ Attendu : ' + _catX.norme + '</div>' +
+            '<div class="frow"><div class="flabel">Non-conformité constatée</div>' +
+              '<select class="nc-constat-select" id="c_' + _cidX + '" onchange="inspToggleAutreConstat(this)">' +
+                '<option value="">-- Sélectionner --</option>' + _coptsX + '<option>Autre (préciser)</option>' +
+              '</select></div>' +
+            '<div class="frow" style="display:none"><div class="flabel">Préciser la non-conformité</div>' +
+              '<input type="text" class="nc-constat-autre" id="ca_' + _cidX + '" placeholder="Décrivez la non-conformité constatée"/></div>';
+          var _titleX = existingAction.querySelector('.nc-action-title');
+          if (_titleX && _titleX.nextSibling) {
+            while (_wrapX.firstChild) existingAction.insertBefore(_wrapX.firstChild, _titleX.nextSibling);
+          } else {
+            while (_wrapX.firstChild) existingAction.insertBefore(_wrapX.firstChild, existingAction.firstChild);
+          }
+        }
+      } catch(eInjX) {}
     } else {
       // Créer action générique
       // Compteur incrémental pour garantir l'unicité (Date.now() pouvait collisionner sur clics rapides)
