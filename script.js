@@ -2411,18 +2411,29 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
       var cls = badBtn ? 'nc' : 'ok';
       // V113 — A1 : si NC, chercher l'action corrective dans le sibling nc-action
       var actionTxt = '';
+      var constatTxt = '';
       if (badBtn) {
         var sib = row.nextElementSibling;
         while (sib) {
           if (sib.classList && sib.classList.contains('nc-action')) {
             var visible = sib.offsetParent || sib.classList.contains('visible') || sib.style.display === 'block' || sib.style.display === 'flex';
             if (visible) {
-              var aSel = sib.querySelector('select');
-              var aDet = sib.querySelector('input[type="text"]');
+              // V-NC16 — cibler explicitement le select/input d'action (classes dédiées)
+              var aSel = sib.querySelector('.nc-act-select') || sib.querySelector('select');
+              var aDet = sib.querySelector('.nc-act-detail') || sib.querySelector('input[type="text"]:not(.nc-constat-autre)') || sib.querySelector('input[type="text"]');
               var aTyp = (aSel && aSel.selectedIndex > 0) ? aSel.options[aSel.selectedIndex].text : '';
               var aDetV = aDet ? aDet.value : '';
+              // V-NC16 — non-conformité constatée (menu déroulant adapté)
+              var _cSel = sib.querySelector('.nc-constat-select');
+              if (_cSel && _cSel.selectedIndex > 0) {
+                var _cT = _cSel.options[_cSel.selectedIndex].text;
+                if (/autre/i.test(_cT)) { var _cA = sib.querySelector('.nc-constat-autre'); _cT = (_cA && _cA.value.trim()) ? _cA.value.trim() : _cT; }
+                constatTxt = _cT;
+              }
               if (aTyp || aDetV) {
                 actionTxt = aTyp + (aDetV ? (aTyp ? ' — ' : '') + aDetV : '');
+                consumedNcActions.push(sib);
+              } else if (constatTxt) {
                 consumedNcActions.push(sib);
               }
             }
@@ -2432,7 +2443,7 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
           sib = sib.nextElementSibling;
         }
       }
-      statutsBloc.push({label:label, statut:statut, cls:cls, action:actionTxt});
+      statutsBloc.push({label:label, statut:statut, cls:cls, action:actionTxt, constat:constatTxt});
     });
 
     if (mesures.length > 0 || statutsBloc.length > 0) {
@@ -2446,7 +2457,9 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
       });
       statutsBloc.forEach(function(s) {
         var actCell = s.action ? '<td style="color:#c2410c;font-weight:600">' + s.action + '</td>' : '<td style="color:#9ca3af">—</td>';
-        html += '<tr><td>' + s.label + '</td><td class="' + s.cls + '">' + s.statut + '</td>' + actCell + '</tr>';
+        // V-NC16 — afficher la non-conformité constatée précise sous le statut
+        var statutCell = s.statut + (s.constat ? '<div style="font-size:10px;font-weight:600;margin-top:1px">' + s.constat + '</div>' : '');
+        html += '<tr><td>' + s.label + '</td><td class="' + s.cls + '">' + statutCell + '</td>' + actCell + '</tr>';
       });
       var confEl = bloc.querySelector('.conformite-badge');
       if (confEl && confEl.textContent.trim() && confEl.textContent.indexOf('Saisissez') === -1 && confEl.textContent.indexOf('Sélectionnez') === -1) {
@@ -8189,6 +8202,20 @@ function selHyg(btn, type) {
       actionDiv.innerHTML =
         '<div class="nc-action-title">⚠️ Non-conformité — ' + labelTxt + '</div>' +
         (_cat ? '<div style="font-size:11px;color:#15803d;font-weight:700;margin:-2px 0 8px">✔ Attendu : ' + _cat.norme + '</div>' : '') +
+        // IMPORTANT : l'action corrective reste le 1er <select> et "Précisions" le 1er
+        // champ texte du bloc — invariant attendu par toutes les fonctions de synthèse
+        // qui lisent querySelector('select') / input[type=text]. Le menu "Non-conformité
+        // constatée" est placé APRÈS pour ne pas casser cette lecture.
+        '<div class="frow"><div class="flabel">Action corrective</div>' +
+          '<select class="nc-act-select" id="s_' + aId + '">' +
+            '<option value="">-- Sélectionner --</option>' +
+            _actOpts +
+            '<option>Autre action (préciser ci-dessous)</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="frow"><div class="flabel">Précisions</div>' +
+          '<input type="text" class="nc-act-detail" id="d_' + aId + '" placeholder="Précisez si besoin..."/>' +
+        '</div>' +
         (_cat ?
           '<div class="frow"><div class="flabel">Non-conformité constatée</div>' +
             '<select class="nc-constat-select" id="c_' + aId + '" onchange="inspToggleAutreConstat(this)">' +
@@ -8201,16 +8228,6 @@ function selHyg(btn, type) {
             '<input type="text" class="nc-constat-autre" id="ca_' + aId + '" placeholder="Décrivez la non-conformité constatée"/>' +
           '</div>'
         : '') +
-        '<div class="frow"><div class="flabel">Action corrective</div>' +
-          '<select class="nc-act-select" id="s_' + aId + '">' +
-            '<option value="">-- Sélectionner --</option>' +
-            _actOpts +
-            '<option>Autre action (préciser ci-dessous)</option>' +
-          '</select>' +
-        '</div>' +
-        '<div class="frow"><div class="flabel">Précisions</div>' +
-          '<input type="text" class="nc-act-detail" id="d_' + aId + '" placeholder="Précisez si besoin..."/>' +
-        '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
           '<div class="frow"><div class="flabel">Responsable</div>' +
             '<input type="text" id="r_' + aId + '" placeholder="Nom & prénom"/>' +
@@ -12000,14 +12017,20 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               actionTxt = '';
               if (matchAction.type) actionTxt += matchAction.type;
               if (matchAction.detail) actionTxt += (actionTxt?' — ':'') + matchAction.detail;
-              if (matchAction.responsable) actionTxt += (actionTxt?' (':'(') + matchAction.responsable;
-              if (matchAction.heure) actionTxt += (matchAction.responsable?' à ':'') + matchAction.heure + ')';
-              else if (matchAction.responsable) actionTxt += ')';
+              // V-NC16 — méta (responsable / heure) entre parenthèses propres,
+              // gère les cas heure seule, responsable seul, ou les deux.
+              var _meta = '';
+              if (matchAction.responsable) _meta += matchAction.responsable;
+              if (matchAction.heure) _meta += (_meta?' à ':'') + matchAction.heure;
+              if (_meta) actionTxt += (actionTxt?' (':'(') + _meta + ')';
               if (!actionTxt) actionTxt = '—';
             }
           }
           var statutCol = s.nc ? '#dc2626' : '#16a34a';
-          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (s.label||'') + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;text-align:center;color:' + statutCol + ';font-weight:700">' + ico + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:9.5px">' + actionTxt + '</td></tr>';
+          // V-NC16 — afficher la non-conformité constatée précise sous le ❌
+          var resultCell = ico;
+          if (s.nc && s.constat) resultCell = ico + '<div style="font-size:8.5px;color:#dc2626;font-weight:600;margin-top:2px;line-height:1.15">' + s.constat + '</div>';
+          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (s.label||'') + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;text-align:center;color:' + statutCol + ';font-weight:700">' + resultCell + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:9.5px">' + actionTxt + '</td></tr>';
         });
         html += '</table>';
       }
