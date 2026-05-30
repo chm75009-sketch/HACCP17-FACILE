@@ -11997,7 +11997,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         html += 'Contrôles : ' + pct + '% conformes (' + conformes + '/' + total2 + ')' + (ncCount2>0?' — ⚡ '+ncCount2+' NC':'');
         html += '</div>';
         html += '<table style="width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed">';
-        html += '<tr style="background:#f3f4f6"><th style="padding:4px 8px;text-align:left;width:55%">Contrôle</th><th style="padding:4px 8px;width:12%;text-align:center">Résultat</th><th style="padding:4px 8px">Action corrective</th></tr>';
+        html += '<tr style="background:#f3f4f6"><th style="padding:4px 8px;text-align:left;width:40%">Contrôle</th><th style="padding:4px 8px;width:28%;text-align:left">Résultat / non-conformité</th><th style="padding:4px 8px">Action corrective</th></tr>';
         var actsPourStatut = (sessData.actions || []).slice();
         sessData.statuts.forEach(function(s) {
           var ico;
@@ -12027,10 +12027,20 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
             }
           }
           var statutCol = s.nc ? '#dc2626' : '#16a34a';
-          // V-NC16 — afficher la non-conformité constatée précise sous le ❌
-          var resultCell = ico;
-          if (s.nc && s.constat) resultCell = ico + '<div style="font-size:8.5px;color:#dc2626;font-weight:600;margin-top:2px;line-height:1.15">' + s.constat + '</div>';
-          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (s.label||'') + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;text-align:center;color:' + statutCol + ';font-weight:700">' + resultCell + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:9.5px">' + actionTxt + '</td></tr>';
+          // V-NC16 — Résultat lisible : pour une NC, on affiche la non-conformité
+          // précise (menu déroulant). À défaut, mention générique "Non conforme".
+          var resultCell;
+          if (s.nc) {
+            var _c = s.constat || 'Non conforme';
+            resultCell = '<span style="font-weight:800">❌ ' + _c + '</span>';
+          } else if (s.statut === 'Conforme') {
+            resultCell = '✅ Conforme';
+          } else if (s.statut === 'N/A') {
+            resultCell = 'N/A';
+          } else {
+            resultCell = '—';
+          }
+          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (s.label||'') + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;color:' + statutCol + ';font-weight:600;font-size:10px">' + resultCell + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:9.5px">' + actionTxt + '</td></tr>';
         });
         html += '</table>';
       }
