@@ -8132,7 +8132,78 @@ var CATALOGUE_NC_DEFS = [
   { labels:['Technique conforme (30s, savon bactéricide, essuie-mains UU)'],
     norme:'Lavage 30 s, savon bactéricide, essuie-mains à usage unique',
     ncs:['Durée insuffisante (< 30 s)','Pas de savon bactéricide','Essuie-mains non à usage unique','Absence de séchage des mains'],
-    actions:['Lavage refait selon le protocole','Réapprovisionnement savon / essuie-mains','Formation au protocole de lavage planifiée'] }
+    actions:['Lavage refait selon le protocole','Réapprovisionnement savon / essuie-mains','Formation au protocole de lavage planifiée'] },
+
+  /* ── NETTOYAGE — Zones (modules Ouverture & Fermeture) ── */
+  { labels:['Plans de travail cuisine','Sol cuisine','Hottes & filtres','Plonge & éviers','Intérieur chambres froides','Réfrigérateurs','Ustensiles & planches à découper','Vestiaires & sanitaires','Zone stockage déchets'],
+    norme:'Zone propre et désinfectée',
+    ncs:['Souillures / résidus visibles','Traces grasses non éliminées','Nettoyage non réalisé','Désinfection non réalisée','Matériel de nettoyage défaillant'],
+    actions:['Nettoyage refait immédiatement','Désinfection complétée (temps de contact respecté)','Rappel du plan de nettoyage au personnel','Produit / matériel de nettoyage réapprovisionné'] },
+  { labels:['Zone remise en conformité avant production'],
+    norme:'Zone conforme avant le démarrage de la production',
+    ncs:['Zone non remise en conformité','Production démarrée malgré la non-conformité'],
+    actions:["Production différée jusqu'à mise en conformité",'Nettoyage complémentaire réalisé'] },
+  /* ── FERMETURE — Étapes du protocole ── */
+  { labels:['1. Pré-nettoyage — Élimination des souillures grossières','2. Nettoyage — Détergent + action mécanique','3. Rinçage intermédiaire','4. Désinfection — Produit + temps de contact respecté','5. Rinçage final'],
+    norme:'Étape du protocole réalisée conformément',
+    ncs:['Étape non réalisée','Action mécanique insuffisante','Temps de contact non respecté','Dosage produit non respecté','Rinçage incomplet'],
+    actions:['Étape refaite immédiatement','Temps de contact respecté','Dosage corrigé selon la fiche technique','Rappel du protocole au personnel'] },
+
+  /* ── HUILES DE FRITURE — Collecte ── */
+  { labels:['Huile usagée versée dans le conteneur dédié'],
+    norme:'Huile usagée collectée dans le conteneur dédié',
+    ncs:['Huile non versée dans le conteneur dédié',"Mélange avec d'autres déchets",'Conteneur plein / non disponible'],
+    actions:['Huile transférée dans le conteneur dédié','Enlèvement prestataire demandé','Conteneur supplémentaire commandé'] },
+  { labels:['Bordereau de collecte disponible'],
+    norme:'Bordereau de collecte disponible et à jour',
+    ncs:['Bordereau manquant','Bordereau non à jour'],
+    actions:['Bordereau réclamé au prestataire','Classement du bordereau effectué'] },
+
+  /* ── NUISIBLES — Zones & suivi ── */
+  { labels:['Cuisine','Réserve / Stockage','Chambre froide','WC / Vestiaires','Salle / Accueil clients','Extérieur / Abords','Autre zone (préciser)'],
+    norme:"Absence de nuisibles et d'indices de présence",
+    ncs:['Présence de rongeurs (souris / rats)',"Présence d'insectes (blattes, mouches…)",'Indices : déjections / traces / rongements','Appât consommé / poste déclenché',"Point d'entrée non protégé"],
+    actions:['Prestataire dératisation / désinsectisation contacté','Intervention curative programmée',"Point d'entrée obturé",'Nettoyage et désinfection de la zone','Denrées exposées retirées'] },
+  { labels:["Rapport d'intervention disponible"],
+    norme:"Rapport d'intervention du prestataire disponible",
+    ncs:['Rapport manquant','Rapport non à jour'],
+    actions:['Rapport réclamé au prestataire','Classement du rapport effectué'] },
+  { labels:['Action corrective immédiate mise en place'],
+    norme:'Action corrective immédiate mise en place',
+    ncs:['Aucune action immédiate prise','Action insuffisante'],
+    actions:['Mesure corrective immédiate appliquée','Prestataire spécialisé contacté'] },
+
+  /* ── DOCUMENTS OBLIGATOIRES ── */
+  { labels:['Formation HACCP 14h — Attestation','Aptitude médicale du personnel',"Déclaration d'activité (Cerfa 13984) — DDPP",'Agrément sanitaire (si applicable)','Analyses microbiologiques semi-annuelles','Plan HACCP formalisé','Plan de Maîtrise Sanitaire (PMS)','Plan de nettoyage & désinfection','Plan de flux (diagramme de production)','Fiches techniques produits & fournisseurs','Contrat prestataire nuisibles','Contrat collecte huiles usagées','Contrat collecte biodéchets','Registre de maintenance équipements'],
+    norme:'Document présent, valide et à jour',
+    ncs:['Document manquant','Document expiré / périmé','Document non à jour','Document non signé / incomplet'],
+    actions:['Document demandé / régularisé sous délai',"Renouvellement engagé auprès de l'organisme",'Mise à jour du document effectuée','Mise en conformité planifiée'] },
+
+  /* ── AFFICHAGES RÉGLEMENTAIRES ── */
+  { labels:['Procédure de lavage des mains (visuelle)','Code vestimentaire (tenue obligatoire)','Plan de nettoyage & désinfection (PND) avec émargement quotidien','Tableau des températures réglementaires','Gestion des déchets & biodéchets',"Notice d'immatriculation sanitaire",'Protocole de collecte des huiles usagées','14 allergènes — Mention obligatoire sur la carte','Prix TTC affichés (carte + vitrine)','Licence alcool (si applicable)','Interdiction vente alcool aux mineurs',"Plan d'évacuation",'Emplacement extincteurs signalé',"Numéros d'urgence (15 SAMU / 17 Police / 18 Pompiers / 112)",'Responsable HACCP identifié et affiché'],
+    norme:'Affichage réglementaire présent et lisible',
+    ncs:['Affichage absent','Affichage non lisible / détérioré','Affichage non à jour','Affichage non visible du public / personnel'],
+    actions:['Affichage remis en place immédiatement','Affichage réimprimé / remplacé',"Mise à jour de l'affichage effectuée",'Repositionné à un endroit visible'] },
+
+  /* ── TIAC / NON-CONFORMITÉ (module NC) ── */
+  { labels:['Plat(s) suspect(s)','Plats suspects retirés','Denrées suspectes bloquées'],
+    norme:'Denrées suspectes isolées et bloquées',
+    ncs:['Denrées non bloquées','Denrées déjà servies / écoulées','Traçabilité du lot incomplète'],
+    actions:['Denrées immédiatement bloquées et isolées','Plats suspects retirés du service','Échantillon conservé pour analyse'] },
+  { labels:['ARS contactée','Signalement ARS effectué','DDPP contactée','Signalement DDPP effectué'],
+    norme:'Autorité sanitaire informée (ARS / DDPP)',
+    ncs:['Autorité non encore contactée','Signalement en retard'],
+    actions:['ARS contactée sans délai','DDPP contactée sans délai','Déclaration de TIAC transmise'] },
+
+  /* ── PLAT TÉMOIN / ANALYSES MICRO (restauration collective) ── */
+  { labels:['Destruction effectuée'],
+    norme:'Plat témoin conservé 72 h puis détruit avec traçabilité',
+    ncs:['Destruction non tracée','Conservation < 72 h','Plat témoin manquant'],
+    actions:['Traçabilité de destruction complétée','Prélèvement systématique rappelé au personnel'] },
+  { labels:['Résultat global'],
+    norme:'Résultats microbiologiques conformes aux critères',
+    ncs:['Résultat non satisfaisant','Résultat à surveiller','Analyse non réalisée'],
+    actions:['Mesures correctives engagées (nettoyage renforcé)','Re-prélèvement programmé',"Plan d'action transmis"] }
 ];
 var _CATALOGUE_NC = null;
 function _nrmNC(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\([^)]*\)/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
