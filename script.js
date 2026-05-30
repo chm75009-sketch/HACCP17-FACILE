@@ -11356,8 +11356,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 responsable: responsable || sd.signataire || '',
                 heure: heure,
                 date: sessionDate,
-                seuil: '',
-                valeur: ''
+                // V-NC16 — Contrôles qualitatifs : le seuil attendu est "Conforme",
+                // et la valeur constatée est le statut réel (Non conforme / Absent / Manquant…),
+                // afin de ne plus afficher "—" dans le récapitulatif NC.
+                seuil: 'Conforme',
+                valeur: s.statut || 'Non conforme'
               });
             });
           }
@@ -11449,7 +11452,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               var sigNV = sigN_I ? sigN_I.value.trim() : '';
               if (sigPV || sigNV) responsable = (sigPV + ' ' + sigNV).trim();
             }
-            totalNCs.push({module:moduleName, label:s.label, action:action, responsable:responsable, heure:heure});
+            totalNCs.push({module:moduleName, label:s.label, action:action, responsable:responsable, heure:heure, seuil:'Conforme', valeur:(s.statut||'Non conforme')});
           }
         });
         if (d.ncs) d.ncs.forEach(function(nc){
