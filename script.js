@@ -1634,8 +1634,8 @@ function collectPageDataUniversel(pageId) {
         if (parentBlock) {
           var blockAction = parentBlock.querySelector('.nc-action.visible, .nc-action[style*="block"], .nc-action[style*="flex"]');
           if (blockAction) {
-            var bSel = blockAction.querySelector('select');
-            var bDet = blockAction.querySelector('input[type="text"]');
+            var bSel = blockAction.querySelector('.nc-act-select') || blockAction.querySelector('select');
+            var bDet = blockAction.querySelector('.nc-act-detail') || blockAction.querySelector('input[type="text"]:not(.nc-constat-autre)') || blockAction.querySelector('input[type="text"]');
             var bResp = blockAction.querySelector('input[id*="resp"]');
             var bHeure = blockAction.querySelector('input[type="time"]');
             var bType = (bSel && bSel.selectedIndex > 0) ? bSel.options[bSel.selectedIndex].text : '';
@@ -1672,8 +1672,8 @@ function collectPageDataUniversel(pageId) {
         var sib = el.nextElementSibling;
         while (sib && !(sib.classList && sib.classList.contains('nc-action'))) sib = sib.nextElementSibling;
         if (sib) {
-          var selEl = sib.querySelector('select');
-          var detEl = sib.querySelector('input[type="text"]');
+          var selEl = sib.querySelector('.nc-act-select') || sib.querySelector('select');
+          var detEl = sib.querySelector('.nc-act-detail') || sib.querySelector('input[type="text"]:not(.nc-constat-autre)') || sib.querySelector('input[type="text"]');
           var rspEl = sib.querySelector('input[id*="resp"]');
           var hrEl  = sib.querySelector('input[type="time"]');
           var tVal = (selEl && selEl.selectedIndex > 0) ? selEl.options[selEl.selectedIndex].text : '';
@@ -2479,8 +2479,8 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
     ncActions.forEach(function(nca) {
       if (nca.style.display === 'none') return;
       if (consumedNcActions.indexOf(nca) !== -1) return; // déjà dans la table
-      var sel = nca.querySelector('select');
-      var detailEl = nca.querySelector('input[type="text"]');
+      var sel = nca.querySelector('.nc-act-select') || nca.querySelector('select');
+      var detailEl = nca.querySelector('.nc-act-detail') || nca.querySelector('input[type="text"]:not(.nc-constat-autre)') || nca.querySelector('input[type="text"]');
       var respEl = nca.querySelector('input[id*="resp"]');
       var heureEl = nca.querySelector('input[type="time"]');
       var typeVal = (sel && sel.selectedIndex > 0) ? sel.options[sel.selectedIndex].text : '';
@@ -2688,8 +2688,8 @@ function imprimerModuleAplat(pageId, titre, dataOverride) {
               var sib = row.nextElementSibling;
               while (sib) {
                 if (sib.classList && sib.classList.contains('nc-action')) {
-                  var sel = sib.querySelector('select');
-                  var detailEl = sib.querySelector('input[type="text"]');
+                  var sel = sib.querySelector('.nc-act-select') || sib.querySelector('select');
+                  var detailEl = sib.querySelector('.nc-act-detail') || sib.querySelector('input[type="text"]:not(.nc-constat-autre)') || sib.querySelector('input[type="text"]');
                   var respEl = sib.querySelector('input[id*="resp"]');
                   var heureEl = sib.querySelector('input[type="time"]');
                   var typeVal = (sel && sel.selectedIndex > 0) ? sel.options[sel.selectedIndex].text : '';
@@ -8202,20 +8202,9 @@ function selHyg(btn, type) {
       actionDiv.innerHTML =
         '<div class="nc-action-title">⚠️ Non-conformité — ' + labelTxt + '</div>' +
         (_cat ? '<div style="font-size:11px;color:#15803d;font-weight:700;margin:-2px 0 8px">✔ Attendu : ' + _cat.norme + '</div>' : '') +
-        // IMPORTANT : l'action corrective reste le 1er <select> et "Précisions" le 1er
-        // champ texte du bloc — invariant attendu par toutes les fonctions de synthèse
-        // qui lisent querySelector('select') / input[type=text]. Le menu "Non-conformité
-        // constatée" est placé APRÈS pour ne pas casser cette lecture.
-        '<div class="frow"><div class="flabel">Action corrective</div>' +
-          '<select class="nc-act-select" id="s_' + aId + '">' +
-            '<option value="">-- Sélectionner --</option>' +
-            _actOpts +
-            '<option>Autre action (préciser ci-dessous)</option>' +
-          '</select>' +
-        '</div>' +
-        '<div class="frow"><div class="flabel">Précisions</div>' +
-          '<input type="text" class="nc-act-detail" id="d_' + aId + '" placeholder="Précisez si besoin..."/>' +
-        '</div>' +
+        // Ordre logique : on déclare d'abord CE QUI ne va pas (non-conformité
+        // constatée), puis l'action corrective. Les fonctions de lecture ciblent
+        // explicitement .nc-act-select / .nc-act-detail, donc l'ordre du DOM est libre.
         (_cat ?
           '<div class="frow"><div class="flabel">Non-conformité constatée</div>' +
             '<select class="nc-constat-select" id="c_' + aId + '" onchange="inspToggleAutreConstat(this)">' +
@@ -8228,6 +8217,16 @@ function selHyg(btn, type) {
             '<input type="text" class="nc-constat-autre" id="ca_' + aId + '" placeholder="Décrivez la non-conformité constatée"/>' +
           '</div>'
         : '') +
+        '<div class="frow"><div class="flabel">Action corrective</div>' +
+          '<select class="nc-act-select" id="s_' + aId + '">' +
+            '<option value="">-- Sélectionner --</option>' +
+            _actOpts +
+            '<option>Autre action (préciser ci-dessous)</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="frow"><div class="flabel">Précisions</div>' +
+          '<input type="text" class="nc-act-detail" id="d_' + aId + '" placeholder="Précisez si besoin..."/>' +
+        '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
           '<div class="frow"><div class="flabel">Responsable</div>' +
             '<input type="text" id="r_' + aId + '" placeholder="Nom & prénom"/>' +
@@ -8414,8 +8413,8 @@ function verifierNCActionsRemplies(pageId) {
     var nca = ncActions[i];
     // Visible si offsetParent non-null (gère class .visible ET inline style)
     if (!nca.offsetParent) continue;
-    var sel = nca.querySelector('select');
-    var detailEl = nca.querySelector('input[type="text"]');
+    var sel = nca.querySelector('.nc-act-select') || nca.querySelector('select');
+    var detailEl = nca.querySelector('.nc-act-detail') || nca.querySelector('input[type="text"]:not(.nc-constat-autre)') || nca.querySelector('input[type="text"]');
     var typeOk = (sel && sel.selectedIndex > 0);
     var detailOk = (detailEl && detailEl.value.trim() !== '');
     if (!typeOk && !detailOk) {
@@ -11246,8 +11245,8 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         while (sibling) {
           if (sibling.classList && sibling.classList.contains('nc-action')) {
             // Trouvé une nc-action - extraire les valeurs
-            var sel = sibling.querySelector('select');
-            var detailEl = sibling.querySelector('input[type="text"]');
+            var sel = sibling.querySelector('.nc-act-select') || sibling.querySelector('select');
+            var detailEl = sibling.querySelector('.nc-act-detail') || sibling.querySelector('input[type="text"]:not(.nc-constat-autre)') || sibling.querySelector('input[type="text"]');
             var respEl = sibling.querySelector('input[id*="resp"]');
             var heureEl = sibling.querySelector('input[type="time"]');
             var typeVal = (sel && sel.selectedIndex > 0) ? sel.options[sel.selectedIndex].text : '';
@@ -11604,8 +11603,8 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               var ncSibling = ncEl.nextElementSibling;
               while (ncSibling) {
                 if (ncSibling.classList && ncSibling.classList.contains('nc-action')) {
-                  var sel = ncSibling.querySelector('select');
-                  var detailEl = ncSibling.querySelector('input[type="text"]');
+                  var sel = ncSibling.querySelector('.nc-act-select') || ncSibling.querySelector('select');
+                  var detailEl = ncSibling.querySelector('.nc-act-detail') || ncSibling.querySelector('input[type="text"]:not(.nc-constat-autre)') || ncSibling.querySelector('input[type="text"]');
                   var respEl = ncSibling.querySelector('input[id*="resp"]');
                   var heureEl = ncSibling.querySelector('input[type="time"]');
                   var typeVal = (sel && sel.selectedIndex > 0) ? sel.options[sel.selectedIndex].text : '';
@@ -14429,8 +14428,8 @@ function collectNCGlobales() {
         var nextEl = grp.closest('.frow') ? grp.closest('.frow').nextElementSibling : null;
         while (nextEl) {
           if (nextEl.classList.contains('nc-action') && nextEl.classList.contains('visible')) {
-            var actSel = nextEl.querySelector('select');
-            var actDet = nextEl.querySelector('input[type=text]');
+            var actSel = nextEl.querySelector('.nc-act-select') || nextEl.querySelector('select');
+            var actDet = nextEl.querySelector('.nc-act-detail') || nextEl.querySelector('input[type=text]:not(.nc-constat-autre)') || nextEl.querySelector('input[type=text]');
             var actResp = nextEl.querySelector('input[placeholder*="prenom"],input[placeholder*="Nom"]');
             if (actSel && actSel.value) actionDesc += actSel.options[actSel.selectedIndex].text;
             if (actDet && actDet.value) actionDesc += (actionDesc ? ' — ' : '') + actDet.value;
