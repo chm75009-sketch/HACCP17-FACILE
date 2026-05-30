@@ -1579,6 +1579,7 @@ function collectPageDataUniversel(pageId) {
     // Stratégie : capter en priorité 0 le sous-bloc pt_action_X (Fermeture intra-frow),
     // sinon nc-action sibling (autres modules), sinon nc-action dans le bloc parent.
     var action = null;
+    var constatNC = '';
     if (!!badBtn || !!warnBtn) {
       // Priorité 0 — Fermeture : pt_action_X intra-frow avec status-group Oui/Non
       var ptAction = row.querySelector('[id^="pt_action_"]');
@@ -1598,14 +1599,25 @@ function collectPageDataUniversel(pageId) {
         while (sib && hops < 4) {
           if (sib.classList && sib.classList.contains('nc-action')) {
             // Ne prendre que si AU MOINS un champ rempli
-            var aSel = sib.querySelector('select');
-            var aDet = sib.querySelector('input[type="text"]');
+            // V-NC16 — cibler explicitement le select/input d'action (classes dédiées)
+            // pour ne pas confondre avec le menu "Non-conformité constatée"
+            var aSel = sib.querySelector('.nc-act-select') || sib.querySelector('select');
+            var aDet = sib.querySelector('.nc-act-detail') || sib.querySelector('input[type="text"]:not(.nc-constat-autre)') || sib.querySelector('input[type="text"]');
             var aResp = sib.querySelector('input[id*="resp"]') || row.querySelector('input[id*="resp"]') || (row.closest('.fblock') ? row.closest('.fblock').querySelector('input[id*="resp"]') : null);
             var aHeure = sib.querySelector('input[type="time"]');
             var aType = (aSel && aSel.selectedIndex > 0) ? aSel.options[aSel.selectedIndex].text : '';
             var aDetVal = aDet ? aDet.value.trim() : '';
             var aRespVal = aResp ? aResp.value.trim() : '';
             var aHeureVal = aHeure ? aHeure.value.trim() : '';
+            // V-NC16 — non-conformité constatée (menu déroulant adapté au point)
+            var cSel = sib.querySelector('.nc-constat-select');
+            if (cSel && cSel.selectedIndex > 0) {
+              var cTxt = cSel.options[cSel.selectedIndex].text;
+              if (/autre/i.test(cTxt)) {
+                var cA = sib.querySelector('.nc-constat-autre');
+                constatNC = (cA && cA.value.trim()) ? cA.value.trim() : cTxt;
+              } else { constatNC = cTxt; }
+            }
             if (aType || aDetVal || aRespVal) {
               action = { type: aType, detail: aDetVal, responsable: aRespVal, heure: aHeureVal };
             }
@@ -1640,6 +1652,12 @@ function collectPageDataUniversel(pageId) {
 
     var entry = { label: label, statut: statut, nc: !!badBtn };
     if (action) entry.action = action;
+    // V-NC16 — enregistrer la norme attendue (seuil qualitatif) et la NC constatée
+    if (!!badBtn) {
+      var _catE = (typeof getCatalogueNC === 'function') ? getCatalogueNC(label) : null;
+      if (_catE && _catE.norme) entry.norme = _catE.norme;
+      if (constatNC) entry.constat = constatNC;
+    }
     data.statuts.push(entry);
   });
 
@@ -8034,6 +8052,94 @@ function selHygBtn(btn) {
   var type = btn.getAttribute('data-shtype') || 'ok';
   selHyg(btn, type);
 }
+/* ═══════════════════════════════════════════════════════════════════
+   CATALOGUE NC PAR POINT DE CONTRÔLE (pilote : module Hygiène)
+   Pour chaque point : norme attendue (= "seuil" qualitatif), liste de
+   non-conformités typiques (menu déroulant + "Autre…"), et actions
+   correctives adaptées (menu déroulant + "Autre…"). Alimente le bloc
+   d'action généré (selHyg) et le récapitulatif NC du Pack DDPP.
+═══════════════════════════════════════════════════════════════════ */
+var CATALOGUE_NC_DEFS = [
+  { labels:['Veste / tablier propre (changement quotidien obligatoire)'],
+    norme:'Tenue propre, changée quotidiennement',
+    ncs:['Tenue visiblement sale / tachée','Tenue non changée depuis la veille','Tenue de ville portée en cuisine','Veste / tablier absent'],
+    actions:['Changement de tenue immédiat','Tenue propre fournie au salarié','Rappel de la consigne de changement quotidien','Réapprovisionnement du stock de tenues'] },
+  { labels:['Coiffe / charlotte (cheveux entièrement couverts)'],
+    norme:'Cheveux entièrement couverts',
+    ncs:['Charlotte / coiffe non portée','Cheveux dépassant de la charlotte','Charlotte déchirée / inadaptée'],
+    actions:['Charlotte mise en place immédiatement','Stock de charlettes recomplété','Rappel de la consigne au salarié'] },
+  { labels:['Chaussures de sécurité antidérapantes dédiées cuisine'],
+    norme:'Chaussures de sécurité antidérapantes dédiées cuisine',
+    ncs:['Chaussures de ville portées','Chaussures non antidérapantes','Chaussures sales / non dédiées cuisine'],
+    actions:['Changement de chaussures immédiat','Rappel de la consigne au salarié','Commande de chaussures conformes engagée'] },
+  { labels:['Tablier imperméable (zone humide si applicable)'],
+    norme:'Tablier imperméable porté en zone humide',
+    ncs:['Tablier imperméable non porté en zone humide','Tablier déchiré / non étanche'],
+    actions:['Tablier mis en place immédiatement','Réapprovisionnement du stock','Rappel de la consigne au salarié'] },
+  { labels:['Absence de bagues et bracelets'],
+    norme:'Aucune bague ni bracelet aux mains',
+    ncs:["Port d'une bague","Port d'un bracelet","Port d'une alliance"],
+    actions:['Bijou retiré immédiatement','Bijou rangé hors zone de production','Rappel de la consigne au salarié'] },
+  { labels:['Absence de montre'],
+    norme:'Aucune montre portée',
+    ncs:["Port d'une montre","Port d'un bracelet connecté"],
+    actions:['Montre retirée immédiatement','Rappel de la consigne au salarié'] },
+  { labels:['Absence de vernis à ongles / faux ongles'],
+    norme:'Pas de vernis ni de faux ongles',
+    ncs:['Port de vernis à ongles','Port de faux ongles','Vernis écaillé'],
+    actions:['Retrait demandé avant reprise du poste','Repositionnement sur poste sans contact alimentaire','Rappel de la consigne au salarié'] },
+  { labels:['Ongles courts et propres'],
+    norme:'Ongles courts et propres',
+    ncs:['Ongles longs','Ongles sales'],
+    actions:['Ongles coupés / nettoyés immédiatement','Rappel de la consigne au salarié'] },
+  { labels:['Blessures couvertes (pansement bleu détectable + gant)'],
+    norme:'Blessure couverte (pansement bleu détectable + gant)',
+    ncs:['Blessure non couverte','Pansement non détectable (non bleu)','Absence de gant sur la blessure'],
+    actions:['Pansement bleu détectable posé + gant','Repositionnement sur poste sans contact alimentaire','Trousse de secours recomplétée'] },
+  { labels:["Lavage à l'arrivée en cuisine"],
+    norme:"Mains lavées à l'arrivée en cuisine",
+    ncs:["Mains non lavées à l'arrivée",'Lavage incomplet / trop rapide'],
+    actions:['Lavage des mains effectué immédiatement','Rappel du protocole de lavage','Affichage du protocole remis en place'] },
+  { labels:['Après passage aux WC'],
+    norme:'Mains lavées après passage aux WC',
+    ncs:['Mains non lavées après passage aux WC','Lavage incomplet'],
+    actions:['Lavage des mains effectué immédiatement','Rappel du protocole de lavage','Vérification de l’approvisionnement (savon / essuie-mains)'] },
+  { labels:['Après manipulation de déchets'],
+    norme:'Mains lavées après manipulation de déchets',
+    ncs:['Mains non lavées après manipulation de déchets','Lavage incomplet'],
+    actions:['Lavage des mains effectué immédiatement','Rappel du protocole de lavage'] },
+  { labels:['Après contact avec allergènes'],
+    norme:'Mains lavées après contact avec allergènes',
+    ncs:['Mains non lavées après contact allergènes','Risque de contamination croisée'],
+    actions:['Lavage des mains effectué immédiatement','Nettoyage et désinfection du plan de travail','Rappel du protocole allergènes'] },
+  { labels:['Après manipulation de viande crue'],
+    norme:'Mains lavées après manipulation de viande crue',
+    ncs:['Mains non lavées après viande crue','Risque de contamination croisée'],
+    actions:['Lavage des mains effectué immédiatement','Nettoyage et désinfection du plan de travail','Rappel du protocole'] },
+  { labels:['Technique conforme (30s, savon bactéricide, essuie-mains UU)'],
+    norme:'Lavage 30 s, savon bactéricide, essuie-mains à usage unique',
+    ncs:['Durée insuffisante (< 30 s)','Pas de savon bactéricide','Essuie-mains non à usage unique','Absence de séchage des mains'],
+    actions:['Lavage refait selon le protocole','Réapprovisionnement savon / essuie-mains','Formation au protocole de lavage planifiée'] }
+];
+var _CATALOGUE_NC = null;
+function _nrmNC(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\([^)]*\)/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function _buildCatalogueNC(){ _CATALOGUE_NC = {}; CATALOGUE_NC_DEFS.forEach(function(d){ d.labels.forEach(function(l){ _CATALOGUE_NC[_nrmNC(l)] = d; }); }); }
+function getCatalogueNC(label){
+  if (!_CATALOGUE_NC) _buildCatalogueNC();
+  var k = _nrmNC(label);
+  if (!k) return null;
+  if (_CATALOGUE_NC[k]) return _CATALOGUE_NC[k];
+  for (var key in _CATALOGUE_NC){ if (key.length > 5 && (k.indexOf(key) >= 0 || key.indexOf(k) >= 0)) return _CATALOGUE_NC[key]; }
+  return null;
+}
+// Affiche/masque le champ texte "Autre" sous le menu déroulant des NC constatées
+window.inspToggleAutreConstat = function(sel){
+  var row = sel.closest('.frow'); var next = row ? row.nextElementSibling : null;
+  var txt = (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '');
+  var isAutre = /autre/i.test(txt);
+  if (next && next.querySelector && next.querySelector('.nc-constat-autre')) next.style.display = isAutre ? '' : 'none';
+};
+
 function selHyg(btn, type) {
   var grp = btn.closest('.status-group');
   grp.querySelectorAll('.status-btn').forEach(function(b) {
@@ -8069,28 +8175,41 @@ function selHyg(btn, type) {
       window._haccp_ga_counter = (window._haccp_ga_counter || 0) + 1;
       var aId = 'ga_' + Date.now() + '_' + window._haccp_ga_counter;
       var lbl = frow.querySelector('.flabel');
-      var labelTxt = lbl ? lbl.textContent.trim().replace(/[⚠️🔴⚡*]/g,'').trim().substring(0,50) : 'Non-conformité';
+      var fullLabel = lbl ? lbl.textContent.trim().replace(/[⚠️🔴⚡*]/g,'').trim() : 'Non-conformité';
+      var labelTxt = fullLabel.substring(0,50);
+      // V-NC16 — Catalogue adapté au point de contrôle (norme + NC + actions)
+      var _cat = (typeof getCatalogueNC === 'function') ? getCatalogueNC(fullLabel) : null;
+      var _constatOpts = _cat ? _cat.ncs.map(function(n){ return '<option>' + n + '</option>'; }).join('') : '';
+      var _genActions = ['Correction immédiate effectuée','Mesure provisoire en place','Responsable informé','Prestataire/fournisseur contacté','Procédure de remédiation engagée','Document mis à jour','Affichage remplacé/mis à jour','Zone nettoyée et désinfectée'];
+      var _actList = (_cat && _cat.actions && _cat.actions.length) ? _cat.actions : _genActions;
+      var _actOpts = _actList.map(function(a){ return '<option>' + a + '</option>'; }).join('');
       var actionDiv = document.createElement('div');
       actionDiv.className = 'nc-action visible';
       actionDiv.setAttribute('data-generic','1');
       actionDiv.innerHTML =
-        '<div class="nc-action-title">🛠️ Action corrective — ' + labelTxt + '</div>' +
-        '<div class="frow"><div class="flabel">Action effectuée</div>' +
-          '<select id="s_' + aId + '">' +
+        '<div class="nc-action-title">⚠️ Non-conformité — ' + labelTxt + '</div>' +
+        (_cat ? '<div style="font-size:11px;color:#15803d;font-weight:700;margin:-2px 0 8px">✔ Attendu : ' + _cat.norme + '</div>' : '') +
+        (_cat ?
+          '<div class="frow"><div class="flabel">Non-conformité constatée</div>' +
+            '<select class="nc-constat-select" id="c_' + aId + '" onchange="inspToggleAutreConstat(this)">' +
+              '<option value="">-- Sélectionner --</option>' +
+              _constatOpts +
+              '<option>Autre (préciser)</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="frow" style="display:none"><div class="flabel">Préciser la non-conformité</div>' +
+            '<input type="text" class="nc-constat-autre" id="ca_' + aId + '" placeholder="Décrivez la non-conformité constatée"/>' +
+          '</div>'
+        : '') +
+        '<div class="frow"><div class="flabel">Action corrective</div>' +
+          '<select class="nc-act-select" id="s_' + aId + '">' +
             '<option value="">-- Sélectionner --</option>' +
-            '<option>Correction immédiate effectuée</option>' +
-            '<option>Mesure provisoire en place</option>' +
-            '<option>Responsable informé</option>' +
-            '<option>Prestataire/fournisseur contacté</option>' +
-            '<option>Procédure de remédiation engagée</option>' +
-            '<option>Document mis à jour</option>' +
-            '<option>Affichage remplacé/mis à jour</option>' +
-            '<option>Zone nettoyée et désinfectée</option>' +
+            _actOpts +
             '<option>Autre action (préciser ci-dessous)</option>' +
           '</select>' +
         '</div>' +
         '<div class="frow"><div class="flabel">Précisions</div>' +
-          '<input type="text" id="d_' + aId + '" placeholder="Decrivez action corrective..."/>' +
+          '<input type="text" class="nc-act-detail" id="d_' + aId + '" placeholder="Précisez si besoin..."/>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
           '<div class="frow"><div class="flabel">Responsable</div>' +
@@ -11356,11 +11475,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 responsable: responsable || sd.signataire || '',
                 heure: heure,
                 date: sessionDate,
-                // V-NC16 — Contrôles qualitatifs : le seuil attendu est "Conforme",
-                // et la valeur constatée est le statut réel (Non conforme / Absent / Manquant…),
-                // afin de ne plus afficher "—" dans le récapitulatif NC.
-                seuil: 'Conforme',
-                valeur: s.statut || 'Non conforme'
+                // V-NC16 — Seuil = norme attendue du point (catalogue), Valeur = NC
+                // réellement constatée (menu déroulant adapté). Fallback générique sinon.
+                seuil: s.norme || 'Conforme',
+                valeur: s.constat || s.statut || 'Non conforme'
               });
             });
           }
@@ -11452,7 +11570,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               var sigNV = sigN_I ? sigN_I.value.trim() : '';
               if (sigPV || sigNV) responsable = (sigPV + ' ' + sigNV).trim();
             }
-            totalNCs.push({module:moduleName, label:s.label, action:action, responsable:responsable, heure:heure, seuil:'Conforme', valeur:(s.statut||'Non conforme')});
+            totalNCs.push({module:moduleName, label:s.label, action:action, responsable:responsable, heure:heure, seuil:(s.norme||'Conforme'), valeur:(s.constat||s.statut||'Non conforme')});
           }
         });
         if (d.ncs) d.ncs.forEach(function(nc){
