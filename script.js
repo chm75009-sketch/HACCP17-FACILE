@@ -1426,7 +1426,7 @@ window.validerEssaiUniversel = async function() {
     // Pré-remplir les identifiants et connecter directement
     var cEl = document.getElementById('login_code'); if (cEl) cEl.value = code;
     var pEl = document.getElementById('login_pwd'); if (pEl) pEl.value = pwd;
-    alert('✅ Essai activé pour ' + ESSAI_UNIVERSEL_JOURS + ' jours !\n\nVotre code : ' + code + '\nMot de passe : ' + pwd + '\n\n🎁 Petit cadeau : la journée d\'aujourd\'hui vous est offerte en plus, votre essai court jusqu\'au ' + new Date(dateExp).toLocaleDateString('fr-FR') + ' inclus.\n\nNotez vos identifiants pour vous reconnecter.');
+    alert('✅ Essai activé !\n\nVotre code : ' + code + '\nMot de passe : ' + pwd + '\n\n🎁 ' + ESSAI_UNIVERSEL_JOURS + ' jours d\'essai, à compter du lendemain de votre inscription (la journée d\'aujourd\'hui vous est offerte en plus). Essai valable jusqu\'au ' + new Date(dateExp).toLocaleDateString('fr-FR') + ' inclus.\n\nNotez vos identifiants pour vous reconnecter.');
     if (typeof connexion === 'function') connexion();
   } catch(e) {
     show('Erreur : ' + ((e && e.message) ? e.message : e));
