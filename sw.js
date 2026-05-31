@@ -4,7 +4,7 @@
  * cache quand on est hors-ligne (utile sur le terrain sans réseau).
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptés.
  */
-const CACHE = 'haccp-pro-v5';
+const CACHE = 'haccp-pro-v6';
 const CORE = [
   './',
   './index.html',
@@ -15,7 +15,15 @@ const CORE = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
-  './apple-touch-icon.png'
+  './apple-touch-icon.png',
+  './slides/slide-1.webp',
+  './slides/slide-2.webp',
+  './slides/slide-3.webp',
+  './slides/slide-4.webp',
+  './slides/slide-5.webp',
+  './slides/slide-6.webp',
+  './slides/slide-7.webp',
+  './slides/slide-8.webp'
 ];
 
 self.addEventListener('install', (event) => {
