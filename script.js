@@ -12037,10 +12037,19 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
             sd.temperatures.forEach(function(enc) {
               if (!enc || !enc.isNC) return;
               var st = (String(enc.type||'') + ' ' + String(enc.precision||'')).toLowerCase();
-              var seuilE = (st.indexOf('congel')>-1||st.indexOf('surgel')>-1||st.indexOf('néga')>-1) ? '-18°C max'
+              var seuilE = (st.indexOf('congel')>-1||st.indexOf('surgel')>-1||st.indexOf('néga')>-1||st.indexOf('nega')>-1) ? '-18°C max'
                          : (st.indexOf('chaud')>-1) ? '+63°C min'
                          : (st.indexOf('cellule')>-1) ? '+10°C en 2h max'
-                         : (st.indexOf('frigo')>-1||st.indexOf('réfrig')>-1||st.indexOf('frais')>-1||st.indexOf('posit')>-1) ? '+4°C max' : '';
+                         : (st.indexOf('frigo')>-1||st.indexOf('réfrig')>-1||st.indexOf('refrig')>-1||st.indexOf('frais')>-1||st.indexOf('posit')>-1) ? '+4°C max' : '';
+              // Fallback fiable : si le seuil n'est pas déduit du type, l'extraire du
+              // libellé lui-même (ex. « (<=+2C) » → « +2°C max », « (>=+63) » → « +63°C min »)
+              if (!seuilE) {
+                var mSeuil = st.match(/<=?\s*([+-]?\d+)\s*c/) || st.match(/≤\s*([+-]?\d+)\s*c/);
+                var mMin = st.match(/>=?\s*([+-]?\d+)\s*c/) || st.match(/≥\s*([+-]?\d+)\s*c/);
+                var fmt = function(v){ return (v.charAt(0)==='-' || v.charAt(0)==='+' ? '' : '+') + v + '°C'; };
+                if (mSeuil) { seuilE = fmt(mSeuil[1]) + ' max'; }
+                else if (mMin) { seuilE = fmt(mMin[1]) + ' min'; }
+              }
               var encName = (enc.type || 'Enceinte') + (enc.refNum ? ' N°' + enc.refNum : '') + (enc.precision ? ' — ' + enc.precision : '');
               var valE = enc.temp !== '' && enc.temp != null ? ((parseFloat(enc.temp) >= 0 ? '+' : '') + enc.temp + '°C') : '';
               totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: encName + ' — T° hors seuil', action: enc.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilE, valeur: valE });
