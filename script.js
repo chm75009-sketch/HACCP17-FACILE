@@ -16231,6 +16231,7 @@ function afficherPanneauTest() {
       '<button id="btnTestPackDDPP" style="background:#16a34a;color:white;border:none;border-radius:10px;padding:14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;text-align:left">📊 Lancer Pack DDPP du jour</button>' +
       '<button id="btnTestPackDDPP7j" style="background:#0d9488;color:white;border:none;border-radius:10px;padding:14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;text-align:left">📅 Lancer Pack DDPP — 7 jours</button>' +
       '<button id="btnTestEffacer" style="background:#f59e0b;color:white;border:none;border-radius:10px;padding:14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;text-align:left">🗑️ Effacer toutes les données test</button>' +
+      '<button id="btnTestAdmin" style="background:#1e1b4b;color:white;border:none;border-radius:10px;padding:14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;text-align:left">🔐 Administration (codes, essais, clients)</button>' +
     '</div>' +
     '<div id="testStatusMsg" style="margin-top:14px;font-size:12px;color:#15803d;font-weight:700;min-height:18px;background:#f0fdf4;padding:8px 10px;border-radius:6px;display:none"></div>';
 
@@ -16246,6 +16247,12 @@ function afficherPanneauTest() {
   if (btnP) btnP.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); testLancerPackDDPP(); });
   if (btnP7) btnP7.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); testLancerPackDDPP7j(); });
   if (btnE) btnE.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); testEffacerDonnees(); });
+  var btnA = document.getElementById('btnTestAdmin');
+  if (btnA) btnA.addEventListener('click', function(e){
+    e.preventDefault(); e.stopPropagation();
+    var p = document.getElementById('panneauTest'); if (p) p.remove();
+    if (typeof showPage === 'function') showPage('page-admin');
+  });
 }
 
 function _testLog(msg, color) {
