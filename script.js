@@ -12112,9 +12112,18 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                   heure = matchedAction.heure || '';
                 }
               }
+              // V-NC16 — Afficher la non-conformité RÉELLE (constat choisi dans le
+              // menu), pas le nom du point de contrôle. Évite les libellés absurdes
+              // (« Action corrective immédiate mise en place » présenté comme un
+              // défaut). Si un constat précis existe, on l'affiche, contextualisé
+              // par la zone : « Zone — constat ».
+              var ncLabelAff = String(s.label || '');
+              if (s.constat && String(s.constat).trim() && String(s.constat).trim() !== ncLabelAff) {
+                ncLabelAff = ncLabelAff ? (ncLabelAff + ' — ' + String(s.constat).trim()) : String(s.constat).trim();
+              }
               totalNCs.push({
                 module: moduleName,
-                label: String(s.label || ''),
+                label: ncLabelAff,
                 action: action,
                 // V113 — I : fallback responsable depuis émargement de la session
                 responsable: responsable || sd.signataire || '',
