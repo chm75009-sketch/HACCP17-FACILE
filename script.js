@@ -10729,6 +10729,115 @@ function coffreDelete(id) {
   }).catch(function(e){ console.error('[Coffre-fort] Erreur suppression:', e); });
 }
 
+// ════════════════════════════════════════════════════════════════
+// V124 — DOCUMENTS À LA DEMANDE (page Contrôle DDPP)
+// Liste cochable des documents du coffre-fort : le restaurateur coche
+// le(s) document(s) que l'inspecteur réclame, puis les présente à
+// l'écran ET/OU les imprime (PDF) depuis le même écran.
+// ════════════════════════════════════════════════════════════════
+
+// Affiche la liste cochable des documents PRÉSENTS dans le coffre-fort.
+async function renderInspDocs() {
+  var cont = document.getElementById('inspDocsContainer');
+  if (!cont) return;
+  if (typeof coffreDB === 'undefined' || !coffreDB) {
+    cont.innerHTML = '<div style="font-size:12px;color:#dc2626;padding:8px">Stockage indisponible sur ce navigateur.</div>';
+    return;
+  }
+  var tous = [];
+  try { tous = await coffreDB.docs.toArray(); } catch(e) { tous = []; }
+  if (!tous.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:#6b7280;padding:10px;background:#fff;border:1px dashed #d1d5db;border-radius:10px">Aucun document enregistré. Ajoutez vos documents depuis « Mes documents » 📁 pour pouvoir les présenter ici.</div>';
+    return;
+  }
+  var html = '';
+  COFFRE_DOCS.forEach(function(d) {
+    var fichiers = tous.filter(function(f){ return f.cle === d.cle; });
+    if (!fichiers.length) return; // n'afficher que les catégories qui ont un fichier
+    html += '<label style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer">';
+    html += '<input type="checkbox" class="insp-doc-chk" value="' + d.cle + '" style="width:20px;height:20px;flex-shrink:0;cursor:pointer">';
+    html += '<span style="font-size:18px">' + d.icon + '</span>';
+    html += '<span style="flex:1;font-size:12.5px;font-weight:700;color:#1f2937">' + d.label + '<span style="display:block;font-size:11px;font-weight:500;color:#6b7280">' + fichiers.length + ' fichier' + (fichiers.length>1?'s':'') + '</span></span>';
+    html += '</label>';
+  });
+  cont.innerHTML = html;
+}
+
+// Coche / décoche tous les documents de la liste.
+function inspDocsToutCocher(val) {
+  document.querySelectorAll('.insp-doc-chk').forEach(function(c){ c.checked = !!val; });
+}
+
+// Récupère les fichiers appartenant aux catégories cochées.
+async function _inspDocsFichiersCoches() {
+  var cles = [];
+  document.querySelectorAll('.insp-doc-chk:checked').forEach(function(c){ cles.push(c.value); });
+  if (!cles.length) return [];
+  var tous = [];
+  try { tous = await coffreDB.docs.toArray(); } catch(e) { tous = []; }
+  return tous.filter(function(f){ return cles.indexOf(f.cle) > -1; });
+}
+
+// Présente les documents cochés dans un écran propre, montrable à
+// l'inspecteur ET imprimable / exportable en PDF (bouton Imprimer).
+async function presenterDocsCoches() {
+  if (typeof coffreDB === 'undefined' || !coffreDB) {
+    if (typeof showToast==='function') showToast('Stockage indisponible','warn',3000); return;
+  }
+  var fichiers = await _inspDocsFichiersCoches();
+  if (!fichiers.length) {
+    if (typeof showToast==='function') showToast('Cochez au moins un document à présenter','warn',3000); return;
+  }
+  var labelParCle = {};
+  COFFRE_DOCS.forEach(function(d){ labelParCle[d.cle] = d.label; });
+
+  var w = window.open('', '_blank');
+  if (!w) { if (typeof showToast==='function') showToast('Autorisez les fenêtres pop-up pour afficher les documents','warn',4000); return; }
+
+  var etab = '';
+  try { if (typeof _ls==='function') etab = _ls('haccp_etab_nom') || ''; } catch(e){}
+  var dateStr = new Date().toLocaleDateString('fr-FR');
+
+  var body = '';
+  for (var i=0;i<fichiers.length;i++) {
+    var f = fichiers[i];
+    // Les documents du coffre sont stockés en base64 (cf. coffreView)
+    var blob = (typeof base64VersBlob==='function' && f.base64) ? base64VersBlob(f.base64) : null;
+    if (!blob) continue;
+    var url = URL.createObjectURL(blob);
+    var mime = String(f.mime || blob.type || '');
+    var titre = (labelParCle[f.cle]||'Document') + (f.nom ? ' — ' + f.nom : '');
+    body += '<section style="page-break-after:always;margin-bottom:24px">';
+    body += '<h2 style="font:700 15px/1.3 Arial,sans-serif;color:#1e1b4b;border-bottom:2px solid #4338ca;padding-bottom:6px;margin:0 0 12px">' + titre + '</h2>';
+    if (mime.indexOf('pdf') > -1) {
+      body += '<embed src="' + url + '" type="application/pdf" style="width:100%;height:80vh;border:1px solid #ccc"/>';
+    } else if (mime.indexOf('image') > -1) {
+      body += '<img src="' + url + '" style="max-width:100%;height:auto;border:1px solid #ccc"/>';
+    } else {
+      body += '<p style="font:13px Arial"><a href="' + url + '" target="_blank">Ouvrir le fichier (' + (f.nom||'document') + ')</a></p>';
+    }
+    body += '</section>';
+  }
+  if (!body) { try{ w.close(); }catch(_){ } if (typeof showToast==='function') showToast('Documents illisibles','warn',3000); return; }
+
+  var docHtml = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Documents — Contrôle DDPP</title>'
+    + '<style>@media print{.noprint{display:none!important}}body{margin:0;background:#f3f4f6}</style></head><body>'
+    + '<div class="noprint" style="position:sticky;top:0;background:#1e1b4b;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">'
+    +   '<div style="font:700 14px Arial">📁 Documents à présenter' + (etab?' — '+etab:'') + ' · ' + dateStr + '</div>'
+    +   '<button onclick="window.print()" style="background:#fff;color:#1e1b4b;border:none;border-radius:8px;font:700 13px Arial;padding:8px 16px;cursor:pointer">🖨️ Imprimer / PDF</button>'
+    + '</div>'
+    + '<div style="padding:16px;max-width:900px;margin:0 auto">' + body + '</div>'
+    + '</body></html>';
+
+  w.document.open();
+  w.document.write(docHtml);
+  w.document.close();
+}
+
+window.renderInspDocs = renderInspDocs;
+window.inspDocsToutCocher = inspDocsToutCocher;
+window.presenterDocsCoches = presenterDocsCoches;
+
 // ══════════════════════════════
 // MODULES 16-19
 // ══════════════════════════════
