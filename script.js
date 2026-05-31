@@ -1465,6 +1465,15 @@ async function connexion() {
   var d = result.data;
   // V105 — Mémoriser le code d'accès pour la prochaine session (pas le mot de passe)
   try { lsSet('haccp_last_code', code); } catch(e) {}
+  // Essais (EU3J-/ESSAI-) : on garde le client connecté pendant toute la durée.
+  // On mémorise aussi le mot de passe auto-généré (qu'il ne connaît pas) pour
+  // pouvoir le reconnecter automatiquement au redémarrage. Les clients payants
+  // (HACCP-…) doivent toujours ressaisir leur mot de passe → pas de mémorisation.
+  try {
+    var estEssai = (code.indexOf('EU3J-') === 0 || code.indexOf('ESSAI-') === 0);
+    if (estEssai) { lsSet('haccp_trial_pwd', pwd); }
+    else { lsRemove('haccp_trial_pwd'); }
+  } catch(e) {}
   ETAB_ID = d.id;
   SECTEUR_ACTIF = d.secteur || 'resto';
   ETAB.nom = d.nom || '';
@@ -3012,13 +3021,36 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
     if (sessionStr) {
       var session = JSON.parse(sessionStr);
       var age = Date.now() - (session.loginAt || 0);
-      var maxAge = 12 * 60 * 60 * 1000; // 12h
+      // Essais : session maintenue toute la durée (le contrôle d'expiration en base
+      // fait foi). Clients payants : 12h, mot de passe à ressaisir ensuite.
+      var lastCodeChk = (lsGet('haccp_last_code') || '').toUpperCase();
+      var estEssaiChk = (lastCodeChk.indexOf('EU3J-') === 0 || lastCodeChk.indexOf('ESSAI-') === 0) && lsGet('haccp_trial_pwd');
+      var maxAge = estEssaiChk ? (16 * 24 * 60 * 60 * 1000) : (12 * 60 * 60 * 1000); // essai: 16j / payant: 12h
       if (age > maxAge) {
         sessionClear();
         // Session expirée → afficher la présentation
         showPage('page-presentation');
         return;
       }
+      // Essai en cours : reconnexion automatique (le client ne connaît pas son
+      // mot de passe auto-généré). connexion() repassera par le contrôle
+      // d'expiration → à échéance il sera proprement renvoyé au login.
+      try {
+        var lastCodeAuto = (lsGet('haccp_last_code') || '').toUpperCase();
+        var trialPwd = lsGet('haccp_trial_pwd');
+        var estEssaiAuto = (lastCodeAuto.indexOf('EU3J-') === 0 || lastCodeAuto.indexOf('ESSAI-') === 0);
+        if (estEssaiAuto && trialPwd) {
+          showPage('page-login');
+          setTimeout(function(){
+            var ce = document.getElementById('login_code');
+            var pe = document.getElementById('login_pwd');
+            if (ce) ce.value = lastCodeAuto;
+            if (pe) pe.value = trialPwd;
+            if (typeof connexion === 'function') connexion();
+          }, 300);
+          return;
+        }
+      } catch(e) {}
       // Session valide → aller direct au login (utilisateur récurrent)
       showPage('page-login');
       setTimeout(function(){
@@ -3277,6 +3309,7 @@ function deconnecterConfirme() {
     lsRemove('haccp_etab_id');
     lsRemove('haccp_etab_data');
     lsRemove('haccp_mode');
+    lsRemove('haccp_trial_pwd'); // ne pas reconnecter auto après une déconnexion volontaire
     sessionClear();
   } catch(e) {}
   ETAB = {nom:'', secteur:'', siret:'', adresse:'', cp:'', ville:'', tel:'', email:'', responsable:'', fonction:'', typeStructure:'', repasJour:'', liaison:''};
