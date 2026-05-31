@@ -17739,8 +17739,9 @@ function testEffacerDonnees() {
         var m = Math.floor((reste % 3600000) / 60000);
         var s = Math.floor((reste % 60000) / 1000);
         var p2 = function(n){ return (n < 10 ? '0' : '') + n; };
-        // Texte explicite : « 3 jours 04 h 12 min 08 s » / « 04 h 12 min 08 s » le dernier jour
-        var txt = '🎁 Essai gratuit : ';
+        // Libellé « temps restant » → lève l'ambiguïté (les heures sont le reste,
+        // pas une durée en plus des 3 jours).
+        var txt = '🎁 Essai gratuit — temps restant : ';
         if (j > 0) txt += j + ' jour' + (j > 1 ? 's' : '') + ' ';
         txt += p2(h) + ' h ' + p2(m) + ' min ' + p2(s) + ' s';
         badge.textContent = txt;
