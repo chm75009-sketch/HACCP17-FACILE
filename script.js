@@ -1471,6 +1471,8 @@ async function connexion() {
   ETAB.siret = d.siret || '';
   ETAB.adresse = d.adresse || '';
   ETAB.secteur = d.secteur || 'resto';
+  ETAB.date_expiration = d.date_expiration || '';
+  try { lsSet('haccp_date_expiration', d.date_expiration || ''); } catch(e) {}
   try {
     lsSet('haccp_etab', JSON.stringify(ETAB));
     lsSet('haccp_etab_id', ETAB_ID);
@@ -17676,6 +17678,34 @@ function testEffacerDonnees() {
             subEl.style.display = 'block';
           } else {
             subEl.style.display = 'none';
+          }
+          // Compte à rebours essai (uniquement si une date d'expiration existe)
+          var badge = document.getElementById('topbarEssaiBadge');
+          if (badge) {
+            var exp = etab.date_expiration || (typeof lsGet === 'function' ? lsGet('haccp_date_expiration') : '');
+            if (exp) {
+              var fin = new Date(exp); fin.setHours(23,59,59,999);
+              var auj = new Date();
+              var jours = Math.ceil((fin - auj) / 86400000);
+              if (jours > 1) {
+                badge.textContent = '🎁 Essai : ' + jours + ' jours restants';
+                badge.style.background = 'rgba(74,222,128,.18)';
+                badge.style.color = '#4ade80';
+                badge.style.display = 'inline-block';
+              } else if (jours === 1) {
+                badge.textContent = '⏳ Essai : dernier jour';
+                badge.style.background = 'rgba(245,158,11,.2)';
+                badge.style.color = '#fbbf24';
+                badge.style.display = 'inline-block';
+              } else if (jours <= 0) {
+                badge.textContent = '⛔ Essai expiré';
+                badge.style.background = 'rgba(220,38,38,.2)';
+                badge.style.color = '#fca5a5';
+                badge.style.display = 'inline-block';
+              }
+            } else {
+              badge.style.display = 'none';
+            }
           }
         } catch(e) { console.warn('[V102] updateTopbarEtab:', e); }
       };
