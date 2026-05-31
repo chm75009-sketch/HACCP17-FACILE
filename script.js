@@ -11806,7 +11806,12 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               }
               // V113 — I : fallback responsable depuis émargement de la session
               if (!resp && sd.signataire) resp = sd.signataire;
-              ncsDetail.push({module: moduleName, label: String(s.label || ''), action: act, resp: resp, heure: heure, date: sDate});
+              // V-NC16 — afficher le constat réel, pas le nom du point de contrôle
+              var lblDet = String(s.label || '');
+              if (s.constat && String(s.constat).trim() && String(s.constat).trim() !== lblDet) {
+                lblDet = lblDet ? (lblDet + ' — ' + String(s.constat).trim()) : String(s.constat).trim();
+              }
+              ncsDetail.push({module: moduleName, label: lblDet, action: act, resp: resp, heure: heure, date: sDate});
             });
           }
           // NCs auto
