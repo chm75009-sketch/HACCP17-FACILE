@@ -7263,6 +7263,9 @@ function showPage(id, noReset) {
     setTimeout(marquerChampsFacultatifsAuto, 100);
   }
   // Coffre-fort : rafraîchir la liste des documents à l'ouverture du module
+  if (id === 'page-pack-ddpp' && typeof renderInspDocs === 'function') {
+    setTimeout(renderInspDocs, 50);
+  }
   if (id === 'page-documents' && typeof renderCoffre === 'function') {
     setTimeout(renderCoffre, 50);
   }
