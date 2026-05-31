@@ -17679,36 +17679,47 @@ function testEffacerDonnees() {
           } else {
             subEl.style.display = 'none';
           }
-          // Compte à rebours essai (uniquement si une date d'expiration existe)
-          var badge = document.getElementById('topbarEssaiBadge');
-          if (badge) {
-            var exp = etab.date_expiration || (typeof lsGet === 'function' ? lsGet('haccp_date_expiration') : '');
-            if (exp) {
-              var fin = new Date(exp); fin.setHours(23,59,59,999);
-              var auj = new Date();
-              var jours = Math.ceil((fin - auj) / 86400000);
-              if (jours > 1) {
-                badge.textContent = '🎁 Essai : ' + jours + ' jours restants';
-                badge.style.background = 'rgba(74,222,128,.18)';
-                badge.style.color = '#4ade80';
-                badge.style.display = 'inline-block';
-              } else if (jours === 1) {
-                badge.textContent = '⏳ Essai : dernier jour';
-                badge.style.background = 'rgba(245,158,11,.2)';
-                badge.style.color = '#fbbf24';
-                badge.style.display = 'inline-block';
-              } else if (jours <= 0) {
-                badge.textContent = '⛔ Essai expiré';
-                badge.style.background = 'rgba(220,38,38,.2)';
-                badge.style.color = '#fca5a5';
-                badge.style.display = 'inline-block';
-              }
-            } else {
-              badge.style.display = 'none';
-            }
-          }
+          // Compte à rebours essai : affiché uniquement si une date d'expiration existe.
+          // Le texte précis est rafraîchi chaque seconde par tickEssaiCountdown().
+          tickEssaiCountdown();
         } catch(e) { console.warn('[V102] updateTopbarEtab:', e); }
       };
+
+      // Vrai compte à rebours : jours / heures / minutes / secondes, mis à jour chaque seconde.
+      function tickEssaiCountdown() {
+        var badge = document.getElementById('topbarEssaiBadge');
+        if (!badge) return;
+        var etab = (typeof ETAB !== 'undefined' && ETAB) ? ETAB : {};
+        var exp = etab.date_expiration || (typeof lsGet === 'function' ? lsGet('haccp_date_expiration') : '');
+        if (!exp) { badge.style.display = 'none'; return; }
+        var fin = new Date(exp); fin.setHours(23, 59, 59, 999);
+        var reste = fin - new Date();
+        if (reste <= 0) {
+          badge.textContent = '⛔ Essai expiré';
+          badge.style.background = 'rgba(220,38,38,.2)';
+          badge.style.color = '#fca5a5';
+          badge.style.display = 'inline-block';
+          return;
+        }
+        var j = Math.floor(reste / 86400000);
+        var h = Math.floor((reste % 86400000) / 3600000);
+        var m = Math.floor((reste % 3600000) / 60000);
+        var s = Math.floor((reste % 60000) / 1000);
+        var p2 = function(n){ return (n < 10 ? '0' : '') + n; };
+        var txt = '🎁 Essai : ' + (j > 0 ? j + 'j ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
+        badge.textContent = txt;
+        // Vert > 24h restantes, orange sinon (dernier jour)
+        if (reste > 86400000) {
+          badge.style.background = 'rgba(74,222,128,.18)';
+          badge.style.color = '#4ade80';
+        } else {
+          badge.style.background = 'rgba(245,158,11,.2)';
+          badge.style.color = '#fbbf24';
+        }
+        badge.style.display = 'inline-block';
+      }
+      // Tic chaque seconde pour faire défiler le compte à rebours.
+      setInterval(tickEssaiCountdown, 1000);
       // Mise à jour automatique périodique (couvre les cas de session restaurée)
       setInterval(function(){
         try { if (window.updateTopbarEtab) window.updateTopbarEtab(); } catch(e){}
