@@ -1434,6 +1434,93 @@ window.validerEssaiUniversel = async function() {
   }
 };
 
+// ── MOT DE PASSE OUBLIÉ ──
+// Le client saisit son code d'accès. On retrouve son compte et on envoie le mot
+// de passe à l'e-mail ENREGISTRÉ (jamais un e-mail saisi → anti-fraude).
+// Pour les essais : aucune modification de la date d'expiration (la durée
+// consommée reste comptée, impossible de relancer l'essai par ce biais).
+window.motDePasseOublie = async function() {
+  var code = prompt('Mot de passe oublié\n\nSaisissez votre code d\'accès (ex : HACCP-XXXXX-2026 ou EU3J-XXXXX-2026) :');
+  if (code === null) return;
+  code = code.trim().toUpperCase();
+  if (!code) return;
+  if (!window._supabase) { alert('Connexion à la base impossible. Réessayez avec une connexion internet.'); return; }
+
+  try {
+    var res = await window._supabase.from('etablissements')
+      .select('*').eq('code_acces', code).limit(1);
+    if (res.error) { alert('Erreur : ' + res.error.message); return; }
+    if (!res.data || !res.data.length) { alert('Code d\'accès non reconnu. Vérifiez votre code.'); return; }
+    var etab = res.data[0];
+
+    // Retrouver l'e-mail ENREGISTRÉ selon le type de compte
+    var email = '';
+    if (code.indexOf('EU3J-') === 0) {
+      // Essai flyer : e-mail rangé dans adresse "adresse | email | tel | resp"
+      var parts = (etab.adresse || '').split('|');
+      if (parts[1]) email = parts[1].trim();
+    }
+    if (!email && etab.email) email = etab.email;
+    if (!email) {
+      // Clients payants : e-mail dans comptes_clients
+      try {
+        var cc = await window._supabase.from('comptes_clients').select('email').eq('code_acces', code).limit(1);
+        if (cc.data && cc.data.length && cc.data[0].email) email = cc.data[0].email;
+      } catch(e) {}
+    }
+    if (!email) {
+      try { window._supabase.from('historique_admin').insert([{ action: 'Mot de passe oublié (sans e-mail)', code_concerne: code }]).then(function(){}); } catch(e){}
+      alert('Aucune adresse e-mail n\'est associée à ce compte. Contactez HACCP Pro pour récupérer votre accès.');
+      return;
+    }
+
+    // Rappel de la date d'expiration pour les essais (LECTURE SEULE, aucune modif)
+    var infoEssai = '';
+    if (etab.date_expiration) {
+      infoEssai = ' Votre essai reste valable jusqu\'au ' + new Date(etab.date_expiration).toLocaleDateString('fr-FR') + ' inclus.';
+    }
+
+    // Envoi e-mail via EmailJS (modèle client existant)
+    var envoye = false;
+    if (window.emailjs && window.HACCP_CONFIG && window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY && window.HACCP_CONFIG.EMAILJS_TEMPLATE_CLIENT) {
+      try {
+        await window.emailjs.send(
+          window.HACCP_CONFIG.EMAILJS_SERVICE,
+          window.HACCP_CONFIG.EMAILJS_TEMPLATE_CLIENT,
+          {
+            to_email: email,
+            etablissement: etab.nom || '',
+            responsable: '',
+            code_acces: etab.code_acces,
+            mot_de_passe: etab.mot_de_passe || '',
+            formule: '',
+            message: 'Voici vos identifiants HACCP Pro.' + infoEssai
+          }
+        );
+        envoye = true;
+      } catch(e) { console.warn('Mot de passe oublié — envoi e-mail échec:', e); }
+    }
+
+    // Trace systématique dans l'historique admin (e-mail masqué partiellement)
+    var emailMasque = email.replace(/^(.).*(@.*)$/, '$1***$2');
+    try {
+      window._supabase.from('historique_admin').insert([{
+        action: envoye ? 'Mot de passe oublié — e-mail envoyé' : 'Mot de passe oublié — échec envoi',
+        code_concerne: code,
+        motif: 'Demande de récupération vers ' + emailMasque
+      }]).then(function(){});
+    } catch(e) {}
+
+    if (envoye) {
+      alert('✅ C\'est envoyé !\n\nVos identifiants ont été adressés par e-mail à : ' + emailMasque + '\n\nPensez à vérifier vos spams.');
+    } else {
+      alert('Votre demande a bien été enregistrée, mais l\'envoi automatique n\'a pas pu aboutir. HACCP Pro va vous recontacter.');
+    }
+  } catch(e) {
+    alert('Erreur : ' + ((e && e.message) ? e.message : e));
+  }
+};
+
 // ── CONNEXION ──
 async function connexion() {
   var code = (document.getElementById('login_code').value || '').trim().toUpperCase();
