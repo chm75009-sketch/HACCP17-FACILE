@@ -1295,7 +1295,36 @@ try {
 // ══════════════════════════════════════════════════════════════
 var ESSAI_UNIVERSEL_CODE = 'HACCP3J';   // code à imprimer sur le flyer
 var ESSAI_UNIVERSEL_JOURS = 3;          // durée offerte
-var ESSAI_UNIVERSEL_MAX = 100;          // plafond d'activations
+var ESSAI_UNIVERSEL_MAX = 500;          // plafond d'activations par défaut (modifiable depuis l'admin)
+
+// Lit l'état de la campagne (actif/suspendu + plafond) depuis le serveur.
+// Stocké dans historique_admin (action="CONFIG_ESSAI", motif=JSON) → pas de
+// nouvelle table, lisible par tous les appareils. Valeurs par défaut si absent.
+async function getEssaiConfig() {
+  var def = { active: true, max: ESSAI_UNIVERSEL_MAX };
+  if (!window._supabase) return def;
+  try {
+    var r = await window._supabase.from('historique_admin')
+      .select('motif').eq('action', 'CONFIG_ESSAI')
+      .order('date_action', { ascending: false }).limit(1);
+    if (r.error || !r.data || !r.data.length) return def;
+    var cfg = JSON.parse(r.data[0].motif || '{}');
+    return {
+      active: (typeof cfg.active === 'boolean') ? cfg.active : true,
+      max: (cfg.max > 0) ? cfg.max : ESSAI_UNIVERSEL_MAX
+    };
+  } catch(e) { return def; }
+}
+
+// Écrit un nouvel état de campagne (insère une ligne CONFIG_ESSAI).
+async function setEssaiConfig(active, max) {
+  if (!window._supabase) return { error: { message: 'Base indisponible' } };
+  return window._supabase.from('historique_admin').insert([{
+    action: 'CONFIG_ESSAI',
+    code_concerne: 'EU3J',
+    motif: JSON.stringify({ active: !!active, max: parseInt(max, 10) || ESSAI_UNIVERSEL_MAX })
+  }]);
+}
 
 // Ouvre un formulaire de contact (tous champs obligatoires) puis crée l'essai.
 function activerEssaiUniversel() {
@@ -1342,12 +1371,18 @@ window.validerEssaiUniversel = async function() {
   var reset = function(){ if (btn){ btn.disabled=false; btn.textContent='🚀 Activer mes '+ESSAI_UNIVERSEL_JOURS+' jours'; } };
 
   try {
+    // État de campagne piloté depuis l'admin (suspension + plafond)
+    var cfg = await getEssaiConfig();
+    if (!cfg.active) {
+      show('L\'offre d\'essai gratuite est actuellement fermée. Contactez-nous pour un accès.');
+      reset(); return;
+    }
     // Tous les essais universels existants (préfixe EU3J-)
     var ex = await window._supabase.from('etablissements').select('code_acces,adresse').like('code_acces', 'EU3J-%');
     if (ex.error) { show('Erreur : ' + ex.error.message); reset(); return; }
     var rows = ex.data || [];
-    // Plafond d'activations
-    if (rows.length >= ESSAI_UNIVERSEL_MAX) {
+    // Plafond d'activations (valeur pilotée depuis l'admin)
+    if (rows.length >= cfg.max) {
       show('L\'offre d\'essai gratuite est terminée (limite atteinte). Contactez-nous pour un accès.');
       reset(); return;
     }
@@ -1380,7 +1415,7 @@ window.validerEssaiUniversel = async function() {
 
     try {
       await window._supabase.from('historique_admin').insert([{
-        action: 'Essai universel ' + ESSAI_UNIVERSEL_JOURS + ' j (' + (rows.length+1) + '/' + ESSAI_UNIVERSEL_MAX + ')',
+        action: 'Essai universel ' + ESSAI_UNIVERSEL_JOURS + ' j (' + (rows.length+1) + '/' + cfg.max + ')',
         code_concerne: code,
         motif: etab + ' — ' + resp + ' — ' + tel + ' — ' + mail + ' — exp. ' + dateExp
       }]);
@@ -17372,6 +17407,7 @@ function testEffacerDonnees() {
         if (!c) return;
         var inputStyle = 'width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif;box-sizing:border-box;margin-bottom:8px';
         var form =
+          '<div id="euCampagneBox" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:16px;margin-bottom:14px"><div style="font-size:13px;color:rgba(255,255,255,0.6)">Chargement de la campagne flyer…</div></div>' +
           '<div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:12px;padding:16px;margin-bottom:18px">' +
           '<div style="font-size:14px;font-weight:800;color:#4ade80;margin-bottom:12px">🎁 Créer un code d\'essai gratuit</div>' +
           '<input id="essai_etab" placeholder="Nom de l\'établissement *" style="' + inputStyle + '">' +
@@ -17420,7 +17456,61 @@ function testEffacerDonnees() {
           });
           liste.innerHTML = html;
         });
+
+        // Panneau de pilotage de la campagne flyer (code universel)
+        renderEuCampagne();
       }
+
+      // Affiche le panneau campagne : compteur, état, suspendre/réactiver, plafond.
+      async function renderEuCampagne() {
+        var box = document.getElementById('euCampagneBox');
+        if (!box || !window._supabase) return;
+        var cfg = await getEssaiConfig();
+        var cnt = 0;
+        try {
+          var r = await window._supabase.from('etablissements').select('code_acces').like('code_acces', 'EU3J-%');
+          cnt = (r.data || []).length;
+        } catch(e) {}
+        var pct = cfg.max > 0 ? Math.min(100, Math.round(cnt / cfg.max * 100)) : 0;
+        var etat = cfg.active ? '<span style="color:#4ade80">🟢 Active</span>' : '<span style="color:#f59e0b">🟡 Suspendue</span>';
+        var html =
+          '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">' +
+            '<div style="font-size:14px;font-weight:800;color:#93c5fd">📣 Campagne flyer — code ' + ESSAI_UNIVERSEL_CODE + '</div>' +
+            '<div style="font-size:12px;font-weight:700">' + etat + '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;color:white;font-weight:700;margin-bottom:6px">' + cnt + ' / ' + cfg.max + ' inscrits (' + pct + '%)</div>' +
+          '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:5px;overflow:hidden;margin-bottom:14px"><div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
+        if (cfg.active) {
+          html += '<button onclick="euCampagne(\'suspendre\')" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:9px 16px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">⏸️ Suspendre l\'offre</button>';
+        } else {
+          html += '<button onclick="euCampagne(\'reactiver\')" style="background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.3);padding:9px 16px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">▶️ Réactiver l\'offre</button>';
+        }
+        html += '<button onclick="euCampagne(\'plafond\')" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);padding:9px 16px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">🔢 Modifier le plafond</button>';
+        html += '</div>';
+        box.innerHTML = html;
+      }
+
+      // Action de pilotage : suspendre, réactiver, ou changer le plafond.
+      window.euCampagne = async function(action) {
+        var cfg = await getEssaiConfig();
+        var active = cfg.active, max = cfg.max;
+        if (action === 'suspendre') {
+          if (!confirm('Suspendre l\'offre d\'essai ' + ESSAI_UNIVERSEL_CODE + ' ?\nLes nouveaux inscrits seront refusés (réversible).')) return;
+          active = false;
+        } else if (action === 'reactiver') {
+          active = true;
+        } else if (action === 'plafond') {
+          var v = prompt('Nouveau plafond d\'inscrits :', String(max));
+          if (v === null) return;
+          var n = parseInt(v, 10);
+          if (!(n > 0)) { alert('Valeur invalide.'); return; }
+          max = n;
+        }
+        var res = await setEssaiConfig(active, max);
+        if (res && res.error) { alert('Erreur : ' + res.error.message); return; }
+        renderEuCampagne();
+      };
 
       // ── Actions admin ──
       window.validerDemande = function(id) {
