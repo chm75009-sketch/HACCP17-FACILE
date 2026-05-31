@@ -12178,6 +12178,21 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         if (!d) return;
         var pageEl = document.getElementById(pid);
         if (!pageEl) return;
+        // GARDE-FOU : ne PAS transformer l'état par défaut d'une page jamais remplie
+        // en non-conformités officielles. On n'utilise le DOM courant que si la page
+        // a été réellement renseignée (signature présente — règle « validation
+        // impossible sans signature » — ou au moins un champ saisi par l'utilisateur).
+        var _sigP = pageEl.querySelector('input[id$="_sig_prenom"]');
+        var _sigN = pageEl.querySelector('input[id$="_sig_nom"]');
+        var _aSignature = (_sigP && _sigP.value.trim()) || (_sigN && _sigN.value.trim());
+        var _aSaisie = false;
+        if (!_aSignature) {
+          var _champs = pageEl.querySelectorAll('input[type="text"], input[type="number"], input[type="time"], input[type="date"], textarea');
+          for (var _ci = 0; _ci < _champs.length; _ci++) {
+            if (_champs[_ci].value && _champs[_ci].value.trim()) { _aSaisie = true; break; }
+          }
+        }
+        if (!_aSignature && !_aSaisie) return; // page vierge → aucune NC fantôme
         // Récupérer les actions correctives non encore associées (fallback)
         var actionsList = d.actions ? d.actions.slice() : [];
 
