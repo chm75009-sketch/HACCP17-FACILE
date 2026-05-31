@@ -2406,7 +2406,7 @@ function imprimerTemperatures(dataOverride, signataireOverride, tsOverride) {
   filled.forEach(function(enc, i) {
     var borderColor = enc.isNC ? '#dc2626' : '#0891b2';
     var confColor = enc.isNC ? '#dc2626' : '#16a34a';
-    var seuilTxt = (function(){ var t=(String(enc.type||'')+' '+String(enc.precision||'')).toLowerCase(); if(t.indexOf('congel')>-1||t.indexOf('surgel')>-1||t.indexOf('néga')>-1)return '-18°C max'; if(t.indexOf('chaud')>-1)return '+63°C min'; if(t.indexOf('cellule')>-1)return '+10°C en 2h max'; if(t.indexOf('frigo')>-1||t.indexOf('réfrig')>-1||t.indexOf('frais')>-1||t.indexOf('posit')>-1)return '+4°C max'; return '—'; })();
+    var seuilTxt = seuilEnceinteDepuisLabel(String(enc.type||'')+' '+String(enc.precision||'')) || '—';
     html += '<div style="border:2px solid ' + borderColor + ';border-radius:10px;margin-bottom:12px;overflow:hidden">';
     html += '<div style="background:' + borderColor + ';color:white;padding:8px 12px;display:flex;justify-content:space-between">';
     var encLabel = 'Enceinte N' + (i+1);
@@ -7940,6 +7940,39 @@ function getTypesEnceintesActif() {
   return base.concat(spec);
 }
 
+// SOURCE DE VÉRITÉ UNIQUE — Seuil réglementaire d'une enceinte à partir de son
+// libellé. Utilisée par le Récap NC (et ailleurs) pour ne plus dépendre de
+// listes de mots-clés incomplètes. Renvoie une chaîne formatée (« +2°C max »,
+// « -18°C max », « +63°C min ») ou '' si indéterminable.
+function seuilEnceinteDepuisLabel(label) {
+  if (!label) return '';
+  var L = String(label).toLowerCase();
+  // 1) Correspondance exacte avec le catalogue TYPES_ENCEINTES (tous secteurs)
+  try {
+    var tous = TYPES_ENCEINTES.base.slice();
+    Object.keys(TYPES_ENCEINTES).forEach(function(k){ if (k !== 'base') tous = tous.concat(TYPES_ENCEINTES[k]); });
+    for (var i = 0; i < tous.length; i++) {
+      var t = tous[i];
+      if (t.label && L.indexOf(t.label.toLowerCase()) > -1 && t.seuil != null) {
+        return (t.seuil >= 0 ? '+' : '') + t.seuil + '°C max';
+      }
+    }
+  } catch(e) {}
+  // 2) Seuil écrit dans le libellé : « (<=+2C) », « ≤ +2 °C », « (>=+63C) »
+  var mMax = L.match(/<=?\s*([+-]?\d+)\s*°?\s*c/) || L.match(/≤\s*([+-]?\d+)\s*°?\s*c/);
+  var mMin = L.match(/>=?\s*([+-]?\d+)\s*°?\s*c/) || L.match(/≥\s*([+-]?\d+)\s*°?\s*c/);
+  var fmt = function(x){ return (x.charAt(0)==='-'||x.charAt(0)==='+' ? '' : '+') + x + '°C'; };
+  if (mMax) return fmt(mMax[1]) + ' max';
+  if (mMin) return fmt(mMin[1]) + ' min';
+  // 3) Dernier recours : mots-clés génériques
+  if (L.indexOf('congel')>-1||L.indexOf('surgel')>-1||L.indexOf('néga')>-1||L.indexOf('nega')>-1) return '-18°C max';
+  if (L.indexOf('chaud')>-1) return '+63°C min';
+  if (L.indexOf('cellule')>-1) return '+10°C en 2h max';
+  if (L.indexOf('ultra')>-1) return '+2°C max';
+  if (L.indexOf('frigo')>-1||L.indexOf('réfrig')>-1||L.indexOf('refrig')>-1||L.indexOf('frais')>-1||L.indexOf('posit')>-1||L.indexOf('froide')>-1) return '+4°C max';
+  return '';
+}
+
 var SEUILS_ENCEINTE = {
   chambre_froide:        {seuil:4,    label:'+4°C max',   ico:'❄️'},
   refrigerateur:         {seuil:4,    label:'+4°C max',   ico:'🌡️'},
@@ -11487,12 +11520,7 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
 function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
   // ═══ SEUILS RÉGLEMENTAIRES — V115 ═══
   function _seuilTemp(enc) {
-    var t = (String(enc.type||'') + ' ' + String(enc.precision||'')).toLowerCase();
-    if (t.indexOf('congel')>-1 || t.indexOf('surgel')>-1 || t.indexOf('néga')>-1) return '-18°C max';
-    if (t.indexOf('chaud')>-1) return '+63°C min';
-    if (t.indexOf('cellule')>-1) return '+10°C en 2h max';
-    if (t.indexOf('frigo')>-1 || t.indexOf('réfrig')>-1 || t.indexOf('frais')>-1 || t.indexOf('posit')>-1) return '+4°C max';
-    return '—';
+    return seuilEnceinteDepuisLabel(String(enc.type||'') + ' ' + String(enc.precision||'')) || '—';
   }
   function _seuilCuisson(produit) {
     var p = String(produit||'').toLowerCase();
@@ -11521,12 +11549,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
   // ═══ FIN SEUILS ═══
   // ═══ SEUILS RÉGLEMENTAIRES — V115 ═══
   function _seuilTemp(enc) {
-    var t = (String(enc.type||'') + ' ' + String(enc.precision||'')).toLowerCase();
-    if (t.indexOf('congel')>-1 || t.indexOf('surgel')>-1 || t.indexOf('néga')>-1) return '-18°C max';
-    if (t.indexOf('chaud')>-1) return '+63°C min';
-    if (t.indexOf('cellule')>-1) return '+10°C en 2h max';
-    if (t.indexOf('frigo')>-1 || t.indexOf('réfrig')>-1 || t.indexOf('frais')>-1 || t.indexOf('posit')>-1) return '+4°C max';
-    return '—';
+    return seuilEnceinteDepuisLabel(String(enc.type||'') + ' ' + String(enc.precision||'')) || '—';
   }
   function _seuilCuisson(produit) {
     var p = String(produit||'').toLowerCase();
@@ -11555,12 +11578,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
   // ═══ FIN SEUILS ═══
   // ═══ SEUILS RÉGLEMENTAIRES — V115 ═══
   function _seuilTemp(enc) {
-    var t = (String(enc.type||'') + ' ' + String(enc.precision||'')).toLowerCase();
-    if (t.indexOf('congel')>-1 || t.indexOf('surgel')>-1 || t.indexOf('néga')>-1) return '-18°C max';
-    if (t.indexOf('chaud')>-1) return '+63°C min';
-    if (t.indexOf('cellule')>-1) return '+10°C en 2h max';
-    if (t.indexOf('frigo')>-1 || t.indexOf('réfrig')>-1 || t.indexOf('frais')>-1 || t.indexOf('posit')>-1) return '+4°C max';
-    return '—';
+    return seuilEnceinteDepuisLabel(String(enc.type||'') + ' ' + String(enc.precision||'')) || '—';
   }
   function _seuilCuisson(produit) {
     var p = String(produit||'').toLowerCase();
@@ -11589,12 +11607,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
   // ═══ FIN SEUILS ═══
   // ═══ SEUILS RÉGLEMENTAIRES — V115 ═══
   function _seuilTemp(enc) {
-    var t = (String(enc.type||'') + ' ' + String(enc.precision||'')).toLowerCase();
-    if (t.indexOf('congel')>-1 || t.indexOf('surgel')>-1 || t.indexOf('néga')>-1) return '-18°C max';
-    if (t.indexOf('chaud')>-1) return '+63°C min';
-    if (t.indexOf('cellule')>-1) return '+10°C en 2h max';
-    if (t.indexOf('frigo')>-1 || t.indexOf('réfrig')>-1 || t.indexOf('frais')>-1 || t.indexOf('posit')>-1) return '+4°C max';
-    return '—';
+    return seuilEnceinteDepuisLabel(String(enc.type||'') + ' ' + String(enc.precision||'')) || '—';
   }
   function _seuilCuisson(produit) {
     var p = String(produit||'').toLowerCase();
@@ -12036,20 +12049,8 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           if (pid === 'page-temperatures' && Array.isArray(sd.temperatures)) {
             sd.temperatures.forEach(function(enc) {
               if (!enc || !enc.isNC) return;
-              var st = (String(enc.type||'') + ' ' + String(enc.precision||'')).toLowerCase();
-              var seuilE = (st.indexOf('congel')>-1||st.indexOf('surgel')>-1||st.indexOf('néga')>-1||st.indexOf('nega')>-1) ? '-18°C max'
-                         : (st.indexOf('chaud')>-1) ? '+63°C min'
-                         : (st.indexOf('cellule')>-1) ? '+10°C en 2h max'
-                         : (st.indexOf('frigo')>-1||st.indexOf('réfrig')>-1||st.indexOf('refrig')>-1||st.indexOf('frais')>-1||st.indexOf('posit')>-1) ? '+4°C max' : '';
-              // Fallback fiable : si le seuil n'est pas déduit du type, l'extraire du
-              // libellé lui-même (ex. « (<=+2C) » → « +2°C max », « (>=+63) » → « +63°C min »)
-              if (!seuilE) {
-                var mSeuil = st.match(/<=?\s*([+-]?\d+)\s*c/) || st.match(/≤\s*([+-]?\d+)\s*c/);
-                var mMin = st.match(/>=?\s*([+-]?\d+)\s*c/) || st.match(/≥\s*([+-]?\d+)\s*c/);
-                var fmt = function(v){ return (v.charAt(0)==='-' || v.charAt(0)==='+' ? '' : '+') + v + '°C'; };
-                if (mSeuil) { seuilE = fmt(mSeuil[1]) + ' max'; }
-                else if (mMin) { seuilE = fmt(mMin[1]) + ' min'; }
-              }
+              // Seuil via la source de vérité unique (catalogue + libellé + mots-clés)
+              var seuilE = seuilEnceinteDepuisLabel(String(enc.type||'') + ' ' + String(enc.precision||''));
               var encName = (enc.type || 'Enceinte') + (enc.refNum ? ' N°' + enc.refNum : '') + (enc.precision ? ' — ' + enc.precision : '');
               var valE = enc.temp !== '' && enc.temp != null ? ((parseFloat(enc.temp) >= 0 ? '+' : '') + enc.temp + '°C') : '';
               totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: encName + ' — T° hors seuil', action: enc.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilE, valeur: valE });
