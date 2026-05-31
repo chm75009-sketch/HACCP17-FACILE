@@ -17036,7 +17036,7 @@ function testEffacerDonnees() {
       window.adminTab = function(tab) {
         adminCurrentTab = tab;
         // Mise à jour visuelle des onglets
-        ['demandes', 'clients', 'historique'].forEach(function(t) {
+        ['demandes', 'clients', 'historique', 'essais'].forEach(function(t) {
           var btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
           if (btn) {
             if (t === tab) {
@@ -17051,6 +17051,7 @@ function testEffacerDonnees() {
         if (tab === 'demandes') loadAdminDemandes();
         else if (tab === 'clients') loadAdminClients();
         else if (tab === 'historique') loadAdminHistorique();
+        else if (tab === 'essais') loadAdminEssais();
       };
 
       function escapeHtml(s) {
@@ -17178,6 +17179,133 @@ function testEffacerDonnees() {
             html += '</div>';
           });
           c.innerHTML = html;
+        });
+      }
+
+      // ══════════════════════════════════════════════════════════
+      // ESSAIS GRATUITS — codes à durée limitée (1 à 15 jours)
+      // S'appuie sur la table etablissements existante : le blocage à
+      // l'expiration est déjà géré par sbLoginTentative (date_expiration).
+      // ══════════════════════════════════════════════════════════
+      function genererCodeEssai() {
+        var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        var part = '';
+        for (var i = 0; i < 5; i++) part += chars.charAt(Math.floor(Math.random() * chars.length));
+        return 'ESSAI-' + part + '-' + new Date().getFullYear();
+      }
+
+      window.creerEssai = function() {
+        if (!window._supabase) { alert('Connexion à la base impossible.'); return; }
+        var etab = (document.getElementById('essai_etab') || {}).value || '';
+        var resp = (document.getElementById('essai_resp') || {}).value || '';
+        var tel  = (document.getElementById('essai_tel') || {}).value || '';
+        var mail = (document.getElementById('essai_email') || {}).value || '';
+        var adr  = (document.getElementById('essai_adresse') || {}).value || '';
+        var duree = parseInt((document.getElementById('essai_duree') || {}).value || '0', 10);
+
+        etab = etab.trim(); resp = resp.trim(); tel = tel.trim(); mail = mail.trim(); adr = adr.trim();
+        if (!etab || !resp || !tel || !mail || !adr) {
+          alert('Merci de remplir TOUS les champs :\n• Établissement\n• Nom + prénom\n• Adresse\n• Téléphone\n• E-mail');
+          return;
+        }
+        if (!(duree >= 1 && duree <= 15)) { alert('La durée doit être comprise entre 1 et 15 jours.'); return; }
+
+        var code = genererCodeEssai();
+        var pwd = '';
+        for (var i = 0; i < 6; i++) pwd += Math.floor(Math.random() * 10);
+        var maintenant = new Date();
+        var dateDebut = maintenant.toISOString().slice(0, 10);
+        var dateExp = new Date(maintenant.getTime() + duree * 86400000).toISOString().slice(0, 10);
+
+        var etabRow = {
+          code_acces: code,
+          mot_de_passe: pwd,
+          nom: etab,
+          secteur: 'resto',
+          adresse: adr,
+          actif: true,
+          date_debut: dateDebut,
+          date_expiration: dateExp
+        };
+
+        var btn = document.getElementById('btnCreerEssai');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Création…'; }
+
+        window._supabase.from('etablissements').insert([etabRow]).then(function(res) {
+          if (res.error) {
+            alert('Erreur création de l\'essai : ' + res.error.message);
+            if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
+            return;
+          }
+          // Tracer le contact complet dans l'historique (téléphone, e-mail, responsable)
+          window._supabase.from('historique_admin').insert([{
+            action: 'Création essai ' + duree + ' j',
+            code_concerne: code,
+            motif: etab + ' — ' + resp + ' — ' + tel + ' — ' + mail + ' — exp. ' + dateExp
+          }]).then(function(){});
+
+          if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
+          alert('✅ Essai créé !\n\nÉtablissement : ' + etab + '\nCode : ' + code + '\nMot de passe : ' + pwd + '\nDurée : ' + duree + ' jour(s)\nExpire le : ' + new Date(dateExp).toLocaleDateString('fr-FR') + '\n\nCommuniquez le code et le mot de passe au client.');
+
+          ['essai_etab','essai_resp','essai_tel','essai_email','essai_adresse'].forEach(function(idf){
+            var el = document.getElementById(idf); if (el) el.value = '';
+          });
+          loadAdminEssais();
+        });
+      };
+
+      function loadAdminEssais() {
+        var c = document.getElementById('adminContent');
+        if (!c) return;
+        var inputStyle = 'width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif;box-sizing:border-box;margin-bottom:8px';
+        var form =
+          '<div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:12px;padding:16px;margin-bottom:18px">' +
+          '<div style="font-size:14px;font-weight:800;color:#4ade80;margin-bottom:12px">🎁 Créer un code d\'essai gratuit</div>' +
+          '<input id="essai_etab" placeholder="Nom de l\'établissement *" style="' + inputStyle + '">' +
+          '<input id="essai_resp" placeholder="Nom et prénom du contact *" style="' + inputStyle + '">' +
+          '<input id="essai_adresse" placeholder="Adresse complète *" style="' + inputStyle + '">' +
+          '<input id="essai_tel" placeholder="Téléphone *" style="' + inputStyle + '">' +
+          '<input id="essai_email" placeholder="E-mail *" style="' + inputStyle + '">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin:4px 0 12px"><span style="font-size:13px;color:rgba(255,255,255,0.8)">Durée :</span>' +
+          '<select id="essai_duree" style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif">' +
+          [1,2,3,5,7,10,14,15].map(function(n){ return '<option value="'+n+'"'+(n===7?' selected':'')+'>'+n+' jour'+(n>1?'s':'')+'</option>'; }).join('') +
+          '</select></div>' +
+          '<button id="btnCreerEssai" onclick="creerEssai()" style="width:100%;background:linear-gradient(135deg,#16a34a,#4ade80);color:#0a0e1a;border:none;padding:12px;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;font-family:Outfit,sans-serif">🎁 Créer le code d\'essai</button>' +
+          '</div>' +
+          '<div id="essaisListe"><div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Chargement des essais…</div></div>';
+        c.innerHTML = form;
+
+        if (!window._supabase) {
+          document.getElementById('essaisListe').innerHTML = '<div style="color:#fca5a5;padding:12px">Base indisponible.</div>';
+          return;
+        }
+        window._supabase.from('etablissements').select('*').like('code_acces', 'ESSAI-%').then(function(res) {
+          var liste = document.getElementById('essaisListe');
+          if (!liste) return;
+          if (res.error) { liste.innerHTML = '<div style="color:#fca5a5;padding:12px">Erreur : ' + escapeHtml(res.error.message) + '</div>'; return; }
+          var rows = (res.data || []).sort(function(a,b){ return (b.date_debut||'').localeCompare(a.date_debut||''); });
+          if (rows.length === 0) {
+            liste.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Aucun essai créé pour l\'instant.</div>';
+            return;
+          }
+          var auj = new Date(); auj.setHours(0,0,0,0);
+          var html = '<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:10px">' + rows.length + ' essai(s)</div>';
+          rows.forEach(function(r) {
+            var exp = r.date_expiration ? new Date(r.date_expiration) : null;
+            var expire = exp && exp < auj;
+            var coul = !r.actif ? '#dc2626' : (expire ? '#f59e0b' : '#4ade80');
+            var label = !r.actif ? '⛔ DÉSACTIVÉ' : (expire ? '⏳ EXPIRÉ' : '✅ ACTIF');
+            var dDeb = r.date_debut ? new Date(r.date_debut).toLocaleDateString('fr-FR') : '?';
+            var dExp = exp ? exp.toLocaleDateString('fr-FR') : '?';
+            html += '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:13px;margin-bottom:9px">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:6px">';
+            html += '<div><div style="font-size:14px;font-weight:800;color:white">' + escapeHtml(r.nom) + '</div><div style="font-size:11px;color:#4ade80;font-weight:700">🔑 ' + escapeHtml(r.code_acces) + '</div></div>';
+            html += '<div style="font-size:10px;font-weight:800;color:' + coul + '">' + label + '</div>';
+            html += '</div>';
+            html += '<div style="font-size:12px;color:rgba(255,255,255,0.7)">📅 Activé le ' + dDeb + ' &nbsp;·&nbsp; ⛔ Expire le ' + dExp + '</div>';
+            html += '</div>';
+          });
+          liste.innerHTML = html;
         });
       }
 
