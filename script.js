@@ -12215,7 +12215,14 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               var sigNV = sigN_I ? sigN_I.value.trim() : '';
               if (sigPV || sigNV) responsable = (sigPV + ' ' + sigNV).trim();
             }
-            totalNCs.push({module:moduleName, label:s.label, action:action, responsable:responsable, heure:heure, seuil:(s.norme||'Conforme'), valeur:(s.constat||s.statut||'Non conforme')});
+            // Seuil/Valeur : uniquement si une vraie mesure chiffrée existe.
+            // Pour un point binaire (conforme/non conforme sans seuil), on
+            // laisse « — » au lieu d'inscrire « Conforme »/« Non conforme »
+            // dans des colonnes qui attendent une norme et une mesure.
+            var ncSeuil = (s.norme && /\d/.test(s.norme)) ? s.norme : '—';
+            var ncValeur = (s.valeur && /\d/.test(s.valeur)) ? s.valeur
+                         : ((s.constat && /\d/.test(s.constat)) ? s.constat : '—');
+            totalNCs.push({module:moduleName, uid:'s'+(_uidSeq++), label:s.label, action:action, responsable:responsable, heure:heure, date:sessionDate, seuil:ncSeuil, valeur:ncValeur});
           }
         });
         if (d.ncs) d.ncs.forEach(function(nc){
