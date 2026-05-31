@@ -12746,9 +12746,16 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         });
       }
 
-      // NCs (récap)
-      if (sessData.ncs && sessData.ncs.length > 0) {
-        html += '<div style="padding:6px 10px;background:#fef2f2;border-top:1px solid #fecaca;font-size:11px;font-weight:700;color:#991b1b">⚡ ' + sessData.ncs.length + ' non-conformité(s) détectée(s)</div>';
+      // NCs (récap) — compteur cohérent : total des statuts NC + NC auto.
+      // (Avant : ne comptait que sessData.ncs → sous-évaluait quand des
+      // statuts étaient en NC sans entrée correspondante dans ncs.)
+      var _nbStatutsNC = (sessData.statuts && sessData.statuts.length) ? sessData.statuts.filter(function(s){ return s && s.nc; }).length : 0;
+      var _nbNcsAuto = (sessData.ncs && sessData.ncs.length) ? sessData.ncs.length : 0;
+      var _totalNCmod = Math.max(_nbStatutsNC, _nbNcsAuto) + (_nbStatutsNC && _nbNcsAuto ? 0 : 0);
+      // Si les deux sources existent, les NC auto sont généralement un sous-ensemble
+      // des statuts NC → on prend le maximum pour ne pas double-compter.
+      if (_totalNCmod > 0) {
+        html += '<div style="padding:6px 10px;background:#fef2f2;border-top:1px solid #fecaca;font-size:11px;font-weight:700;color:#991b1b">⚡ ' + _totalNCmod + ' non-conformité(s) détectée(s)</div>';
       }
 
       // Huiles de friture : relevés par friteuse (T° max 175°C, TPM max 25%)
