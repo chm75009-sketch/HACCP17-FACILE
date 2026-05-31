@@ -10612,9 +10612,9 @@ var COFFRE_DOCS = [
   { cle:'medical',            label:'Aptitudes médicales du personnel',           icon:'🩺' },
   { cle:'pms',                label:'Plan de Maîtrise Sanitaire (PMS) — inclut plan HACCP, plan de flux, plan de nettoyage, fiches techniques', icon:'📄' },
   { cle:'contrat_nuisibles',  label:'Contrat prestataire nuisibles',              icon:'🐭' },
+  { cle:'contrat_huiles',     label:'Contrat collecte huiles usagées',            icon:'🛢️' },
   { cle:'agrement',           label:'Agrément sanitaire',                         icon:'✅' },
   { cle:'micro',              label:'Analyses microbiologiques',                  icon:'🧪' },
-  { cle:'contrat_huiles',     label:'Contrat collecte huiles usagées',            icon:'🛢️' },
   { cle:'contrat_biodechets', label:'Contrat collecte biodéchets',                icon:'♻️' },
   { cle:'maintenance',        label:'Registre de maintenance équipements',        icon:'🔧' },
   { cle:'autre',              label:'Autres documents',                           icon:'📎' }
