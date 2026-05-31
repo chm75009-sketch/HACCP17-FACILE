@@ -12120,10 +12120,13 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 responsable: responsable || sd.signataire || '',
                 heure: heure,
                 date: sessionDate,
-                // V-NC16 — Seuil = norme attendue du point (catalogue), Valeur = NC
-                // réellement constatée (menu déroulant adapté). Fallback générique sinon.
-                seuil: s.norme || 'Conforme',
-                valeur: s.constat || s.statut || 'Non conforme'
+                // V-NC16 — Seuil/Valeur uniquement si vraie mesure chiffrée.
+                // Pour un point binaire (conforme/non conforme sans seuil), on
+                // laisse « — » au lieu d'écrire « Conforme »/« Non conforme »
+                // dans des colonnes qui attendent une norme et une mesure.
+                seuil: (s.norme && /\d/.test(s.norme)) ? s.norme : '—',
+                valeur: (s.valeur && /\d/.test(s.valeur)) ? s.valeur
+                      : ((s.constat && /\d/.test(s.constat)) ? s.constat : '—')
               });
             });
           }
