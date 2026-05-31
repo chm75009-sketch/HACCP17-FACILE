@@ -12259,7 +12259,12 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
             var ncSeuil = (s.norme && /\d/.test(s.norme)) ? s.norme : '—';
             var ncValeur = (s.valeur && /\d/.test(s.valeur)) ? s.valeur
                          : ((s.constat && /\d/.test(s.constat)) ? s.constat : '—');
-            totalNCs.push({module:moduleName, uid:'s'+(_uidSeq++), label:s.label, action:action, responsable:responsable, heure:heure, date:sessionDate, seuil:ncSeuil, valeur:ncValeur});
+            // V-NC16 — Afficher le défaut réellement constaté, pas le nom du point.
+            var ncLabelDom = String(s.label || '');
+            if (s.constat && String(s.constat).trim() && String(s.constat).trim() !== ncLabelDom) {
+              ncLabelDom = ncLabelDom ? (ncLabelDom + ' — ' + String(s.constat).trim()) : String(s.constat).trim();
+            }
+            totalNCs.push({module:moduleName, uid:'s'+(_uidSeq++), label:ncLabelDom, action:action, responsable:responsable, heure:heure, date:sessionDate, seuil:ncSeuil, valeur:ncValeur});
           }
         });
         if (d.ncs) d.ncs.forEach(function(nc){
