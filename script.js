@@ -11662,14 +11662,13 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     {id:'page-cuisson',         titre:'6. Cuisson & Remise en T°',       special:'cuisson',        code:'cuisson'},
     {id:'page-ouverture',       titre:'7. Nettoyage Ouverture',          special:null,             code:'ouverture'},
     {id:'page-fermeture',       titre:'8. Nettoyage Fermeture',          special:null,             code:'fermeture'},
-    {id:'page-nc',              titre:'9. NC & Actions Correctives',     special:'nc_detail',     code:'nc'},
-    {id:'page-refroidissement', titre:'10. Refroidissement Rapide',      special:'refroidissement',code:'refroidissement'},
-    {id:'page-huiles',          titre:'11. Huiles de Friture',           special:null,             code:'huiles'},
-    {id:'page-etiquetage',      titre:'12. Étiquetage Interne',          special:null,             code:'etiquetage'},
-    {id:'page-pertes',          titre:'13. Pertes & Invendus',           special:null,             code:'pertes'},
-    {id:'page-dechets',         titre:'14. Déchets & Biodéchets',        special:null,             code:'dechets'},
-    {id:'page-nuisibles',       titre:'15. Suivi Nuisibles',             special:null,             code:'nuisibles'},
-    {id:'page-nc',              titre:'16. Récapitulatif NC',            special:'nc_recap',       code:'nc_recap'},
+    {id:'page-refroidissement', titre:'9. Refroidissement Rapide',       special:'refroidissement',code:'refroidissement'},
+    {id:'page-huiles',          titre:'10. Huiles de Friture',           special:null,             code:'huiles'},
+    {id:'page-etiquetage',      titre:'11. Étiquetage Interne',          special:null,             code:'etiquetage'},
+    {id:'page-pertes',          titre:'12. Pertes & Invendus',           special:null,             code:'pertes'},
+    {id:'page-dechets',         titre:'13. Déchets & Biodéchets',        special:null,             code:'dechets'},
+    {id:'page-nuisibles',       titre:'14. Suivi Nuisibles',             special:null,             code:'nuisibles'},
+    {id:'page-nc',              titre:'15. Récapitulatif des non-conformités', special:'nc_recap',  code:'nc_recap'},
   ];
 
   // V122 — Filtrage par secteur : on retire les sections des modules non pertinents pour le
