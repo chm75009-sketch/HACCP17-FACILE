@@ -7934,6 +7934,20 @@ var TYPES_ENCEINTES = {
   collective:[{val:'cellule_collective',label:'Cellule de refroidissement collectif',seuil:10}],
 };
 
+// Formate une température pour l'affichage, sans double signe. Accepte une
+// valeur brute (« 5 », « +5 », « -12 », « +6°C ») et renvoie « +5°C », « -12°C ».
+// Renvoie '' si la valeur est vide/non numérique.
+function fmtTemp(v) {
+  if (v === null || v === undefined) return '';
+  var s = String(v).trim();
+  if (s === '') return '';
+  // Retirer °C/°c et espaces, garder le signe et les chiffres
+  s = s.replace(/°\s*c/ig, '').replace(/\s+/g, '');
+  if (s === '' || isNaN(parseFloat(s))) return String(v); // non numérique → tel quel
+  var n = parseFloat(s);
+  return (n >= 0 ? '+' : '') + n + '°C';
+}
+
 function getTypesEnceintesActif() {
   var base = TYPES_ENCEINTES.base;
   var spec = TYPES_ENCEINTES[SECTEUR_ACTIF] || [];
@@ -12027,8 +12041,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 if (cp && cp.nc) {
                   var sc = (cp.type || '').toLowerCase();
                   var seuilC = cp.seuil || ((sc.indexOf('congel')>-1||sc.indexOf('surgel')>-1||sc.indexOf('néga')>-1||sc.indexOf('negative')>-1) ? '-18°C max' : (sc.indexOf('chaud')>-1 ? '+63°C min' : '+4°C max'));
-                  var valC = (cp.tsonde || cp.tbord || '');
-                  if (valC && !/°c/i.test(valC)) valC = (parseFloat(valC) >= 0 ? '+' : '') + valC + '°C';
+                  var valC = fmtTemp(cp.tsonde || cp.tbord || '');
                   totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: 'Compartiment ' + (cp.type || cp.cid || '') + ' — T° hors seuil', action: cp.action || '', responsable: rec.signataire || sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilC, valeur: valC });
                 }
               });
@@ -12038,7 +12051,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 if (p && p.nc) {
                   var pType = (p.type && !/sélectionn|^\s*--/i.test(p.type)) ? p.type : 'Produit non précisé';
                   var pLabel = pType + (p.lot && p.lot !== 'Non renseigné' ? ' — Lot ' + p.lot : '');
-                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pLabel, action: p.actionPropre || p.actionCorrective || '', responsable: p.responsable || rec.signataire || sd.signataire || '', heure: p.heure || sessionHeure, date: sessionDate, seuil: p.seuil || '', valeur: p.valeurRelevee || p.temp || '' });
+                  totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pLabel, action: p.actionPropre || p.actionCorrective || '', responsable: p.responsable || rec.signataire || sd.signataire || '', heure: p.heure || sessionHeure, date: sessionDate, seuil: p.seuil || '—', valeur: fmtTemp(p.valeurRelevee || p.temp || '') || '—' });
                 }
               });
             }
@@ -12052,7 +12065,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               // Seuil via la source de vérité unique (catalogue + libellé + mots-clés)
               var seuilE = seuilEnceinteDepuisLabel(String(enc.type||'') + ' ' + String(enc.precision||''));
               var encName = (enc.type || 'Enceinte') + (enc.refNum ? ' N°' + enc.refNum : '') + (enc.precision ? ' — ' + enc.precision : '');
-              var valE = enc.temp !== '' && enc.temp != null ? ((parseFloat(enc.temp) >= 0 ? '+' : '') + enc.temp + '°C') : '';
+              var valE = fmtTemp(enc.temp);
               totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: encName + ' — T° hors seuil', action: enc.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: seuilE, valeur: valE });
             });
             return;
@@ -12062,8 +12075,8 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           if (pid === 'page-cuisson' && Array.isArray(sd.cuisson)) {
             sd.cuisson.forEach(function(pl) {
               var pn = (pl && pl.nom && pl.nom !== '—') ? pl.nom : ((pl && pl.type) || 'Plat');
-              if (pl && pl.isNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pn + ' — cuisson insuffisante', action: pl.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+63°C min', valeur: (pl.temp ? (parseFloat(pl.temp) >= 0 ? '+' : '') + pl.temp + '°C' : '') });
-              if (pl && pl.isRemiseNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pn + ' — remise en T° non conforme', action: pl.remiseAction || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+63°C min', valeur: (pl.remiseTf ? (parseFloat(pl.remiseTf) >= 0 ? '+' : '') + pl.remiseTf + '°C' : '') });
+              if (pl && pl.isNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pn + ' — cuisson insuffisante', action: pl.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+63°C min', valeur: fmtTemp(pl.temp) });
+              if (pl && pl.isRemiseNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: pn + ' — remise en T° non conforme', action: pl.remiseAction || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+63°C min', valeur: fmtTemp(pl.remiseTf) });
             });
             return;
           }
@@ -12071,7 +12084,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           // V117 — Refroidissement : détail par produit
           if (pid === 'page-refroidissement' && Array.isArray(sd.refroidissement)) {
             sd.refroidissement.forEach(function(pr) {
-              if (pr && pr.isNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: ((pr.type && pr.type !== '—') ? pr.type : 'Produit') + ' — refroidissement trop lent', action: pr.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+10°C en 2h max', valeur: (pr.t2 ? (parseFloat(pr.t2) >= 0 ? '+' : '') + pr.t2 + '°C' : '') });
+              if (pr && pr.isNC) totalNCs.push({ module: moduleName, uid: 'd' + (_uidSeq++), label: ((pr.type && pr.type !== '—') ? pr.type : 'Produit') + ' — refroidissement trop lent', action: pr.action || '', responsable: sd.signataire || '', heure: sessionHeure, date: sessionDate, seuil: '+10°C en 2h max', valeur: fmtTemp(pr.t2) });
             });
             return;
           }
