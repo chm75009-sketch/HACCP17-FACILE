@@ -1288,6 +1288,117 @@ try {
   if (_etabId) ETAB_ID = _etabId;
 } catch(e) {}
 
+// ══════════════════════════════════════════════════════════════
+// ESSAI UNIVERSEL (flyer) — code unique, 3 jours, plafonné à 100 inscrits
+// Anti-fraude : contact obligatoire + plafond d'activations + 1 essai
+// par e-mail. Réutilise etablissements + date_expiration (blocage natif).
+// ══════════════════════════════════════════════════════════════
+var ESSAI_UNIVERSEL_CODE = 'HACCP3J';   // code à imprimer sur le flyer
+var ESSAI_UNIVERSEL_JOURS = 3;          // durée offerte
+var ESSAI_UNIVERSEL_MAX = 100;          // plafond d'activations
+
+// Ouvre un formulaire de contact (tous champs obligatoires) puis crée l'essai.
+function activerEssaiUniversel() {
+  if (document.getElementById('essaiUnivModal')) {
+    document.getElementById('essaiUnivModal').classList.add('visible'); return;
+  }
+  var inp = 'width:100%;padding:11px 13px;border:1px solid #d1d5db;border-radius:9px;font-size:14px;box-sizing:border-box;margin-bottom:9px;font-family:inherit';
+  var m = document.createElement('div');
+  m.id = 'essaiUnivModal';
+  m.className = 'modal-overlay visible';
+  m.style.zIndex = '99998';
+  m.innerHTML =
+    '<div class="modal-box" style="max-width:380px;text-align:left">' +
+      '<div style="font-size:34px;text-align:center">🎁</div>' +
+      '<div class="modal-title" style="text-align:center">Votre essai gratuit de ' + ESSAI_UNIVERSEL_JOURS + ' jours</div>' +
+      '<div class="modal-desc" style="text-align:center;margin-bottom:14px">Renseignez vos coordonnées pour activer l\'essai.</div>' +
+      '<input id="eu_etab" placeholder="Nom de l\'établissement *" style="' + inp + '">' +
+      '<input id="eu_resp" placeholder="Nom et prénom *" style="' + inp + '">' +
+      '<input id="eu_adresse" placeholder="Adresse complète *" style="' + inp + '">' +
+      '<input id="eu_tel" placeholder="Téléphone *" style="' + inp + '">' +
+      '<input id="eu_email" type="email" placeholder="E-mail *" style="' + inp + '">' +
+      '<div id="eu_err" style="display:none;color:#dc2626;font-size:12px;font-weight:600;margin:2px 0 10px;text-align:center"></div>' +
+      '<button id="eu_btn" onclick="validerEssaiUniversel()" style="width:100%;background:linear-gradient(135deg,#16a34a,#4ade80);color:#0a0e1a;border:none;padding:13px;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">🚀 Activer mes ' + ESSAI_UNIVERSEL_JOURS + ' jours</button>' +
+      '<button onclick="document.getElementById(\'essaiUnivModal\').classList.remove(\'visible\')" style="width:100%;background:none;border:none;color:#6b7280;font-size:13px;font-weight:600;margin-top:8px;cursor:pointer;font-family:inherit">Annuler</button>' +
+    '</div>';
+  document.body.appendChild(m);
+}
+
+window.validerEssaiUniversel = async function() {
+  var err = document.getElementById('eu_err');
+  var show = function(t){ if (err){ err.textContent = t; err.style.display = 'block'; } };
+  var etab = (document.getElementById('eu_etab')||{}).value || '';
+  var resp = (document.getElementById('eu_resp')||{}).value || '';
+  var adr  = (document.getElementById('eu_adresse')||{}).value || '';
+  var tel  = (document.getElementById('eu_tel')||{}).value || '';
+  var mail = ((document.getElementById('eu_email')||{}).value || '').trim().toLowerCase();
+  etab=etab.trim(); resp=resp.trim(); adr=adr.trim(); tel=tel.trim();
+  if (!etab || !resp || !adr || !tel || !mail) { show('Merci de remplir tous les champs.'); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { show('E-mail invalide.'); return; }
+
+  if (!window._supabase) { show('Connexion à la base impossible. Réessayez.'); return; }
+  var btn = document.getElementById('eu_btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Activation…'; }
+  var reset = function(){ if (btn){ btn.disabled=false; btn.textContent='🚀 Activer mes '+ESSAI_UNIVERSEL_JOURS+' jours'; } };
+
+  try {
+    // Tous les essais universels existants (préfixe EU3J-)
+    var ex = await window._supabase.from('etablissements').select('code_acces,adresse').like('code_acces', 'EU3J-%');
+    if (ex.error) { show('Erreur : ' + ex.error.message); reset(); return; }
+    var rows = ex.data || [];
+    // Plafond d'activations
+    if (rows.length >= ESSAI_UNIVERSEL_MAX) {
+      show('L\'offre d\'essai gratuite est terminée (limite atteinte). Contactez-nous pour un accès.');
+      reset(); return;
+    }
+    // 1 essai par e-mail (l'e-mail est rangé dans adresse : "... | mail")
+    var dejaVu = rows.some(function(r){ return (r.adresse||'').toLowerCase().indexOf('|' + mail) > -1; });
+    if (dejaVu) {
+      show('Un essai a déjà été activé avec cet e-mail.');
+      reset(); return;
+    }
+
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', part='';
+    for (var i=0;i<5;i++) part += chars.charAt(Math.floor(Math.random()*chars.length));
+    var code = 'EU3J-' + part + '-' + new Date().getFullYear();
+    var pwd=''; for (var j=0;j<6;j++) pwd += Math.floor(Math.random()*10);
+    var now = new Date();
+    var dateDebut = now.toISOString().slice(0,10);
+    var dateExp = new Date(now.getTime() + ESSAI_UNIVERSEL_JOURS*86400000).toISOString().slice(0,10);
+
+    var ins = await window._supabase.from('etablissements').insert([{
+      code_acces: code,
+      mot_de_passe: pwd,
+      nom: etab,
+      secteur: 'resto',
+      adresse: adr + ' | ' + mail + ' | ' + tel + ' | ' + resp,
+      actif: true,
+      date_debut: dateDebut,
+      date_expiration: dateExp
+    }]);
+    if (ins.error) { show('Erreur création : ' + ins.error.message); reset(); return; }
+
+    try {
+      await window._supabase.from('historique_admin').insert([{
+        action: 'Essai universel ' + ESSAI_UNIVERSEL_JOURS + ' j (' + (rows.length+1) + '/' + ESSAI_UNIVERSEL_MAX + ')',
+        code_concerne: code,
+        motif: etab + ' — ' + resp + ' — ' + tel + ' — ' + mail + ' — exp. ' + dateExp
+      }]);
+    } catch(e){}
+
+    var modal = document.getElementById('essaiUnivModal');
+    if (modal) modal.classList.remove('visible');
+    // Pré-remplir les identifiants et connecter directement
+    var cEl = document.getElementById('login_code'); if (cEl) cEl.value = code;
+    var pEl = document.getElementById('login_pwd'); if (pEl) pEl.value = pwd;
+    alert('✅ Essai activé pour ' + ESSAI_UNIVERSEL_JOURS + ' jours !\n\nVotre code : ' + code + '\nMot de passe : ' + pwd + '\n\nNotez-les pour vous reconnecter jusqu\'au ' + new Date(dateExp).toLocaleDateString('fr-FR') + '.');
+    if (typeof connexion === 'function') connexion();
+  } catch(e) {
+    show('Erreur : ' + ((e && e.message) ? e.message : e));
+    reset();
+  }
+};
+
 // ── CONNEXION ──
 async function connexion() {
   var code = (document.getElementById('login_code').value || '').trim().toUpperCase();
@@ -1295,6 +1406,8 @@ async function connexion() {
   var errEl = document.getElementById('login_error');
   var btn = document.getElementById('login_btn');
   if (!code) { errEl.textContent = 'Saisissez votre code d\'accès.'; errEl.style.display='block'; return; }
+  // Code universel d'essai (flyer) : pas de mot de passe, on ouvre le formulaire de contact
+  if (code === ESSAI_UNIVERSEL_CODE) { errEl.style.display = 'none'; activerEssaiUniversel(); return; }
   if (!pwd) { errEl.textContent = 'Saisissez votre mot de passe.'; errEl.style.display='block'; return; }
   errEl.style.display = 'none';
   btn.textContent = '⏳ Connexion en cours...'; btn.disabled = true;
