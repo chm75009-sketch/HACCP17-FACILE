@@ -10602,17 +10602,15 @@ try {
 } catch(e) { console.error('[Coffre-fort] Erreur init:', e); }
 
 // Liste des documents obligatoires proposés dans le coffre-fort
-// Ordre = documents les plus demandés en contrôle DDPP en premier
-// (déclaration d'activité → attestation HACCP → certificats médicaux → PMS…)
+// Ordre = obligatoires d'abord, puis pièces autonomes.
+// Les pièces incluses dans le PMS (plan HACCP, plan de flux, plan de
+// nettoyage, fiches techniques) ne sont PAS listées à part pour éviter
+// les doublons : elles font partie du PMS.
 var COFFRE_DOCS = [
   { cle:'cerfa',              label:"Déclaration d'activité (Cerfa 13984)",       icon:'🏛️' },
   { cle:'formation',          label:'Attestation Formation HACCP',                icon:'🎓' },
   { cle:'medical',            label:'Aptitudes médicales du personnel',           icon:'🩺' },
-  { cle:'pms',                label:'Plan de Maîtrise Sanitaire (PMS)',          icon:'📄' },
-  { cle:'haccp',              label:'Plan HACCP formalisé',                       icon:'📋' },
-  { cle:'nettoyage',          label:'Plan de nettoyage & désinfection',           icon:'🧼' },
-  { cle:'flux',               label:'Plan de flux (diagramme de production)',     icon:'🔄' },
-  { cle:'fiches',             label:'Fiches techniques produits & fournisseurs',  icon:'📑' },
+  { cle:'pms',                label:'Plan de Maîtrise Sanitaire (PMS) — inclut plan HACCP, plan de flux, plan de nettoyage, fiches techniques', icon:'📄' },
   { cle:'agrement',           label:'Agrément sanitaire',                         icon:'✅' },
   { cle:'micro',              label:'Analyses microbiologiques',                  icon:'🧪' },
   { cle:'contrat_nuisibles',  label:'Contrat prestataire nuisibles',              icon:'🐭' },
