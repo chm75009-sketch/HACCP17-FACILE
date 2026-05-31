@@ -7262,6 +7262,10 @@ function showPage(id, noReset) {
   if (typeof marquerChampsFacultatifsAuto === 'function') {
     setTimeout(marquerChampsFacultatifsAuto, 100);
   }
+  // Coffre-fort : rafraîchir la liste des documents à l'ouverture du module
+  if (id === 'page-documents' && typeof renderCoffre === 'function') {
+    setTimeout(renderCoffre, 50);
+  }
   var sa = document.getElementById('scrollArea');
   if (sa) sa.scrollTop = 0;
   if (target) target.scrollIntoView({block:'start', behavior:'instant'});
@@ -10580,6 +10584,146 @@ function uploadDoc(previewId) {
     }
   };
   input.click();
+}
+
+// ══════════════════════════════════════════════════════════════
+// COFFRE-FORT DOCUMENTS — stockage local durable (IndexedDB)
+// Les documents (PDF/images) sont conservés sur l'appareil, hors-ligne.
+// ══════════════════════════════════════════════════════════════
+var coffreDB = null;
+try {
+  if (typeof Dexie !== 'undefined') {
+    coffreDB = new Dexie('HACCPCoffreDB');
+    coffreDB.version(1).stores({ docs: '++id, cle, createdAt' });
+  }
+} catch(e) { console.error('[Coffre-fort] Erreur init:', e); }
+
+// Liste des documents obligatoires proposés dans le coffre-fort
+var COFFRE_DOCS = [
+  { cle:'pms',                label:'Plan de Maîtrise Sanitaire (PMS)',          icon:'📄' },
+  { cle:'haccp',              label:'Plan HACCP formalisé',                       icon:'📋' },
+  { cle:'nettoyage',          label:'Plan de nettoyage & désinfection',           icon:'🧼' },
+  { cle:'flux',               label:'Plan de flux (diagramme de production)',     icon:'🔄' },
+  { cle:'fiches',             label:'Fiches techniques produits & fournisseurs',  icon:'📑' },
+  { cle:'formation',          label:'Attestation Formation HACCP',                icon:'🎓' },
+  { cle:'medical',            label:'Aptitudes médicales du personnel',           icon:'🩺' },
+  { cle:'cerfa',              label:"Déclaration d'activité (Cerfa 13984)",       icon:'🏛️' },
+  { cle:'agrement',           label:'Agrément sanitaire',                         icon:'✅' },
+  { cle:'micro',              label:'Analyses microbiologiques',                  icon:'🧪' },
+  { cle:'contrat_nuisibles',  label:'Contrat prestataire nuisibles',              icon:'🐭' },
+  { cle:'contrat_huiles',     label:'Contrat collecte huiles usagées',            icon:'🛢️' },
+  { cle:'contrat_biodechets', label:'Contrat collecte biodéchets',                icon:'♻️' },
+  { cle:'maintenance',        label:'Registre de maintenance équipements',        icon:'🔧' },
+  { cle:'autre',              label:'Autres documents',                           icon:'📎' }
+];
+
+// Affiche le coffre-fort (appelé à l'ouverture du module Documents)
+async function renderCoffre() {
+  var cont = document.getElementById('coffreContainer');
+  if (!cont) return;
+  if (!coffreDB) {
+    cont.innerHTML = '<div style="font-size:12px;color:#dc2626">Stockage indisponible sur ce navigateur.</div>';
+    return;
+  }
+  var tous = [];
+  try { tous = await coffreDB.docs.toArray(); } catch(e) { tous = []; }
+  var html = '';
+  COFFRE_DOCS.forEach(function(d) {
+    var fichiers = tous.filter(function(f){ return f.cle === d.cle; });
+    html += '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    html += '<div style="display:flex;align-items:center;gap:8px">';
+    html += '<span style="font-size:18px">' + d.icon + '</span>';
+    html += '<span style="flex:1;font-size:12.5px;font-weight:700;color:#1f2937">' + d.label + '</span>';
+    html += '<button onclick="coffreUpload(\'' + d.cle + '\')" style="background:#16a34a;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;padding:6px 12px;cursor:pointer;white-space:nowrap">📎 Téléverser</button>';
+    html += '</div>';
+    if (fichiers.length === 0) {
+      html += '<div style="font-size:11px;color:#9ca3af;margin-top:6px">Aucun document</div>';
+    } else {
+      fichiers.forEach(function(f) {
+        var d2 = f.createdAt ? new Date(f.createdAt).toLocaleDateString('fr-FR') : '';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;background:#f9fafb;border-radius:8px;padding:6px 8px">';
+        html += '<span style="font-size:14px">' + (String(f.mime||'').indexOf('pdf') > -1 ? '📄' : '🖼️') + '</span>';
+        html += '<span style="flex:1;font-size:11px;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (f.nom || 'Document') + (d2 ? ' · ' + d2 : '') + '</span>';
+        html += '<button onclick="coffreView(' + f.id + ')" style="background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:4px 9px;cursor:pointer">👁️ Voir</button>';
+        html += '<button onclick="coffreDelete(' + f.id + ')" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:4px 9px;cursor:pointer">✕</button>';
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+  });
+  cont.innerHTML = html;
+}
+
+// Téléverse un document dans une catégorie du coffre-fort
+function coffreUpload(cle) {
+  if (!coffreDB) { if (typeof showToast === 'function') showToast('Stockage indisponible', 'warn'); return; }
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,application/pdf';
+  input.style.position = 'absolute';
+  input.style.left = '-9999px';
+  document.body.appendChild(input);
+  input.onchange = function(e) {
+    var file = e.target.files[0];
+    if (!file) { try { document.body.removeChild(input); } catch(_){} return; }
+    // Limite de sécurité : 15 Mo par fichier
+    if (file.size > 15 * 1024 * 1024) {
+      if (typeof showToast === 'function') showToast('Fichier trop lourd (max 15 Mo)', 'warn');
+      else alert('Fichier trop lourd (max 15 Mo).');
+      try { document.body.removeChild(input); } catch(_){}
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = async function(ev) {
+      try {
+        await coffreDB.docs.add({
+          cle: cle,
+          nom: file.name || 'Document',
+          mime: file.type || 'application/octet-stream',
+          base64: ev.target.result,
+          createdAt: new Date().toISOString()
+        });
+        if (typeof showToast === 'function') showToast('Document enregistré ✓', 'ok');
+        await renderCoffre();
+      } catch(err) {
+        console.error('[Coffre-fort] Erreur enregistrement:', err);
+        if (typeof showToast === 'function') showToast('Erreur d\'enregistrement', 'warn');
+        else alert('Erreur lors de l\'enregistrement du document.');
+      }
+      try { document.body.removeChild(input); } catch(_){}
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+// Ouvre un document du coffre-fort
+async function coffreView(id) {
+  if (!coffreDB) return;
+  // Ouvrir la fenêtre PENDANT le clic (sinon bloquée par le navigateur mobile après l'attente DB)
+  var win = window.open('', '_blank');
+  try {
+    var rec = await coffreDB.docs.get(id);
+    if (!rec || !rec.base64) { if (win) win.close(); return; }
+    var blob = base64VersBlob(rec.base64);
+    if (!blob) { if (win) win.close(); return; }
+    var url = URL.createObjectURL(blob);
+    if (win) win.location = url; else window.location.href = url;
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+  } catch(e) {
+    if (win) try { win.close(); } catch(_){}
+    console.error('[Coffre-fort] Erreur ouverture:', e);
+  }
+}
+
+// Supprime un document du coffre-fort
+function coffreDelete(id) {
+  if (!coffreDB) return;
+  if (!confirm('Supprimer ce document du coffre-fort ?')) return;
+  coffreDB.docs.delete(id).then(function(){
+    if (typeof showToast === 'function') showToast('Document supprimé', 'ok');
+    renderCoffre();
+  }).catch(function(e){ console.error('[Coffre-fort] Erreur suppression:', e); });
 }
 
 // ══════════════════════════════
