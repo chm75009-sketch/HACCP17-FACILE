@@ -17329,7 +17329,8 @@ function testEffacerDonnees() {
             html += '<div>📅 Depuis ' + dateDebut + '</div>';
             html += '</div>';
             if (r.actif) {
-              html += '<button onclick="desactiverClient(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(220,38,38,0.15);color:#fca5a5;border:1px solid rgba(220,38,38,0.3);padding:8px 16px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">⛔ Désactiver</button>';
+              html += '<button onclick="desactiverClient(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(220,38,38,0.15);color:#fca5a5;border:1px solid rgba(220,38,38,0.3);padding:8px 16px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;margin-right:6px">⛔ Désactiver</button>';
+              html += '<button onclick="prolongerClient(\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);padding:8px 16px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">➕ Prolonger l\'abonnement</button>';
             } else {
               if (r.motif_desactivation) html += '<div style="font-size:11px;color:rgba(255,255,255,0.55);font-style:italic">Motif: ' + escapeHtml(r.motif_desactivation) + '</div>';
               html += '<button onclick="reactiverClient(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(74,222,128,0.12);color:#4ade80;border:1px solid rgba(74,222,128,0.3);padding:8px 16px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;margin-top:6px">✅ Réactiver</button>';
@@ -17463,7 +17464,7 @@ function testEffacerDonnees() {
           document.getElementById('essaisListe').innerHTML = '<div style="color:#fca5a5;padding:12px">Base indisponible.</div>';
           return;
         }
-        window._supabase.from('etablissements').select('*').like('code_acces', 'ESSAI-%').then(function(res) {
+        window._supabase.from('etablissements').select('*').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%').then(function(res) {
           var liste = document.getElementById('essaisListe');
           if (!liste) return;
           if (res.error) { liste.innerHTML = '<div style="color:#fca5a5;padding:12px">Erreur : ' + escapeHtml(res.error.message) + '</div>'; return; }
@@ -17486,7 +17487,17 @@ function testEffacerDonnees() {
             html += '<div><div style="font-size:14px;font-weight:800;color:white">' + escapeHtml(r.nom) + '</div><div style="font-size:11px;color:#4ade80;font-weight:700">🔑 ' + escapeHtml(r.code_acces) + '</div></div>';
             html += '<div style="font-size:10px;font-weight:800;color:' + coul + '">' + label + '</div>';
             html += '</div>';
-            html += '<div style="font-size:12px;color:rgba(255,255,255,0.7)">📅 Activé le ' + dDeb + ' &nbsp;·&nbsp; ⛔ Expire le ' + dExp + '</div>';
+            html += '<div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:10px">📅 Activé le ' + dDeb + ' &nbsp;·&nbsp; ⛔ Expire le ' + dExp + '</div>';
+            // Actions : suspendre / réactiver + prolonger
+            var bs = 'border:none;padding:7px 13px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;margin-right:6px;margin-top:4px';
+            html += '<div>';
+            if (r.actif) {
+              html += '<button onclick="suspendreEssai(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(245,158,11,0.15);color:#fbbf24;' + bs + '">⏸️ Suspendre</button>';
+            } else {
+              html += '<button onclick="reactiverEssai(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(74,222,128,0.15);color:#4ade80;' + bs + '">✅ Réactiver</button>';
+            }
+            html += '<button onclick="prolongerEssai(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\',\'' + (r.date_expiration || '') + '\')" style="background:rgba(59,130,246,0.15);color:#93c5fd;' + bs + '">➕ Prolonger</button>';
+            html += '</div>';
             html += '</div>';
           });
           liste.innerHTML = html;
@@ -17495,6 +17506,49 @@ function testEffacerDonnees() {
         // Panneau de pilotage de la campagne flyer (code universel)
         renderEuCampagne();
       }
+
+      // ── Actions sur un essai précis (etablissements) ──
+      window.suspendreEssai = function(id, code) {
+        if (!window._supabase) return;
+        if (!confirm('Suspendre l\'essai ' + code + ' ?\nL\'accès sera bloqué (réversible).')) return;
+        window._supabase.from('etablissements').update({ actif: false }).eq('id', id).then(function(res) {
+          if (res.error) { alert('Erreur : ' + res.error.message); return; }
+          window._supabase.from('historique_admin').insert([{ action: 'Suspension essai', code_concerne: code }]).then(function(){});
+          loadAdminEssais();
+        });
+      };
+
+      window.reactiverEssai = function(id, code) {
+        if (!window._supabase) return;
+        if (!confirm('Réactiver l\'essai ' + code + ' ?')) return;
+        window._supabase.from('etablissements').update({ actif: true }).eq('id', id).then(function(res) {
+          if (res.error) { alert('Erreur : ' + res.error.message); return; }
+          window._supabase.from('historique_admin').insert([{ action: 'Réactivation essai', code_concerne: code }]).then(function(){});
+          loadAdminEssais();
+        });
+      };
+
+      window.prolongerEssai = function(id, code, dateExpActuelle) {
+        if (!window._supabase) return;
+        var v = prompt('Prolonger l\'essai ' + code + ' de combien de jours ?\n(à partir d\'aujourd\'hui)', '7');
+        if (v === null) return;
+        var n = parseInt(v, 10);
+        if (!(n > 0)) { alert('Nombre de jours invalide.'); return; }
+        var nouvelleExp = new Date(new Date().getTime() + n * 86400000).toISOString().slice(0, 10);
+        window._supabase.from('etablissements').update({
+          actif: true,
+          date_expiration: nouvelleExp
+        }).eq('id', id).then(function(res) {
+          if (res.error) { alert('Erreur : ' + res.error.message); return; }
+          window._supabase.from('historique_admin').insert([{
+            action: 'Prolongation essai (+' + n + ' j)',
+            code_concerne: code,
+            motif: 'Nouvelle expiration : ' + nouvelleExp
+          }]).then(function(){});
+          alert('✅ Essai prolongé.\nNouvelle date d\'expiration : ' + new Date(nouvelleExp).toLocaleDateString('fr-FR'));
+          loadAdminEssais();
+        });
+      };
 
       // Affiche le panneau campagne : compteur, état, suspendre/réactiver, plafond.
       async function renderEuCampagne() {
@@ -17691,6 +17745,31 @@ function testEffacerDonnees() {
             action: 'Réactivation client',
             code_concerne: code
           }]).then(function(){});
+          loadAdminClients();
+        });
+      };
+
+      // Prolonger l'abonnement d'un client payant : fixe une nouvelle date
+      // d'expiration (dans etablissements) à partir d'aujourd'hui + N mois.
+      window.prolongerClient = function(code) {
+        if (!window._supabase) return;
+        var v = prompt('Prolonger l\'abonnement ' + code + ' de combien de MOIS ?\n(à partir d\'aujourd\'hui)', '12');
+        if (v === null) return;
+        var n = parseInt(v, 10);
+        if (!(n > 0)) { alert('Nombre de mois invalide.'); return; }
+        var d = new Date(); d.setMonth(d.getMonth() + n);
+        var nouvelleExp = d.toISOString().slice(0, 10);
+        window._supabase.from('etablissements').update({
+          actif: true,
+          date_expiration: nouvelleExp
+        }).eq('code_acces', code).then(function(res) {
+          if (res.error) { alert('Erreur : ' + res.error.message); return; }
+          window._supabase.from('historique_admin').insert([{
+            action: 'Prolongation abonnement (+' + n + ' mois)',
+            code_concerne: code,
+            motif: 'Nouvelle expiration : ' + nouvelleExp
+          }]).then(function(){});
+          alert('✅ Abonnement prolongé.\nNouvelle date d\'expiration : ' + new Date(nouvelleExp).toLocaleDateString('fr-FR'));
           loadAdminClients();
         });
       };
