@@ -17739,7 +17739,10 @@ function testEffacerDonnees() {
         var m = Math.floor((reste % 3600000) / 60000);
         var s = Math.floor((reste % 60000) / 1000);
         var p2 = function(n){ return (n < 10 ? '0' : '') + n; };
-        var txt = '🎁 Essai : ' + (j > 0 ? j + 'j ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
+        // Texte explicite : « 3 jours 04 h 12 min 08 s » / « 04 h 12 min 08 s » le dernier jour
+        var txt = '🎁 Essai gratuit : ';
+        if (j > 0) txt += j + ' jour' + (j > 1 ? 's' : '') + ' ';
+        txt += p2(h) + ' h ' + p2(m) + ' min ' + p2(s) + ' s';
         badge.textContent = txt;
         // Vert > 24h restantes, orange sinon (dernier jour)
         if (reste > 86400000) {
