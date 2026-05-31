@@ -10616,7 +10616,6 @@ var COFFRE_DOCS = [
   { cle:'agrement',           label:'Agrément sanitaire',                         icon:'✅' },
   { cle:'micro',              label:'Analyses microbiologiques',                  icon:'🧪' },
   { cle:'contrat_biodechets', label:'Contrat collecte biodéchets',                icon:'♻️' },
-  { cle:'maintenance',        label:'Registre de maintenance équipements',        icon:'🔧' },
   { cle:'autre',              label:'Autres documents',                           icon:'📎' }
 ];
 
