@@ -11773,8 +11773,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       html += '</div>'; return;
     }
 
-    // V113 — G : Section 9 — Agrégation détaillée de toutes les NCs (cartes, une par NC)
-    if (mod.special === 'nc_detail') {
+    // V113 — G : (supprimé) ancienne section 9 « cartes NC » — remplacée par le
+    // seul tableau récapitulatif (nc_recap) pour éviter le doublon et la double
+    // logique de collecte. Bloc conservé sous condition jamais vraie pour mémoire.
+    if (false && mod.special === 'nc_detail') {
       var modulesAcollecterG = ['page-affichage','page-hygiene','page-documents','page-reception',
                                 'page-temperatures','page-cuisson','page-ouverture','page-fermeture',
                                 'page-huiles','page-etiquetage','page-pertes','page-dechets',
@@ -11867,10 +11869,15 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
 
     if (mod.special === 'nc_recap') {
       // Récapitulatif global de toutes les NCs de tous les modules avec leurs actions correctives
-      var allModules = ['page-affichage','page-hygiene','page-documents','page-reception',
-                        'page-temperatures','page-cuisson','page-refroidissement',
-                        'page-ouverture','page-fermeture','page-nc','page-huiles',
-                        'page-etiquetage','page-pertes','page-dechets','page-nuisibles'];
+      // CONCORDANCE — source de vérité unique : tous les modules de contrôle
+      // (MODULE_PAGES) sauf 'page-nc' (le récap lui-même). Garantit qu'AUCUN
+      // module avec des NC n'est oublié (ex. Audits était absent avant).
+      var allModules = (typeof MODULE_PAGES !== 'undefined' && Array.isArray(MODULE_PAGES))
+        ? MODULE_PAGES.filter(function(p){ return p !== 'page-nc'; })
+        : ['page-affichage','page-hygiene','page-documents','page-reception',
+           'page-temperatures','page-cuisson','page-refroidissement',
+           'page-ouverture','page-fermeture','page-huiles',
+           'page-etiquetage','page-pertes','page-dechets','page-nuisibles','page-audits'];
       var totalNCs = [];
       var _uidSeq = 0;
 
@@ -12486,16 +12493,16 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
 
         // ═══ TABLEAU STANDARD DES NC (sans TIAC) ═══
         if (standardNCs.length > 0) {
-          html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
+          // Conteneur scrollable horizontalement pour ne jamais couper de colonne sur mobile
+          html += '<div style="width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch">';
+          html += '<table style="width:100%;min-width:560px;border-collapse:collapse;font-size:10px;table-layout:fixed">';
           html += '<tr style="background:#dc2626">' +
-                  '<th style="padding:4px 6px;color:white;width:8%">Date</th>' +
-                  '<th style="padding:4px 6px;color:white;width:18%">Module</th>' +
-                  '<th style="padding:4px 6px;color:white;width:18%">Non-conformité</th>' +
-                  '<th style="padding:4px 6px;color:white;width:8%">Seuil</th>' +
-                  '<th style="padding:4px 6px;color:white;width:8%">Valeur</th>' +
-                  '<th style="padding:4px 6px;color:white;width:20%">Action corrective</th>' +
-                  '<th style="padding:4px 6px;color:white;width:12%">Responsable</th>' +
-                  '<th style="padding:4px 6px;color:white;width:8%">Heure</th>' +
+                  '<th style="padding:4px 6px;color:white;width:10%">Date</th>' +
+                  '<th style="padding:4px 6px;color:white;width:16%">Module</th>' +
+                  '<th style="padding:4px 6px;color:white;width:22%">Non-conformité</th>' +
+                  '<th style="padding:4px 6px;color:white;width:9%">Seuil</th>' +
+                  '<th style="padding:4px 6px;color:white;width:9%">Valeur</th>' +
+                  '<th style="padding:4px 6px;color:white;width:34%">Action corrective (responsable · heure)</th>' +
                   '</tr>';
           // V86 — Trier par date décroissante (plus récent en haut)
           standardNCs.sort(function(a, b) {
@@ -12505,9 +12512,12 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
             return toIso(db).localeCompare(toIso(da));
           });
           standardNCs.forEach(function(nc, ni) {
-            var actionTxt = nc.action || '<span style="color:#c2410c;font-weight:700">A définir</span>';
-            var respTxt = nc.responsable || '—';
-            var heureTxt = nc.heure || '—';
+            var actionTxt = nc.action || '<span style="color:#c2410c;font-weight:700">À définir</span>';
+            // Responsable + heure rassemblés sous l'action (ne sont plus coupés hors écran)
+            var meta = '';
+            if (nc.responsable) meta += nc.responsable;
+            if (nc.heure) meta += (meta ? ' · ' : '') + nc.heure;
+            var actionCell = actionTxt + (meta ? '<div style="font-size:9px;color:#6b7280;font-weight:500;margin-top:2px">👤 ' + meta + '</div>' : '');
             var dateTxt = nc.date || '—';
             var seuilTxt = nc.seuil || '—';
             var valeurTxt = nc.valeur || '—';
@@ -12517,12 +12527,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                     '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word">' + nc.label + '</td>' +
                     '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;text-align:center;font-weight:600">' + seuilTxt + '</td>' +
                     '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;text-align:center;font-weight:600;color:#dc2626">' + valeurTxt + '</td>' +
-                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word;font-weight:600">' + actionTxt + '</td>' +
-                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word">' + respTxt + '</td>' +
-                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;text-align:center">' + heureTxt + '</td>' +
+                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word;font-weight:600">' + actionCell + '</td>' +
                   '</tr>';
           });
-          html += '</table>';
+          html += '</table></div>';
         }
         // Total global (NCs standards + alertes TIAC)
         var totalParts = [];
