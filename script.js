@@ -12789,10 +12789,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       // V116 — Wrapper pour permettre l'injection des photos liées à ce contrôle
       html += '<div data-controle-module="' + (mod.code || '') + '" data-controle-ts="' + (sess.timestamp || '') + '">';
 
-      // Bandeau de session si plusieurs sessions
-      if (sessionsAffichables.length > 1) {
-        html += '<div style="background:#1e1b4b;color:white;padding:5px 10px;font-weight:700;font-size:11px;margin-top:' + (sIdx === 0 ? '0' : '10px') + '">📅 Session du ' + dSess + '</div>';
-      }
+      // Bandeau de session : TOUJOURS afficher la date + heure du contrôle
+      // (même pour une session unique) — demande utilisateur : dater chaque
+      // module rempli.
+      html += '<div style="background:#1e1b4b;color:white;padding:5px 10px;font-weight:700;font-size:11px;margin-top:' + (sIdx === 0 ? '0' : '10px') + '">📅 ' + (dSess || 'Session') + '</div>';
 
       // Champs (entête, métadonnées)
       if (sessData.champs && sessData.champs.length > 0) {
