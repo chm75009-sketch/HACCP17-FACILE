@@ -13145,10 +13145,15 @@ function getDonneesPeriode(pageId, dateDebut, dateFin) {
     } catch(eCloud) {}
     var from = new Date(dateDebut);
     var to = new Date(dateFin); to.setHours(23,59,59);
+    // NB : pas de filtre par secteur ici. getDonneesPeriode alimente le Pack
+    // DDPP (document légal qui doit être COMPLET) et le tableau de bord. Filtrer
+    // par secteur actif y cachait des contrôles (sections module vides alors que
+    // la section NC, via son repli DOM, les montrait → incohérence). L'isolation
+    // par secteur reste appliquée dans les vues du quotidien (Mes rapports,
+    // historique), pas dans l'export complet.
     return stored.filter(function(e) {
       var d = new Date(e.timestamp);
-      if (!(d >= from && d <= to)) return false;
-      return _secteurActifMatch(e.data || {}); // isolation par secteur actif
+      return d >= from && d <= to;
     });
   } catch(e) { return []; }
 }
