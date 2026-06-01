@@ -18316,6 +18316,81 @@ if (!ETAB_ID) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+// RÉCONCILIATION CLOUD — filet anti-perte de données
+// L'espion 3s marque un contrôle « synchronisé » même si l'envoi échoue
+// (réseau/Supabase) et ne retente jamais ; et les contrôles déjà présents
+// au démarrage ne sont jamais renvoyés. Résultat : un contrôle visible en
+// local (rapport/Pack) peut manquer dans Supabase.
+// Cette fonction compare local ↔ cloud par signature pageId|timestamp|
+// signataire et ré-uploade les contrôles manquants (avec nouvelle tentative
+// aux passages suivants tant que le cloud ne les a pas).
+// ════════════════════════════════════════════════════════════════
+var _reconcileEnCours = false;
+async function synchroniserControlesManquants() {
+  if (_reconcileEnCours) return;
+  if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
+  if (typeof localStorage === 'undefined') return;
+  _reconcileEnCours = true;
+  try {
+    // 1. État du cloud (signatures déjà présentes)
+    var seen = {};
+    var cloudRows = null;
+    try {
+      if (typeof chargerControlesCloudCache === 'function') cloudRows = await chargerControlesCloudCache();
+    } catch(eCloud) { return; } // pas de réseau → on retentera au prochain cycle
+    // SÉCURITÉ : si l'état cloud n'a pas pu être lu (null = fetch échoué), on
+    // n'uploade RIEN — sinon on croirait le cloud vide et on créerait des
+    // doublons massifs. Un tableau vide = cloud réellement vide → on procède.
+    if (!Array.isArray(cloudRows)) return;
+    var cloud = window._histoCloudRows || {};
+    Object.keys(cloud).forEach(function(t){
+      var c = (cloud[t] && cloud[t].contenu) || {};
+      var pid = c.pageId || (cloud[t] && cloud[t].module) || '';
+      seen[pid + '|' + (c.timestamp || t) + '|' + (c.signe || c.signataire || '')] = true;
+    });
+    // 2. Parcourir le local du compte courant et renvoyer les manquants
+    var etabKey = '_' + String(ETAB_ID);
+    var manquants = 0, envoyes = 0;
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k || k.indexOf('haccp_module_data_page-') !== 0) continue;
+      if (k.indexOf(etabKey) === -1) continue;
+      var arr = [];
+      try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(eP) { continue; }
+      if (!Array.isArray(arr)) continue;
+      for (var j = 0; j < arr.length; j++) {
+        var entry = arr[j];
+        var data = (entry && entry.data) ? entry.data : entry;
+        if (!data) continue;
+        // Laisser l'espion 3s gérer les contrôles très récents (évite un doublon
+        // de course). On ne rattrape que ceux de plus de 30 s.
+        var entryTs = entry && entry.timestamp;
+        if (entryTs) { var age = Date.now() - new Date(entryTs).getTime(); if (!isNaN(age) && age < 30000) continue; }
+        var pid = data.pageId || (entry && entry.pageId) || '';
+        var ts  = data.timestamp || entryTs || '';
+        if (!pid || !ts) continue;
+        var sig = pid + '|' + ts + '|' + (data.signe || data.signataire || '');
+        if (seen[sig]) continue; // déjà dans le cloud
+        manquants++;
+        var moduleNom = (data && data.module) || pid.replace('page-','');
+        var res = await enregistrerControleHACCP(moduleNom, data);
+        if (res && res.ok) { seen[sig] = true; envoyes++; }
+      }
+    }
+    if (manquants > 0) console.info('[HACCP Réconcil] ' + envoyes + '/' + manquants + ' contrôle(s) manquant(s) renvoyé(s) au cloud');
+  } catch(e) { console.warn('[HACCP Réconcil] err:', e && e.message); }
+  finally { _reconcileEnCours = false; }
+}
+window.synchroniserControlesManquants = synchroniserControlesManquants;
+
+// Déclenche la réconciliation peu après le chargement, puis régulièrement.
+(function(){
+  if (typeof window === 'undefined') return;
+  setTimeout(function(){ try { synchroniserControlesManquants(); } catch(e){} }, 6000);
+  setInterval(function(){ try { synchroniserControlesManquants(); } catch(e){} }, 60000);
+})();
+
 
 // ════════════════════════════════════════════════════════════════
 // HACCP Pro V114 — Espion universel cloud v3
