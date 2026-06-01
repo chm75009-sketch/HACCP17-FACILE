@@ -2999,7 +2999,15 @@ function imprimerModuleAplat(pageId, titre, dataOverride) {
     html += '<div class="section-title" style="color:#dc2626;border-color:#dc2626">Non-conformites detectees (' + allNCs.length + ')</div>';
     html += '<table><tr><th style="background:#dc2626;color:white;width:30px">N</th><th style="background:#dc2626;color:white">Non-conformite</th><th style="background:#dc2626;color:white;width:90px">Date / Heure</th><th style="background:#dc2626;color:white">Action menee</th><th style="background:#dc2626;color:white;width:80px">Auteur</th></tr>';
     allNCs.forEach(function(nc, i) {
-      html += '<tr class="nc"><td style="text-align:center;padding:5px 8px;border-bottom:1px solid #fee2e2">' + (i+1) + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;color:#dc2626;font-weight:600">' + nc + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;font-size:10px">' + (nc.date ? nc.date + (nc.heure ? ' ' + nc.heure : '') : '—') + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;font-size:10px;color:#c2410c">' + (data.actions[i] ? ((data.actions[i].type||'') + (data.actions[i].detail ? ' — ' + data.actions[i].detail : '')) : '—') + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;font-size:10px">' + (data.actions[i] && data.actions[i].responsable ? data.actions[i].responsable : '—') + '</td></tr>';
+      // V-NC — la NC peut être une chaîne OU un objet {label/desc/nom/constat}.
+      // Avant : « + nc + » affichait « [object Object] » pour les objets.
+      var ncTxt = (nc && typeof nc === 'object')
+        ? (nc.label || nc.desc || nc.nom || nc.constat || JSON.stringify(nc))
+        : String(nc || '');
+      var ncDateTxt = (nc && typeof nc === 'object' && nc.date)
+        ? (nc.date + (nc.heure ? ' ' + nc.heure : ''))
+        : '—';
+      html += '<tr class="nc"><td style="text-align:center;padding:5px 8px;border-bottom:1px solid #fee2e2">' + (i+1) + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;color:#dc2626;font-weight:600">' + ncTxt + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;font-size:10px">' + ncDateTxt + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;font-size:10px;color:#c2410c">' + (data.actions[i] ? ((data.actions[i].type||'') + (data.actions[i].detail ? ' — ' + data.actions[i].detail : '')) : '—') + '</td><td style="padding:5px 8px;border-bottom:1px solid #fee2e2;font-size:10px">' + (data.actions[i] && data.actions[i].responsable ? data.actions[i].responsable : '—') + '</td></tr>';
     });
     html += '</table>';
   }
