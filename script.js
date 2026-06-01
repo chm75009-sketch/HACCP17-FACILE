@@ -18382,6 +18382,43 @@ function ouvrirMesRapports() {
   (async function() {
     try { if (typeof chargerControlesCloudCache === 'function') await chargerControlesCloudCache(); } catch(e) {}
     var rows = window._histoCloudRows || {};
+    // FUSION local + cloud : « Mes rapports » lisait UNIQUEMENT le cloud, donc
+    // un contrôle validé mais pas encore synchronisé (réseau / watcher 3 s /
+    // onglet fermé vite) était invisible ici alors qu'il l'est dans le Pack.
+    // On complète avec les contrôles encore en localStorage du compte courant.
+    try {
+      var etabKey = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : 'local';
+      var seenSig = {};
+      Object.keys(rows).forEach(function(t){
+        var rr = rows[t] || {}; var cc = rr.contenu || {};
+        var pp = cc.pageId || rr.module || '';
+        seenSig[pp + '|' + (cc.timestamp || t) + '|' + (cc.signe || cc.signataire || '')] = true;
+      });
+      if (typeof localStorage !== 'undefined') {
+        for (var li = 0; li < localStorage.length; li++) {
+          var lk = localStorage.key(li);
+          if (!lk || lk.indexOf('haccp_module_data_page-') !== 0) continue;
+          if (lk.indexOf('_' + etabKey) === -1) continue; // compte courant uniquement
+          var arr = [];
+          try { arr = JSON.parse(localStorage.getItem(lk) || '[]'); } catch(eP) { continue; }
+          if (!Array.isArray(arr)) continue;
+          arr.forEach(function(entry){
+            var c = (entry && entry.data) ? entry.data : entry;
+            if (!c) return;
+            var pid = c.pageId || (entry && entry.pageId) || '';
+            var tsL = (entry && entry.timestamp) || c.timestamp || '';
+            if (!tsL) return;
+            var sig = pid + '|' + (c.timestamp || tsL) + '|' + (c.signe || c.signataire || '');
+            if (seenSig[sig]) return; // déjà présent (cloud)
+            seenSig[sig] = true;
+            var keyTs = tsL;
+            while (rows[keyTs]) { keyTs = new Date(new Date(keyTs).getTime() + 1).toISOString(); }
+            rows[keyTs] = { module: (c.module || (pid ? pid.replace('page-','') : 'Contrôle')), contenu: c, photos: [] };
+          });
+        }
+      }
+      window._histoCloudRows = rows;
+    } catch(eMerge) { console.warn('fusion local rapports:', eMerge && eMerge.message); }
     var keys = Object.keys(rows).sort(function(a, b) { return new Date(b) - new Date(a); });
     if (keys.length === 0) {
       content.innerHTML = '<div style="text-align:center;color:#6b7280;padding:30px 16px;font-size:14px">Aucun contrôle trouvé pour le moment.<br><span style="font-size:12px">Vos contrôles validés apparaîtront ici automatiquement.</span></div>';
