@@ -18305,10 +18305,15 @@ if (!ETAB_ID) {
       body: JSON.stringify(controle)
     });
     if (!response.ok) {
-      console.error('[HACCP Cloud] Erreur ' + response.status);
-      return { ok: false, msg: 'Erreur ' + response.status };
+      var errTxt = '';
+      try { errTxt = await response.text(); } catch(eTxt) {}
+      console.error('[HACCP Cloud] Erreur ' + response.status + ' — ' + errTxt);
+      // Mémoriser l'erreur réelle pour la rendre visible à l'écran (mobile).
+      window._lastSyncError = 'HTTP ' + response.status + (errTxt ? ' — ' + String(errTxt).slice(0, 300) : '');
+      return { ok: false, msg: 'Erreur ' + response.status, status: response.status, body: errTxt };
     }
     console.info('[HACCP Cloud] ✓ Contrôle "' + nomModule + '" envoyé au cloud');
+    window._lastSyncError = '';
     return { ok: true };
   } catch(err) {
     console.error('[HACCP Cloud] Échec envoi:', err);
@@ -18379,6 +18384,16 @@ async function synchroniserControlesManquants() {
       }
     }
     if (manquants > 0) console.info('[HACCP Réconcil] ' + envoyes + '/' + manquants + ' contrôle(s) manquant(s) renvoyé(s) au cloud');
+    // Si des contrôles manquent et qu'AUCUN n'a pu être envoyé → Supabase refuse.
+    // On affiche l'erreur réelle (RLS / colonne manquante) une seule fois.
+    if (manquants > 0 && envoyes === 0 && window._lastSyncError && !window._syncErrorShown) {
+      window._syncErrorShown = true;
+      var diag = 'Synchro cloud refusée par Supabase :\n\n' + window._lastSyncError +
+        '\n\n• 401/403 = règle RLS bloque l\'écriture (policy INSERT manquante)\n' +
+        '• 400 = colonne manquante dans la table controles_haccp\n\n' +
+        manquants + ' contrôle(s) sont en sécurité en local mais pas encore dans le cloud.';
+      try { if (typeof alert === 'function') alert(diag); else if (typeof showToast === 'function') showToast(window._lastSyncError, 'error'); } catch(eA) {}
+    }
   } catch(e) { console.warn('[HACCP Réconcil] err:', e && e.message); }
   finally { _reconcileEnCours = false; }
 }
