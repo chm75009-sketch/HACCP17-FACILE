@@ -18942,14 +18942,21 @@ function ouvrirMesRapports() {
     var rows = INSP_CHECK.map(function(m){
       var d = stats.detail[m.id] || {n:0,nc:0};
       var done = d.n>0, hasNC = d.nc>0;
-      var mark = !done ? '⬜' : (hasNC ? '⚠️' : '✅');
       var note = !done ? 'Non renseigné' : (d.n+' contrôle'+(d.n>1?'s':'')+(hasNC?' · '+d.nc+' NC':''));
       var col  = !done ? '#64748b' : (hasNC ? '#d97706' : '#059669');
-      return '<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #f1f5f9">'
+      // Pastille d'ÉTAT (lecture seule : reflète les contrôles enregistrés, ce
+      // n'est PAS une case à cocher). Avant : un carré ⬜ qui ressemblait à une
+      // case vide cliquable → confusion. La ligne est cliquable pour OUVRIR le module.
+      var pill, pillBg, pillTxt;
+      if (!done) { pill = 'À faire'; pillBg = '#e2e8f0'; pillTxt = '#475569'; }
+      else if (hasNC) { pill = '⚠ ' + d.nc + ' NC'; pillBg = '#fef3c7'; pillTxt = '#b45309'; }
+      else { pill = '✓ Fait'; pillBg = '#dcfce7'; pillTxt = '#15803d'; }
+      return '<div onclick="if(typeof showPage===\'function\')showPage(\'' + m.id + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer">'
         + '<div style="font-size:18px;width:22px;text-align:center">'+m.ico+'</div>'
         + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#0f172a">'+esc(m.label)+'</div>'
         + '<div style="font-size:11px;color:'+col+';font-weight:600;margin-top:1px">'+esc(note)+'</div></div>'
-        + '<div style="font-size:17px">'+mark+'</div></div>';
+        + '<div style="font-size:11px;font-weight:800;background:'+pillBg+';color:'+pillTxt+';padding:4px 10px;border-radius:20px;white-space:nowrap">'+pill+'</div>'
+        + '<div style="color:#cbd5e1;font-size:15px;margin-left:2px">›</div></div>';
     }).join('');
 
     var scoreBlock = showScore && stats.score!=null
