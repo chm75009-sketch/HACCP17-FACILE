@@ -18951,7 +18951,7 @@ function ouvrirMesRapports() {
       if (!done) { pill = 'À faire'; pillBg = '#e2e8f0'; pillTxt = '#475569'; }
       else if (hasNC) { pill = '⚠ ' + d.nc + ' NC'; pillBg = '#fef3c7'; pillTxt = '#b45309'; }
       else { pill = '✓ Fait'; pillBg = '#dcfce7'; pillTxt = '#15803d'; }
-      return '<div onclick="if(typeof showPage===\'function\')showPage(\'' + m.id + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer">'
+      return '<div onclick="(function(){var c=\'' + m.id.replace('page-','') + '\';if(typeof openModule===\'function\')openModule(c);else if(typeof showPage===\'function\')showPage(\'' + m.id + '\');})()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer">'
         + '<div style="font-size:18px;width:22px;text-align:center">'+m.ico+'</div>'
         + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#0f172a">'+esc(m.label)+'</div>'
         + '<div style="font-size:11px;color:'+col+';font-weight:600;margin-top:1px">'+esc(note)+'</div></div>'
