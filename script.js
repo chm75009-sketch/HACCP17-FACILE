@@ -12146,15 +12146,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                   heure = matchedAction.heure || '';
                 }
               }
-              // V-NC16 — Afficher la non-conformité RÉELLE (constat choisi dans le
-              // menu), pas le nom du point de contrôle. Évite les libellés absurdes
-              // (« Action corrective immédiate mise en place » présenté comme un
-              // défaut). Si un constat précis existe, on l'affiche, contextualisé
-              // par la zone : « Zone — constat ».
-              var ncLabelAff = String(s.label || '');
-              if (s.constat && String(s.constat).trim() && String(s.constat).trim() !== ncLabelAff) {
-                ncLabelAff = ncLabelAff ? (ncLabelAff + ' — ' + String(s.constat).trim()) : String(s.constat).trim();
-              }
+              // Le libellé = POINT contrôlé. Le constat va dans sa colonne dédiée
+              // (Constat) pour ne pas dupliquer point + défaut dans la même case.
+              var ncLabelAff = String(s.label || '').trim();
+              if (!ncLabelAff && s.constat) ncLabelAff = String(s.constat).trim();
+              if (!ncLabelAff) ncLabelAff = '(point non précisé)';
               totalNCs.push({
                 module: moduleName,
                 label: ncLabelAff,
@@ -12163,13 +12159,18 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 responsable: responsable || sd.signataire || '',
                 heure: heure,
                 date: sessionDate,
-                // V-NC16 — Seuil/Valeur uniquement si vraie mesure chiffrée.
-                // Pour un point binaire (conforme/non conforme sans seuil), on
-                // laisse « — » au lieu d'écrire « Conforme »/« Non conforme »
-                // dans des colonnes qui attendent une norme et une mesure.
-                seuil: (s.norme && /\d/.test(s.norme)) ? s.norme : '—',
-                valeur: (s.valeur && /\d/.test(s.valeur)) ? s.valeur
-                      : ((s.constat && /\d/.test(s.constat)) ? s.constat : '—')
+                // NORME / SEUIL attendu : chiffré OU qualitatif (catalogue). Plus
+                // de filtre /\d/ : un point binaire a une norme texte qui doit
+                // figurer pour documenter pleinement la NC. Filet catalogue si
+                // la norme n'a pas été stockée dans la session.
+                seuil: (function(){
+                  var n = (s.norme && String(s.norme).trim()) ? String(s.norme).trim() : '';
+                  if (!n && typeof getCatalogueNC === 'function') { var c = getCatalogueNC(s.label); if (c && c.norme) n = c.norme; }
+                  return n || '—';
+                })(),
+                // CONSTAT : mesure chiffrée, sinon défaut qualitatif, sinon « Non conforme ».
+                valeur: (s.valeur && String(s.valeur).trim()) ? String(s.valeur).trim()
+                      : ((s.constat && String(s.constat).trim()) ? String(s.constat).trim() : 'Non conforme')
               });
             });
           }
@@ -12276,18 +12277,27 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               var sigNV = sigN_I ? sigN_I.value.trim() : '';
               if (sigPV || sigNV) responsable = (sigPV + ' ' + sigNV).trim();
             }
-            // Seuil/Valeur : uniquement si une vraie mesure chiffrée existe.
-            // Pour un point binaire (conforme/non conforme sans seuil), on
-            // laisse « — » au lieu d'inscrire « Conforme »/« Non conforme »
-            // dans des colonnes qui attendent une norme et une mesure.
-            var ncSeuil = (s.norme && /\d/.test(s.norme)) ? s.norme : '—';
-            var ncValeur = (s.valeur && /\d/.test(s.valeur)) ? s.valeur
-                         : ((s.constat && /\d/.test(s.constat)) ? s.constat : '—');
-            // V-NC16 — Afficher le défaut réellement constaté, pas le nom du point.
-            var ncLabelDom = String(s.label || '');
-            if (s.constat && String(s.constat).trim() && String(s.constat).trim() !== ncLabelDom) {
-              ncLabelDom = ncLabelDom ? (ncLabelDom + ' — ' + String(s.constat).trim()) : String(s.constat).trim();
+            // NORME / SEUIL attendu : qu'il soit chiffré (« ≤ +4°C ») OU
+            // qualitatif (« Aucune bague ni bracelet aux mains »). On n'exige
+            // plus de chiffre : un point binaire a une norme texte, et elle
+            // doit apparaître pour que la NC soit pleinement documentée.
+            var ncSeuil = (s.norme && String(s.norme).trim()) ? String(s.norme).trim() : '';
+            // Filet : si la norme n'a pas été stockée (session ancienne), la
+            // retrouver en direct depuis le catalogue via le libellé du point.
+            if (!ncSeuil && typeof getCatalogueNC === 'function') {
+              var _catSeuil = getCatalogueNC(s.label);
+              if (_catSeuil && _catSeuil.norme) ncSeuil = _catSeuil.norme;
             }
+            if (!ncSeuil) ncSeuil = '—';
+            // CONSTAT : la mesure chiffrée si elle existe, sinon le défaut
+            // qualitatif constaté, sinon au minimum « Non conforme ».
+            var ncValeur = (s.valeur && String(s.valeur).trim()) ? String(s.valeur).trim()
+                         : ((s.constat && String(s.constat).trim()) ? String(s.constat).trim() : 'Non conforme');
+            // Le constat a désormais sa propre colonne → le libellé reste le
+            // POINT contrôlé (pas de duplication point + constat dans la même case).
+            var ncLabelDom = String(s.label || '').trim();
+            if (!ncLabelDom && s.constat) ncLabelDom = String(s.constat).trim();
+            if (!ncLabelDom) ncLabelDom = '(point non précisé)';
             totalNCs.push({module:moduleName, uid:'s'+(_uidSeq++), label:ncLabelDom, action:action, responsable:responsable, heure:heure, date:sessionDate, seuil:ncSeuil, valeur:ncValeur});
           }
         });
@@ -12404,12 +12414,14 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           if ((existing.date || '') !== (nc.date || '')) return false;
           var existLbl = String(existing.label || '').toLowerCase().trim();
           if (existLbl === lblNorm) return true;
-          // Préfixe commun de 12+ caractères (sauf si label trop court)
-          var minLen = 12;
-          if (lblNorm.length < minLen || existLbl.length < minLen) return false;
-          // L'un commence-t-il par les premiers caractères de l'autre ?
-          if (lblNorm.indexOf(existLbl.substring(0, minLen)) === 0) return true;
-          if (existLbl.indexOf(lblNorm.substring(0, minLen)) === 0) return true;
+          // Fusion floue SÉCURISÉE : uniquement si un libellé est ENTIÈREMENT le
+          // préfixe de l'autre (cas d'une troncature), pas un simple préfixe de
+          // 12 car. commun. Sinon deux points distincts mais proches
+          // (« Mains lavées après WC » / « Mains lavées après déchets ») seraient
+          // fusionnés à tort → une NC disparaîtrait du récap.
+          var shortL = lblNorm.length <= existLbl.length ? lblNorm : existLbl;
+          var longL  = lblNorm.length <= existLbl.length ? existLbl : lblNorm;
+          if (shortL.length >= 15 && longL.indexOf(shortL) === 0) return true;
           return false;
         });
         if (dup) {
@@ -12497,12 +12509,12 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           html += '<div style="width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch">';
           html += '<table style="width:100%;min-width:560px;border-collapse:collapse;font-size:10px;table-layout:fixed">';
           html += '<tr style="background:#dc2626">' +
-                  '<th style="padding:4px 6px;color:white;width:10%">Date</th>' +
-                  '<th style="padding:4px 6px;color:white;width:16%">Module</th>' +
-                  '<th style="padding:4px 6px;color:white;width:22%">Non-conformité</th>' +
-                  '<th style="padding:4px 6px;color:white;width:9%">Seuil</th>' +
-                  '<th style="padding:4px 6px;color:white;width:9%">Valeur</th>' +
-                  '<th style="padding:4px 6px;color:white;width:34%">Action corrective (responsable · heure)</th>' +
+                  '<th style="padding:4px 6px;color:white;width:9%">Date</th>' +
+                  '<th style="padding:4px 6px;color:white;width:13%">Module</th>' +
+                  '<th style="padding:4px 6px;color:white;width:19%">Point contrôlé</th>' +
+                  '<th style="padding:4px 6px;color:white;width:19%">Norme / Seuil</th>' +
+                  '<th style="padding:4px 6px;color:white;width:17%">Constat (NC)</th>' +
+                  '<th style="padding:4px 6px;color:white;width:23%">Action corrective (resp. · heure)</th>' +
                   '</tr>';
           // V86 — Trier par date décroissante (plus récent en haut)
           standardNCs.sort(function(a, b) {
@@ -12524,9 +12536,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
             html += '<tr style="background:' + (ni%2===0?'#fff8f8':'white') + '">' +
                     '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;font-weight:600;color:#7f1d1d;text-align:center">' + dateTxt + '</td>' +
                     '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;font-weight:600;color:#dc2626;word-break:break-word">' + nc.module + '</td>' +
-                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word">' + nc.label + '</td>' +
-                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;text-align:center;font-weight:600">' + seuilTxt + '</td>' +
-                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;text-align:center;font-weight:600;color:#dc2626">' + valeurTxt + '</td>' +
+                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word;font-weight:600">' + nc.label + '</td>' +
+                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word;color:#15803d">' + seuilTxt + '</td>' +
+                    '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word;font-weight:600;color:#dc2626">' + valeurTxt + '</td>' +
                     '<td style="padding:4px 6px;border-bottom:1px solid #fee2e2;word-break:break-word;font-weight:600">' + actionCell + '</td>' +
                   '</tr>';
           });
