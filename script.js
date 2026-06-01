@@ -18928,3 +18928,61 @@ function ouvrirMesRapports() {
     try { if (typeof genererPackDDPP==='function') genererPackDDPP(); } catch(e){}
   };
 })();
+
+// ════════════════════════════════════════════════════════════════
+// Bandeau en-tête module : SECTEUR actif + DATE/HEURE en cours
+// Affiché en haut de chaque module pour éviter toute confusion de secteur
+// (cf. désynchro corrigée) et dater visuellement la saisie en cours.
+// ════════════════════════════════════════════════════════════════
+(function() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  function cfgSecteur() {
+    try { return (typeof SECTEURS_CONFIG !== 'undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF]) || null; }
+    catch (e) { return null; }
+  }
+  function maintenant() {
+    var d = new Date();
+    return {
+      date: d.toLocaleDateString('fr-FR'),
+      heure: ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2)
+    };
+  }
+  function majEnteteModule() {
+    try {
+      var active = document.querySelector('.page.active');
+      if (!active || String(active.id).indexOf('page-') !== 0) return;
+      var header = active.querySelector('.mod-header');
+      if (!header) return; // page sans en-tête module → on ignore
+      var badge = header.querySelector('.secteur-date-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'secteur-date-badge';
+        badge.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px';
+        header.insertBefore(badge, header.firstChild);
+      }
+      var cfg = cfgSecteur();
+      var now = maintenant();
+      var pill = 'display:inline-block;background:rgba(255,255,255,.22);color:#fff;font-weight:800;font-size:12px;padding:4px 11px;border-radius:20px;line-height:1.3';
+      var html = '';
+      if (cfg && cfg.label) html += '<span style="' + pill + '">' + cfg.label + '</span>';
+      html += '<span class="sd-datetime" style="' + pill + '">📅 ' + now.date + ' · 🕐 ' + now.heure + '</span>';
+      badge.innerHTML = html;
+    } catch (e) {}
+  }
+
+  // Mise à jour à chaque changement de page
+  try {
+    var orig = window.showPage;
+    if (typeof orig === 'function') {
+      window.showPage = function() {
+        var r = orig.apply(this, arguments);
+        setTimeout(majEnteteModule, 40);
+        return r;
+      };
+    }
+  } catch (e) {}
+  // Horloge : rafraîchit la date/heure du module ouvert toutes les 30 s
+  setInterval(majEnteteModule, 30000);
+  window._majEnteteModule = majEnteteModule;
+})();
