@@ -13078,6 +13078,20 @@ function getDernieresDonnees(pageId) {
   } catch(e) { return null; }
 }
 
+// Isolation par secteur : un compte multi-secteurs (ex. RTH75 = boulangerie +
+// resto) partage le même ETAB_ID. Les contrôles portent leur secteur dans
+// data.secteur ; on filtre donc l'affichage sur le SECTEUR_ACTIF courant pour
+// qu'un secteur ne voie pas les contrôles d'un autre.
+function _secteurActifMatch(data) {
+  try {
+    var sa = (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? String(SECTEUR_ACTIF) : '';
+    if (!sa) return true;                 // aucun secteur actif → pas de filtrage
+    var ds = (data && data.secteur) ? String(data.secteur) : '';
+    if (!ds) return true;                 // contrôle sans secteur (legacy) → conservé
+    return ds === sa;
+  } catch(e) { return true; }
+}
+
 function getDonneesPeriode(pageId, dateDebut, dateFin) {
   try {
     var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
@@ -13098,7 +13112,8 @@ function getDonneesPeriode(pageId, dateDebut, dateFin) {
     var to = new Date(dateFin); to.setHours(23,59,59);
     return stored.filter(function(e) {
       var d = new Date(e.timestamp);
-      return d >= from && d <= to;
+      if (!(d >= from && d <= to)) return false;
+      return _secteurActifMatch(e.data || {}); // isolation par secteur actif
     });
   } catch(e) { return []; }
 }
@@ -13234,6 +13249,7 @@ async function chargerHistoriqueControlesCloud() {
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
       window._histoCloudRows[ts] = { module: r.module, contenu: contenu, photos: r.photos };
+      if (typeof _secteurActifMatch === 'function' && !_secteurActifMatch(contenu || {})) return; // isolation secteur
       var d = new Date(ts);
       var ok = !isNaN(d.getTime());
       var dateStr = ok ? (d.toLocaleDateString('fr-FR') + ' à ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0')) : '';
@@ -18405,6 +18421,7 @@ function ouvrirMesRapports() {
           arr.forEach(function(entry){
             var c = (entry && entry.data) ? entry.data : entry;
             if (!c) return;
+            if (typeof _secteurActifMatch === 'function' && !_secteurActifMatch(c)) return; // autre secteur
             var pid = c.pageId || (entry && entry.pageId) || '';
             var tsL = (entry && entry.timestamp) || c.timestamp || '';
             if (!tsL) return;
@@ -18419,7 +18436,11 @@ function ouvrirMesRapports() {
       }
       window._histoCloudRows = rows;
     } catch(eMerge) { console.warn('fusion local rapports:', eMerge && eMerge.message); }
-    var keys = Object.keys(rows).sort(function(a, b) { return new Date(b) - new Date(a); });
+    var keys = Object.keys(rows).sort(function(a, b) { return new Date(b) - new Date(a); })
+      .filter(function(t){ // isolation par secteur actif (cloud + local)
+        var rr = rows[t] || {};
+        return (typeof _secteurActifMatch !== 'function') || _secteurActifMatch(rr.contenu || {});
+      });
     if (keys.length === 0) {
       content.innerHTML = '<div style="text-align:center;color:#6b7280;padding:30px 16px;font-size:14px">Aucun contrôle trouvé pour le moment.<br><span style="font-size:12px">Vos contrôles validés apparaîtront ici automatiquement.</span></div>';
       return;
