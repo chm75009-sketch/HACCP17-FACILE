@@ -11780,7 +11780,14 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     if (_sM) html += '<div style="background:#eff6ff;border-bottom:1px solid #dbeafe;padding:6px 12px;font-size:10px;color:#1e3a8a"><strong>Seuils réglementaires :</strong> ' + _sM + '</div>';
     // ── Modules spéciaux ──
     if (mod.special === 'temperatures') {
-      var encs = collecterDonneesTemperatures();
+      // Lire les sessions archivées (filtrées période + secteur) au lieu du DOM
+      // courant, sinon le contrôle d'un autre secteur encore affiché « fuit »
+      // dans tous les Packs.
+      var encs = [];
+      (getDonneesPeriode('page-temperatures', dateFrom, dateTo) || []).forEach(function(s){
+        var arr = (s.data && Array.isArray(s.data.temperatures)) ? s.data.temperatures : [];
+        arr.forEach(function(e){ encs.push(e); });
+      });
       var filled = encs.filter(function(e){ return e.temp || e.type !== '—'; });
       if (filled.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
       else {
@@ -11801,7 +11808,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     }
 
     if (mod.special === 'cuisson') {
-      var plats = collecterDonneesCuisson();
+      var plats = [];
+      (getDonneesPeriode('page-cuisson', dateFrom, dateTo) || []).forEach(function(s){
+        var arr = (s.data && Array.isArray(s.data.cuisson)) ? s.data.cuisson : [];
+        arr.forEach(function(p){ plats.push(p); });
+      });
       var filledP = plats.filter(function(p){ return p.nom !== '—' || p.temp; });
       if (filledP.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
       else {
@@ -11822,7 +11833,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     }
 
     if (mod.special === 'refroidissement') {
-      var refrois = collecterDonneesRefroidissement();
+      var refrois = [];
+      (getDonneesPeriode('page-refroidissement', dateFrom, dateTo) || []).forEach(function(s){
+        var arr = (s.data && Array.isArray(s.data.refroidissement)) ? s.data.refroidissement : [];
+        arr.forEach(function(r){ refrois.push(r); });
+      });
       var filledR = refrois.filter(function(r){ return r.t0 || r.t2; });
       if (filledR.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
       else {
