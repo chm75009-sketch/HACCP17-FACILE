@@ -2916,8 +2916,13 @@ function imprimerModuleAplat(pageId, titre, dataOverride) {
       var actionTxt = '—';
       if (s.nc) {
         var found = null;
-        // ═══ NOUVEAU : recherche DOM directe (comme dans le récap NC) ═══
-        if (pageElForRecap) {
+        // PRIORITÉ : action attachée au statut (lien fiable établi à la
+        // sauvegarde) — évite tout matching par position/ordre erroné.
+        if (s.action && typeof s.action === 'object' && (s.action.type || s.action.detail)) {
+          found = { type: s.action.type || '', detail: s.action.detail || '', responsable: s.action.responsable || '', heure: s.action.heure || '' };
+        }
+        // ═══ recherche DOM directe (comme dans le récap NC) ═══
+        if (!found && pageElForRecap) {
           var allRows = pageElForRecap.querySelectorAll('.frow');
           for (var ri = 0; ri < allRows.length; ri++) {
             var row = allRows[ri];
@@ -6471,14 +6476,8 @@ function imprimerReception(dataOverride, photosOverride) {
   _tbBtns.appendChild(_btnImpr); _tbBtns.appendChild(_btnFerm);
   _tb.appendChild(_tbTitle); _tb.appendChild(_tbBtns);
   var _ct = document.createElement('div');
-  var _ct = document.createElement('div');
-  var headerDiv = document.createElement('div');
-  headerDiv.className = 'no-print';
-  headerDiv.style.cssText = 'background:#f0fdf4;border:1px solid #0f766e;border-radius:8px;padding:8px 12px;margin:12px 0;font-size:11px;color:#065f46;font-weight:600';
-  headerDiv.textContent = '📋 Format Avery L7160 — 63,5mm x 38,1mm — 21 étiquettes/feuille A4 — Restauration';
   _ct.innerHTML = html;
   overlay.appendChild(_tb);
-  overlay.appendChild(headerDiv);
   overlay.appendChild(_ct);
   document.body.appendChild(overlay);
 }
@@ -10013,7 +10012,18 @@ function imprimerHuilesData(friteuses, signataire, ts) {
     html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Type d\'huile</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (f.type || '—') + '</td></tr>';
     html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">Temperature</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (f.temp && f.temp !== '—' ? f.temp + '°C' : '—') + ' <span style="color:#b45309;font-weight:600;font-size:9px">(seuil : 175°C max)</span></td></tr>';
     html += '<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">TPM</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">' + (f.tpm && f.tpm !== '—' ? f.tpm + '%' : '—') + ' <span style="color:#b45309;font-weight:600;font-size:9px">(seuil : 25% max)</span></td></tr>';
-    html += '<tr><td style="padding:6px 10px;font-weight:600">Conformite</td><td style="padding:6px 10px;color:' + confColor + ';font-weight:700">' + (f.conformite || (nc ? 'Non conforme' : 'Conforme')) + '</td></tr>';
+    html += '<tr><td style="padding:6px 10px;border-bottom:' + (nc ? '1px solid #e5e7eb' : 'none') + ';font-weight:600">Conformite</td><td style="padding:6px 10px;border-bottom:' + (nc ? '1px solid #e5e7eb' : 'none') + ';color:' + confColor + ';font-weight:700">' + (f.conformite || (nc ? 'Non conforme' : 'Conforme')) + '</td></tr>';
+    if (nc) {
+      // Action corrective : valeur saisie sinon déduite du dépassement (comme le Pack DDPP)
+      var _actH = f.action || '';
+      if (!_actH) {
+        var _tH = f.temp && f.temp !== '—' && parseFloat(f.temp) > 175;
+        var _pH = f.tpm && f.tpm !== '—' && parseFloat(f.tpm) > 25;
+        _actH = (_tH && _pH) ? "Thermostat baissé + changement d'huile"
+              : (_tH ? 'Thermostat baissé' : (_pH ? "Changement d'huile" : 'Action corrective à définir'));
+      }
+      html += '<tr><td style="padding:6px 10px;font-weight:700;color:#dc2626">Action corrective</td><td style="padding:6px 10px;color:#dc2626;font-weight:700">' + _actH + '</td></tr>';
+    }
     html += '</table></div>';
   });
   html += '<div style="font-size:8pt;color:#9ca3af;text-align:center;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px">HACCP Pro — À conserver par vos soins 3 ans minimum — Preuve légale en cas de contrôle DDPP</div>';
@@ -12850,13 +12860,19 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           else if (s.statut === 'Conforme') ico = '✅';
           else ico = '—';
           var actionTxt = '—';
-          if (s.nc && actsPourStatut.length > 0) {
-            // Tenter de retrouver une action correspondante (par label ou ordre)
-            var matchAction = actsPourStatut.find(function(a) {
-              return a.contexte && s.label && a.contexte.indexOf(s.label.substring(0, 20)) > -1;
-            });
-            if (!matchAction) matchAction = actsPourStatut.shift();
-            else actsPourStatut.splice(actsPourStatut.indexOf(matchAction), 1);
+          if (s.nc) {
+            // Priorité au lien FIABLE : action attachée au statut (établie à la
+            // sauvegarde). Sinon repli sur matching par label, puis par ordre.
+            var matchAction = null;
+            if (s.action && typeof s.action === 'object') {
+              matchAction = s.action;
+            } else if (actsPourStatut.length > 0) {
+              matchAction = actsPourStatut.find(function(a) {
+                return a.contexte && s.label && a.contexte.indexOf(s.label.substring(0, 20)) > -1;
+              });
+              if (!matchAction) matchAction = actsPourStatut.shift();
+              else actsPourStatut.splice(actsPourStatut.indexOf(matchAction), 1);
+            }
             if (matchAction) {
               actionTxt = '';
               if (matchAction.type) actionTxt += matchAction.type;
@@ -13197,6 +13213,29 @@ function getDernieresDonnees(pageId) {
   } catch(e) { return null; }
 }
 
+// Titre lisible d'un module à partir de son code technique (reception, hygiene…)
+// pour l'historique cloud et "Mes rapports" (qui affichaient le code brut).
+function _titreModuleLisible(m) {
+  var s = String(m || '').trim();
+  if (!s) return 'Contrôle';
+  var key = s.toLowerCase().replace('page-', '');
+  var map = {
+    'reception':'Réception & Traçabilité','tracabilite':'Traçabilité produits reçus',
+    'temperatures':'Températures Enceintes','hygiene':'Hygiène & Tenue Personnel',
+    'ouverture':'Nettoyage Ouverture','fermeture':'Nettoyage Fermeture',
+    'cuisson':'Cuisson & Remise en T°','refroidissement':'Refroidissement Rapide',
+    'huiles':'Huiles de Friture','etiquetage':'Étiquetage Interne',
+    'pertes':'Pertes & Invendus','dechets':'Déchets & Biodéchets',
+    'nuisibles':'Suivi Nuisibles','documents':'Contrôle Documentaire',
+    'affichage':'Affichages Réglementaires','nc':'Non-conformités',
+    'audit':'Audit Interne','audits':'Audit Interne','plat-temoin':'Plat Témoin',
+    'liaison-thermique':'Liaison Chaude/Froide','registre-convives':'Registre des Convives',
+    'analyses-micro':'Analyses Microbiologiques'
+  };
+  if (map[key]) return map[key];
+  return s; // déjà un titre lisible → on garde tel quel
+}
+
 // Isolation par secteur : un compte multi-secteurs (ex. RTH75 = boulangerie +
 // resto) partage le même ETAB_ID. Les contrôles portent leur secteur dans
 // data.secteur ; on filtre donc l'affichage sur le SECTEUR_ACTIF courant pour
@@ -13379,7 +13418,7 @@ async function chargerHistoriqueControlesCloud() {
       var sig = r.signature || (contenu && (contenu.signe || contenu.signataire)) || '';
       var tsAttr = String(ts).replace(/'/g, "\\'");
       html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px;background:#fff">' +
-                '<div style="font-size:13px"><strong style="color:#1e293b">' + (r.module || 'Contrôle') + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
+                '<div style="font-size:13px"><strong style="color:#1e293b">' + _titreModuleLisible(r.module) + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
                 '<button class="btn-p" style="white-space:nowrap;padding:8px 14px;font-size:13px" onclick="reimprimerControleCloud(\'' + tsAttr + '\')">Voir / Imprimer</button>' +
               '</div>';
     });
@@ -13941,14 +13980,8 @@ function imprimerDashboard() {
   _tbBtns.appendChild(_btnImpr); _tbBtns.appendChild(_btnFerm);
   _tb.appendChild(_tbTitle); _tb.appendChild(_tbBtns);
   var _ct = document.createElement('div');
-  var _ct = document.createElement('div');
-  var headerDiv = document.createElement('div');
-  headerDiv.className = 'no-print';
-  headerDiv.style.cssText = 'background:#f0fdf4;border:1px solid #0f766e;border-radius:8px;padding:8px 12px;margin:12px 0;font-size:11px;color:#065f46;font-weight:600';
-  headerDiv.textContent = '📋 Format Avery L7160 — 63,5mm x 38,1mm — 21 étiquettes/feuille A4 — Restauration';
   _ct.innerHTML = html;
   overlay.appendChild(_tb);
-  overlay.appendChild(headerDiv);
   overlay.appendChild(_ct);
   document.body.appendChild(overlay);
 }
@@ -18739,7 +18772,7 @@ function ouvrirMesRapports() {
       var sig = (contenu && (contenu.signe || contenu.signataire)) || '';
       var tsAttr = String(ts).replace(/'/g, "\\'");
       html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:10px;background:#fff">' +
-                '<div style="font-size:13px;min-width:0"><strong style="color:#1e293b">' + (r.module || 'Contrôle') + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
+                '<div style="font-size:13px;min-width:0"><strong style="color:#1e293b">' + _titreModuleLisible(r.module) + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
                 '<button type="button" class="btn-p" style="white-space:nowrap;padding:9px 14px;font-size:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer" onclick="reimprimerControleCloud(\'' + tsAttr + '\')">Voir / Imprimer</button>' +
               '</div>';
     });
