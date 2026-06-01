@@ -2284,6 +2284,7 @@ function imprimerCuisson() {
   html += '<div style="font-weight:800;font-size:15px">Cuisson & Remise en Temperature</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + getNowStr() + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Signe : ' + signataire + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
 
@@ -2409,6 +2410,7 @@ function imprimerTemperatures(dataOverride, signataireOverride, tsOverride) {
   html += '<div style="font-weight:800;font-size:15px">Temperatures Enceintes Froides</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + (tsOverride || getNowStr()) + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Signe : ' + signataire + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
   filled.forEach(function(enc, i) {
@@ -2540,7 +2542,7 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
   html += '<div class="header">';
   html += '<h2>' + (titre||data.module||pageId) + '</h2>';
   html += '<div class="meta">Date : ' + data.timestamp + ' | Opérateur : ' + (data.signe||'Non renseigné') + '</div>';
-  html += '<div class="meta">' + data.etab + ' | Secteur : ' + data.secteur + '</div>';
+  html += '<div class="meta">' + data.etab + ' | Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[data.secteur] && SECTEURS_CONFIG[data.secteur].label)) || data.secteur || '—') + '</div>';
   html += '</div>';
 
   // Bilan global (adapté au type)
@@ -2864,7 +2866,7 @@ function imprimerModuleAplat(pageId, titre, dataOverride) {
   html += '<div class="header">';
   html += '<h2>' + (titre||data.module||pageId) + '</h2>';
   html += '<div class="meta">Date : ' + data.timestamp + ' | Operateur : ' + (data.signe||'Non renseigne') + '</div>';
-  html += '<div class="meta">' + data.etab + ' | Secteur : ' + data.secteur + '</div>';
+  html += '<div class="meta">' + data.etab + ' | Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[data.secteur] && SECTEURS_CONFIG[data.secteur].label)) || data.secteur || '—') + '</div>';
   html += '</div>';
 
   // 1. Informations saisies
@@ -6261,6 +6263,7 @@ function imprimerReception(dataOverride, photosOverride) {
   html += '<div style="font-size:11px;opacity:.85">Fournisseur : ' + (data.fournisseur||'—') + ' | BL : ' + (data.bl||'—') + '</div>';
   if (data.transporteur) html += '<div style="font-size:11px;opacity:.85">Transporteur : ' + data.transporteur + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Date : ' + (data.timestamp||'—') + ' | Signé : ' + (data.signataire||'—') + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   html += '</div>';
 
   // ── Photo du bon de livraison ──
@@ -9629,6 +9632,7 @@ function imprimerRefroidissementData(prods, signataire, ts) {
   html += '<div style="font-weight:800;font-size:15px">Refroidissement Rapide</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom || '') + ' — ' + (ts || getNowStr()) + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Signe : ' + (signataire || '—') + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
   filled.forEach(function(p, i) {
@@ -9955,6 +9959,7 @@ function imprimerHuilesData(friteuses, signataire, ts) {
   html += '<div style="font-weight:800;font-size:15px">Huiles de Friture</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom || '') + ' — ' + (ts || getNowStr()) + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Signe : ' + (signataire || '—') + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
   filled.forEach(function(f, i) {
@@ -11752,6 +11757,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
   html += '<div style="background:linear-gradient(135deg,#1e1b4b,#4338ca);color:white;padding:20px 16px;border-radius:10px;margin-bottom:20px;text-align:center">';
   html += '<div style="font-size:20px;font-weight:900;margin-bottom:8px">📋 ' + (isFiltre ? 'EXPORT PERSONNALISÉ' : 'PACK DDPP') + '</div>';
   html += '<div style="font-size:14px;font-weight:700">' + (ETAB.nom||'') + '</div>';
+  html += '<div style="font-size:12px;opacity:.9;margin-top:4px">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   html += '<div style="font-size:12px;opacity:.85;margin-top:4px">Période : ' + dateLabel + '</div>';
   html += '<div style="font-size:11px;opacity:.75;margin-top:4px">Généré le ' + getNowStr() + '</div>';
   html += '<div style="font-size:11px;opacity:.75;margin-top:2px">' + modules.length + ' module(s) inclus</div>';
