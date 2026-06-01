@@ -11785,8 +11785,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       // dans tous les Packs.
       var encs = [];
       (getDonneesPeriode('page-temperatures', dateFrom, dateTo) || []).forEach(function(s){
+        var _dS=''; try{ _dS=new Date(s.timestamp).toLocaleString('fr-FR'); }catch(eD){}
         var arr = (s.data && Array.isArray(s.data.temperatures)) ? s.data.temperatures : [];
-        arr.forEach(function(e){ encs.push(e); });
+        arr.forEach(function(e){ e._sessDate=_dS; encs.push(e); });
       });
       var filled = encs.filter(function(e){ return e.temp || e.type !== '—'; });
       if (filled.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
@@ -11794,7 +11795,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         filled.forEach(function(enc, ei) {
           var bc = enc.isNC ? '#dc2626' : '#0891b2';
           html += '<div style="margin:8px;border:1.5px solid ' + bc + ';border-radius:8px;overflow:hidden">';
-          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Enceinte N' + (ei+1) + (enc.precision?' — '+enc.precision:'') + (enc.refNum?' ('+enc.refNum+')':'') + '</div>';
+          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Enceinte N' + (ei+1) + (enc.precision?' — '+enc.precision:'') + (enc.refNum?' ('+enc.refNum+')':'') + (enc._sessDate?' · 📅 '+enc._sessDate:'') + '</div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Type</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + enc.type + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">T° relevée</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (enc.temp?enc.temp+'°C':'—') + ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + _seuilTemp(enc) + ')</span></td></tr>';
@@ -11810,8 +11811,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     if (mod.special === 'cuisson') {
       var plats = [];
       (getDonneesPeriode('page-cuisson', dateFrom, dateTo) || []).forEach(function(s){
+        var _dS=''; try{ _dS=new Date(s.timestamp).toLocaleString('fr-FR'); }catch(eD){}
         var arr = (s.data && Array.isArray(s.data.cuisson)) ? s.data.cuisson : [];
-        arr.forEach(function(p){ plats.push(p); });
+        arr.forEach(function(p){ p._sessDate=_dS; plats.push(p); });
       });
       var filledP = plats.filter(function(p){ return p.nom !== '—' || p.temp; });
       if (filledP.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
@@ -11819,7 +11821,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         filledP.forEach(function(plat, pi) {
           var bc2 = (plat.isNC||plat.isRemiseNC) ? '#dc2626' : '#1e1b4b';
           html += '<div style="margin:8px;border:1.5px solid ' + bc2 + ';border-radius:8px;overflow:hidden">';
-          html += '<div style="background:' + bc2 + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Plat N' + (pi+1) + ' — ' + plat.nom + '</div>';
+          html += '<div style="background:' + bc2 + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Plat N' + (pi+1) + ' — ' + plat.nom + (plat._sessDate?' · 📅 '+plat._sessDate:'') + '</div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           if (plat.mode && plat.mode !== '-- Mode de cuisson --') html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Mode</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + plat.mode + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">Produit</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + plat.type + '</td></tr>';
@@ -11835,8 +11837,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     if (mod.special === 'refroidissement') {
       var refrois = [];
       (getDonneesPeriode('page-refroidissement', dateFrom, dateTo) || []).forEach(function(s){
+        var _dS=''; try{ _dS=new Date(s.timestamp).toLocaleString('fr-FR'); }catch(eD){}
         var arr = (s.data && Array.isArray(s.data.refroidissement)) ? s.data.refroidissement : [];
-        arr.forEach(function(r){ refrois.push(r); });
+        arr.forEach(function(r){ r._sessDate=_dS; refrois.push(r); });
       });
       var filledR = refrois.filter(function(r){ return r.t0 || r.t2; });
       if (filledR.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
@@ -11844,7 +11847,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         filledR.forEach(function(r, ri) {
           var bc3 = r.isNC ? '#dc2626' : '#0284c7';
           html += '<div style="margin:8px;border:1.5px solid ' + bc3 + ';border-radius:8px;overflow:hidden">';
-          html += '<div style="background:' + bc3 + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Produit N' + (ri+1) + ' — ' + r.type + '</div>';
+          html += '<div style="background:' + bc3 + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Produit N' + (ri+1) + ' — ' + r.type + (r._sessDate?' · 📅 '+r._sessDate:'') + '</div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">T° initiale</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (r.t0?r.t0+'°C':'—') + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">T° à +2h</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (r.t2?r.t2+'°C':'—') + ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : +10°C max)</span></td></tr>';
@@ -12315,9 +12318,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           }
         });
 
-        // Si pas de sessions archivées, fallback sur le DOM courant (saisie en cours non sauvée)
-        if (sessionsPer.length > 0) return;
-
+        // Plus de repli sur le DOM courant : il lisait la page affichée (souvent
+        // d'un autre secteur, non sauvée) et la taguait au secteur actif → fuite
+        // inter-secteurs dans la section NC. On s'aligne sur les sections module
+        // (V116) : seules les sessions archivées et filtrées comptent.
+        return;
         var d = collectPageDataUniversel(pid);
         if (!d) return;
         var pageEl = document.getElementById(pid);
