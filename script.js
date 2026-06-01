@@ -7867,6 +7867,25 @@ async function validerTracabilite() {
     signataire: prenom + ' ' + nom,
     produits: produits,
   };
+  // Synchro cloud : la traçabilité est un sous-flux de la réception (pas de page
+  // dédiée) et n'appelait pas sauvegarderDonnesModule → elle n'arrivait JAMAIS
+  // dans controles_haccp (la table lue par les rapports), et son contenu réel
+  // (lots, fournisseurs) n'était sauvegardé nulle part. On pousse donc le
+  // contrôle complet directement vers le cloud.
+  try {
+    if (typeof enregistrerControleHACCP === 'function' && (typeof ETAB_ID !== 'undefined' && ETAB_ID)) {
+      enregistrerControleHACCP('Traçabilité produits reçus', {
+        pageId: 'page-tracabilite',
+        module: 'Traçabilité produits reçus',
+        secteur: (typeof SECTEUR_ACTIF !== 'undefined' ? SECTEUR_ACTIF : ''),
+        etab: (ETAB && ETAB.nom) || '',
+        timestamp: tracaPdfData.timestamp,
+        signe: tracaPdfData.signataire,
+        signataire: tracaPdfData.signataire,
+        produits: produits
+      });
+    }
+  } catch(eTraca) { console.warn('sync traçabilité:', eTraca && eTraca.message); }
   document.getElementById('modalTracaPdf').classList.add('visible');
   sauvegarderHistorique('Traçabilité produits', document.getElementById('sig_prenom') ? document.getElementById('sig_prenom').value : '');
 }
