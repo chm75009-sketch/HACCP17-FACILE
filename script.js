@@ -16453,6 +16453,20 @@ function _testCreerSession(pageId, sessionData, customTimestamp) {
   } catch(e) { console.warn('test session err:', e); }
 }
 
+// Transforme un libellé de point de nettoyage positif (« Sols propres »,
+// « Hottes nettoyées ») en constat de non-conformité réaliste (« Sols non
+// nettoyés / sales »). Utilisé par le générateur de test pour produire des NC
+// crédibles au lieu d'afficher l'affirmation positive comme un défaut.
+function _constatNettoyage(label) {
+  var l = String(label || '');
+  var zone = l
+    .replace(/\s*(propres?|nettoyée?s?|lavée?s?|désinfectée?s?|désinfecté|vérifiée?s?|vérifié|vidées?|vidé|rangée?s?|rangé|effectuée?s?|effectué)\b.*$/i, '')
+    .replace(/\s*\(T°\)\s*$/i, '')
+    .trim();
+  if (!zone) zone = l;
+  return zone + ' — non nettoyé(e) / propreté insuffisante';
+}
+
 function testRemplirTousModules() {
   // V86 — Test exhaustif sur 7 jours avec toutes les combinaisons d'anomalies
   try {
@@ -16778,9 +16792,10 @@ function testRemplirTousModules() {
       var enNC = (jo === 0 && (ci === 2 || ci === 4)) ||
                  (jo === 2 && ci === 5) ||
                  (jo === 5 && ci === 1);
-      statuts.push({ label: ctrl, statut: enNC ? 'Non conforme' : 'Conforme', nc: enNC });
+      var constatO = enNC ? _constatNettoyage(ctrl) : '';
+      statuts.push({ label: ctrl, statut: enNC ? 'Non conforme' : 'Conforme', nc: enNC, constat: constatO });
       if (enNC) {
-        ncsO.push({ label: ctrl });
+        ncsO.push({ label: constatO || ctrl });
         actionsO.push({
           contexte: ctrl,
           type: 'Nettoyage immédiat effectué',
@@ -16815,9 +16830,10 @@ function testRemplirTousModules() {
       var enNC = (jf === 1 && (ci === 2 || ci === 5)) ||
                  (jf === 3 && ci === 1) ||
                  (jf === 6 && (ci === 2 || ci === 5));
-      statutsF.push({ label: ctrl, statut: enNC ? 'Non conforme' : 'Conforme', nc: enNC });
+      var constatF = enNC ? _constatNettoyage(ctrl) : '';
+      statutsF.push({ label: ctrl, statut: enNC ? 'Non conforme' : 'Conforme', nc: enNC, constat: constatF });
       if (enNC) {
-        ncsF.push({ label: ctrl });
+        ncsF.push({ label: constatF || ctrl });
         actionsF.push({
           contexte: ctrl,
           type: 'Nettoyage reprogrammé pour le lendemain',
@@ -17013,10 +17029,10 @@ champsH.push({ label: f.nom + ' — TPM%', valeur: f.tpm + ' % (seuil : 25% max)
       ],
       statuts: [
         { label: 'Tri sélectif respecté', statut: 'Conforme', nc: false },
-        { label: 'Bordereau collecte présent', statut: enNCD ? 'Non conforme' : 'Conforme', nc: enNCD }
+        { label: 'Bordereau collecte présent', statut: enNCD ? 'Non conforme' : 'Conforme', nc: enNCD, constat: enNCD ? 'Bordereau de collecte manquant' : '' }
       ],
       observations: [],
-      ncs: enNCD ? [{ label: 'Bordereau collecte présent' }] : [],
+      ncs: enNCD ? [{ label: 'Bordereau collecte manquant' }] : [],
       actions: enNCD ? [{ contexte: 'Bordereau', type: 'Demandé au prestataire', detail: 'Sera transmis sous 48h', responsable: 'Léa', heure: '16:00' }] : []
     }, tsAt(jd, 16, 0));
     n++;
@@ -17036,11 +17052,11 @@ champsH.push({ label: f.nom + ' — TPM%', valeur: f.tpm + ' % (seuil : 25% max)
         { label: 'Zone contrôle interne', valeur: 'Cuisine + réserve' }
       ],
       statuts: [
-        { label: 'Aucune trace de nuisible', statut: enNCN ? 'Non conforme' : 'Conforme', nc: enNCN },
+        { label: 'Aucune trace de nuisible', statut: enNCN ? 'Non conforme' : 'Conforme', nc: enNCN, constat: enNCN ? 'Présence de souris détectée' : '' },
         { label: 'Pièges en place', statut: 'Conforme', nc: false }
       ],
       observations: enNCN ? [{ label: 'Observations', valeur: 'Trace souris derrière congélateur' }] : [],
-      ncs: enNCN ? [{ label: 'Aucune trace de nuisible' }] : [],
+      ncs: enNCN ? [{ label: 'Présence de souris détectée' }] : [],
       actions: enNCN ? [{ contexte: 'Souris', type: 'Prestataire alerté en urgence', detail: 'Intervention prévue dans 24h', responsable: 'Léa', heure: '17:00' }] : []
     }, tsAt(jn, 17, 0));
     n++;
