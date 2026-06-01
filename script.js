@@ -17640,7 +17640,7 @@ function testEffacerDonnees() {
         var dateDebut = maintenant.toISOString().slice(0, 10);
         var dateExp = new Date(maintenant.getTime() + duree * 86400000).toISOString().slice(0, 10);
 
-        var etabRow = {
+        var etabBase = {
           code_acces: code,
           mot_de_passe: pwd,
           nom: etab,
@@ -17650,30 +17650,50 @@ function testEffacerDonnees() {
           date_debut: dateDebut,
           date_expiration: dateExp
         };
+        // Contact enregistré DIRECTEMENT sur la fiche établissement (visible par
+        // établissement dans Supabase, plus seulement dans historique_admin).
+        var etabRow = Object.assign({}, etabBase, { responsable: resp, telephone: tel, email: mail });
 
         var btn = document.getElementById('btnCreerEssai');
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Création…'; }
 
-        window._supabase.from('etablissements').insert([etabRow]).then(function(res) {
-          if (res.error) {
-            alert('Erreur création de l\'essai : ' + res.error.message);
-            if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
-            return;
-          }
-          // Tracer le contact complet dans l'historique (téléphone, e-mail, responsable)
+        function tracerEtFinaliser() {
+          // Trace de secours dans l'historique (conservée même si les colonnes
+          // contact existent sur etablissements).
           window._supabase.from('historique_admin').insert([{
             action: 'Création essai ' + duree + ' j',
             code_concerne: code,
             motif: etab + ' — ' + resp + ' — ' + tel + ' — ' + mail + ' — exp. ' + dateExp
           }]).then(function(){});
-
           if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
           alert('✅ Essai créé !\n\nÉtablissement : ' + etab + '\nCode : ' + code + '\nMot de passe : ' + pwd + '\nDurée : ' + duree + ' jour(s)\nExpire le : ' + new Date(dateExp).toLocaleDateString('fr-FR') + '\n\nCommuniquez le code et le mot de passe au client.');
-
           ['essai_etab','essai_resp','essai_tel','essai_email','essai_adresse'].forEach(function(idf){
             var el = document.getElementById(idf); if (el) el.value = '';
           });
           loadAdminEssais();
+        }
+
+        window._supabase.from('etablissements').insert([etabRow]).then(function(res) {
+          if (res.error) {
+            // Colonnes contact (responsable/telephone/email) peut-être absentes du
+            // schéma → on réessaie sans elles pour ne jamais bloquer la création.
+            var msg = (res.error && res.error.message) || '';
+            if (/column|responsable|telephone|email|schema cache|PGRST/i.test(msg)) {
+              window._supabase.from('etablissements').insert([etabBase]).then(function(res2) {
+                if (res2.error) {
+                  alert('Erreur création de l\'essai : ' + res2.error.message);
+                  if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
+                  return;
+                }
+                tracerEtFinaliser();
+              });
+              return;
+            }
+            alert('Erreur création de l\'essai : ' + msg);
+            if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
+            return;
+          }
+          tracerEtFinaliser();
         });
       };
 
@@ -17727,6 +17747,17 @@ function testEffacerDonnees() {
             html += '<div style="font-size:10px;font-weight:800;color:' + coul + '">' + label + '</div>';
             html += '</div>';
             html += '<div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:10px">📅 Activé le ' + dDeb + ' &nbsp;·&nbsp; ⛔ Expire le ' + dExp + '</div>';
+            // Contact de l'établissement (depuis les colonnes responsable/email/telephone)
+            var contactBits = [];
+            if (r.responsable) contactBits.push('👤 ' + escapeHtml(r.responsable));
+            if (r.adresse)     contactBits.push('📍 ' + escapeHtml(r.adresse));
+            if (r.telephone)   contactBits.push('📞 <a href="tel:' + escapeHtml(String(r.telephone).replace(/\s/g,'')) + '" style="color:#93c5fd;text-decoration:none">' + escapeHtml(r.telephone) + '</a>');
+            if (r.email)       contactBits.push('✉️ <a href="mailto:' + escapeHtml(r.email) + '" style="color:#93c5fd;text-decoration:none">' + escapeHtml(r.email) + '</a>');
+            if (contactBits.length) {
+              html += '<div style="font-size:12px;color:rgba(255,255,255,0.85);margin-bottom:10px;line-height:1.7">' + contactBits.join('<br>') + '</div>';
+            } else {
+              html += '<div style="font-size:11px;color:rgba(255,255,255,0.4);font-style:italic;margin-bottom:10px">Contact non renseigné sur la fiche (voir Historique admin).</div>';
+            }
             // Actions : suspendre / réactiver + prolonger
             var bs = 'border:none;padding:7px 13px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;margin-right:6px;margin-top:4px';
             html += '<div>';
