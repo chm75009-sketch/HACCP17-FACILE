@@ -11334,7 +11334,7 @@ function genererPackDDPP() {
 '<div style="background:#f0f9ff;border-radius:12px;padding:12px;margin-bottom:12px">' +
         '<div style="font-size:12px;font-weight:700;color:#0369a1;margin-bottom:8px">Période personnalisée</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-          '<div class="frow"><div class="flabel">Du</div><input type="date" id="ddpp_from" class="finput" value="' + today + '"/></div>' +
+          '<div class="frow"><div class="flabel">Du</div><input type="date" id="ddpp_from" class="finput" value="' + monthAgo + '"/></div>' +
           '<div class="frow"><div class="flabel">Au</div><input type="date" id="ddpp_to" class="finput" value="' + today + '"/></div>' +
         '</div>' +
         '<button class="btn-p" style="width:100%;margin-top:10px" onclick="lancerPackDDPPCustom()">Generer la periode</button>' +
