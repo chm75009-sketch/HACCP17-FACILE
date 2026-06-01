@@ -11406,10 +11406,13 @@ function genererPackDDPP() {
   modal.id = 'ddppPeriodeModal';
   modal.className = 'modal-overlay visible';
   modal.style.zIndex = '99997';
-  var today = new Date().toISOString().split('T')[0];
-  var yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
-  var weekAgo = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
-  var monthAgo = new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+  // Dates LOCALES (pas UTC) : toISOString() décalait d'un jour en soirée/nuit
+  // (ex. 01:00 du 2 juin en UTC+2 = encore le 1er juin en UTC) → mauvaise période.
+  var _dLoc = function(ms){ var d = new Date(ms); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  var today = _dLoc(Date.now());
+  var yesterday = _dLoc(Date.now()-86400000);
+  var weekAgo = _dLoc(Date.now()-7*86400000);
+  var monthAgo = _dLoc(Date.now()-30*86400000);
 
   modal.innerHTML =
     '<div class="modal-box" style="max-width:380px">' +
@@ -13265,8 +13268,12 @@ function getDonneesPeriode(pageId, dateDebut, dateFin) {
         stored = cloud.concat(extras);
       }
     } catch(eCloud) {}
-    var from = new Date(dateDebut);
-    var to = new Date(dateFin); to.setHours(23,59,59);
+    // Bornes en heure LOCALE (et non UTC) : "YYYY-MM-DD" sans Z est interprété
+    // en local, ce qui évite d'exclure un contrôle fait en début/fin de journée.
+    var from = new Date(String(dateDebut) + 'T00:00:00');
+    var to = new Date(String(dateFin) + 'T23:59:59');
+    if (isNaN(from.getTime())) from = new Date(dateDebut);
+    if (isNaN(to.getTime())) { to = new Date(dateFin); to.setHours(23,59,59); }
     // Isolation par secteur actif (Pack DDPP + tableau de bord inclus). Possible
     // de façon fiable maintenant que SECTEUR_ACTIF est persisté et que chaque
     // contrôle porte le bon data.secteur (désynchro corrigée). Un Pack boulangerie
@@ -18859,8 +18866,9 @@ function ouvrirMesRapports() {
 
   function _ls(k){ try { return (typeof lsGet==='function') ? lsGet(k) : localStorage.getItem(k); } catch(e){ return null; } }
   function _lsSet(k,v){ try { if (typeof lsSet==='function') lsSet(k,v); else localStorage.setItem(k,v); } catch(e){} }
-  function todayStr(){ return new Date().toISOString().split('T')[0]; }
-  function daysAgoStr(n){ return new Date(Date.now()-n*86400000).toISOString().split('T')[0]; }
+  function _d2s(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function todayStr(){ return _d2s(new Date()); }                       // date LOCALE (pas UTC)
+  function daysAgoStr(n){ return _d2s(new Date(Date.now()-n*86400000)); }
 
   function currentPeriod(){
     try { var p = JSON.parse(_ls('haccp_insp_period')||'null'); if (p&&p.from&&p.to&&p.key) return p; } catch(e){}
