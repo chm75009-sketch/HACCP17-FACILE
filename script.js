@@ -8463,6 +8463,19 @@ var CATALOGUE_NC_DEFS = [
     norme:'Zone propre et désinfectée',
     ncs:['Souillures / résidus visibles','Traces grasses non éliminées','Nettoyage non réalisé','Désinfection non réalisée','Matériel de nettoyage défaillant'],
     actions:['Nettoyage refait immédiatement','Désinfection complétée (temps de contact respecté)','Rappel du plan de nettoyage au personnel','Produit / matériel de nettoyage réapprovisionné'] },
+  /* ── OUVERTURE / FERMETURE — Check-list quotidienne (libellés courts) ── */
+  { labels:['Plan de travail nettoyé/désinfecté','Plan de travail désinfecté','Sols cuisine propres','Sols cuisine lavés','Hottes propres','Hottes nettoyées','Plonge nettoyée','Lavabos désinfectés','Ustensiles propres','Vaisselle rangée'],
+    norme:'Surface/équipement nettoyé et désinfecté',
+    ncs:['Souillures / résidus visibles','Nettoyage non réalisé','Désinfection non réalisée','Propreté insuffisante'],
+    actions:['Nettoyage refait immédiatement','Désinfection complétée (temps de contact respecté)','Rappel du plan de nettoyage au personnel'] },
+  { labels:['Poubelles vidées','Évacuation déchets effectuée','Évacuation déchets'],
+    norme:'Déchets évacués, poubelles vidées et propres',
+    ncs:['Poubelles non vidées','Déchets non évacués','Local poubelles souillé'],
+    actions:['Poubelles vidées immédiatement','Déchets évacués vers le local dédié','Nettoyage du local déchets effectué'] },
+  { labels:['Frigos vérifiés (T°)','Réfrigérateurs vérifiés'],
+    norme:'Température des réfrigérateurs conforme (≤ +4°C)',
+    ncs:['Température hors seuil','Relevé non effectué','Affichage défaillant'],
+    actions:['Réglage du thermostat','Transfert des denrées vers une enceinte conforme','Maintenance demandée'] },
   { labels:['Zone remise en conformité avant production'],
     norme:'Zone conforme avant le démarrage de la production',
     ncs:['Zone non remise en conformité','Production démarrée malgré la non-conformité'],
@@ -12019,6 +12032,13 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         sessionsPer.forEach(function(sess) {
           if (!sess || !sess.data) return;
           var sd = sess.data;
+          // Anti-doublon statut↔nc : un même défaut est souvent présent à la fois
+          // dans sd.statuts (ligne complète : point + constat + action) ET dans
+          // sd.ncs (ligne pauvre : le constat sert de libellé, sans action). On
+          // mémorise les défauts déjà captés par les statuts pour ignorer leur
+          // duplicata dans la boucle sd.ncs ci-dessous.
+          var _capturedDefects = {};
+          function _ncSig(t){ return String(t||'').toLowerCase().replace(/[^0-9a-zàâçéèêëîïôûùüœ ]/gi,'').replace(/\s+/g,' ').trim(); }
           var sessionTs = sess.timestamp || sd.timestamp || '';
           var sessionDate = '';
           var sessionHeure = '';
@@ -12172,6 +12192,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
                 valeur: (s.valeur && String(s.valeur).trim()) ? String(s.valeur).trim()
                       : ((s.constat && String(s.constat).trim()) ? String(s.constat).trim() : 'Non conforme')
               });
+              // Mémoriser ce défaut (par point ET par constat) pour neutraliser
+              // son duplicata dans sd.ncs.
+              if (s.label)  _capturedDefects[_ncSig(s.label)]  = true;
+              if (s.constat) _capturedDefects[_ncSig(s.constat)] = true;
             });
           }
 
@@ -12180,6 +12204,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
             sd.ncs.forEach(function(nc) {
               var ncLbl = (nc && typeof nc === 'object') ? (nc.label || nc.desc || JSON.stringify(nc)) : String(nc || '');
               if (!ncLbl) return;
+              // Doublon d'un statut déjà listé (le libellé de la NC auto = le
+              // constat/point déjà capté) → on ne crée pas de ligne parasite.
+              if (_capturedDefects[_ncSig(ncLbl)]) return;
               var matchedAction = null;
               if (sd.actions && Array.isArray(sd.actions)) {
                 matchedAction = sd.actions.find(function(a) {
