@@ -18281,20 +18281,23 @@ if (!ETAB_ID) {
   var contenuPropre = JSON.parse(JSON.stringify(donnees || {}));
   if (contenuPropre.photos) delete contenuPropre.photos;
   if (contenuPropre.photo)  delete contenuPropre.photo;
-  var controle = {
+  // Colonnes garanties (lues ailleurs par l'app) + colonnes OPTIONNELLES
+  // (nc_detectee/nc_details) qui peuvent ne pas exister dans le schéma.
+  var controleBase = {
     code_client:   String(ETAB_ID),
     module:        String(nomModule),
     contenu:       contenuPropre,
     signature:     (donnees && donnees.signature) ? String(donnees.signature) : null,
     photos:        [],
-    nc_detectee:   !!(donnees && donnees.nc_detectee),
-    nc_details:    (donnees && donnees.nc_details) ? String(donnees.nc_details) : null,
     date_controle: new Date().toISOString()
   };
+  var controleFull = Object.assign({}, controleBase, {
+    nc_detectee: !!(donnees && donnees.nc_detectee),
+    nc_details:  (donnees && donnees.nc_details) ? String(donnees.nc_details) : null
+  });
 
-  // Envoi via REST direct (compatible iPhone Safari — même méthode que le reste de l'appli)
-  try {
-    var response = await fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+  function _postControle(payload) {
+    return fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_ANON,
@@ -18302,11 +18305,32 @@ if (!ETAB_ID) {
         'Content-Type':  'application/json',
         'Prefer':        'return=minimal'
       },
-      body: JSON.stringify(controle)
+      body: JSON.stringify(payload)
     });
+  }
+
+  // Envoi via REST direct (compatible iPhone Safari — même méthode que le reste de l'appli)
+  try {
+    var response = await _postControle(controleFull);
     if (!response.ok) {
       var errTxt = '';
       try { errTxt = await response.text(); } catch(eTxt) {}
+      // 400 + mention de colonne (PGRST204) → colonnes nc_* absentes du schéma.
+      // On réessaie sans elles pour ne JAMAIS perdre le contrôle côté cloud.
+      var colManquante = response.status === 400 && /column|PGRST|nc_detectee|nc_details|schema cache/i.test(errTxt || '');
+      if (colManquante) {
+        var resp2 = await _postControle(controleBase);
+        if (resp2.ok) {
+          console.info('[HACCP Cloud] ✓ Contrôle "' + nomModule + '" envoyé (sans colonnes nc_*)');
+          window._lastSyncError = '';
+          return { ok: true };
+        }
+        var errTxt2 = '';
+        try { errTxt2 = await resp2.text(); } catch(e2) {}
+        window._lastSyncError = 'HTTP ' + resp2.status + (errTxt2 ? ' — ' + String(errTxt2).slice(0, 300) : '');
+        console.error('[HACCP Cloud] Erreur (repli) ' + resp2.status + ' — ' + errTxt2);
+        return { ok: false, msg: 'Erreur ' + resp2.status, status: resp2.status, body: errTxt2 };
+      }
       console.error('[HACCP Cloud] Erreur ' + response.status + ' — ' + errTxt);
       // Mémoriser l'erreur réelle pour la rendre visible à l'écran (mobile).
       window._lastSyncError = 'HTTP ' + response.status + (errTxt ? ' — ' + String(errTxt).slice(0, 300) : '');
@@ -18317,6 +18341,7 @@ if (!ETAB_ID) {
     return { ok: true };
   } catch(err) {
     console.error('[HACCP Cloud] Échec envoi:', err);
+    window._lastSyncError = 'Réseau — ' + (err && err.message ? err.message : 'indisponible');
     return { ok: false, msg: 'Erreur réseau' };
   }
 }
