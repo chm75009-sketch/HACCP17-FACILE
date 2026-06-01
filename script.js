@@ -1567,6 +1567,14 @@ async function connexion() {
   ETAB.siret = d.siret || '';
   ETAB.adresse = d.adresse || '';
   ETAB.secteur = d.secteur || 'resto';
+  // Restaurer le dernier secteur choisi (compte multi-secteurs / test) pour qu'il
+  // ne revienne PAS au secteur enregistré du compte. Sans ça, SECTEUR_ACTIF se
+  // désynchronisait du titre affiché → contrôles mal étiquetés (ex. un contrôle
+  // « Boulangerie » enregistré secteur=resto).
+  try {
+    var _savedSect = lsGet('haccp_secteur_actif_' + ETAB_ID);
+    if (_savedSect) { SECTEUR_ACTIF = _savedSect; ETAB.secteur = _savedSect; }
+  } catch(eSect) {}
   ETAB.date_expiration = d.date_expiration || '';
   try { lsSet('haccp_date_expiration', d.date_expiration || ''); } catch(e) {}
   try {
@@ -3278,6 +3286,9 @@ var SECTEURS_SPECIFIQUE = {
 function choisirSecteur(secteur) {
   ETAB.secteur = secteur;
   SECTEUR_ACTIF = secteur;
+  // Mémoriser le secteur actif pour qu'il survive aux rechargements/reconnexions
+  // (compte de test multi-secteurs). Évite la désynchro titre ↔ secteur enregistré.
+  try { if (typeof ETAB_ID !== 'undefined' && ETAB_ID) lsSet('haccp_secteur_actif_' + ETAB_ID, secteur); } catch(eS) {}
   INGREDIENTS_DB = secteur === 'bp' ? INGREDIENTS_BP : INGREDIENTS_RESTO;
   var cfg = SECTEURS_CONFIG[secteur];
   // V80 — Si l'utilisateur est déjà connecté (compte existant), bypass la fiche établissement
@@ -6769,16 +6780,27 @@ var COLLECTIVE_HEADERS = {
 
 
 function updateModuleHeader(pageId, moduleId) {
+  var page = document.getElementById(pageId);
+  if (!page) return;
+  var titleEl = page.querySelector('.mod-header-title');
+  var introEl = page.querySelector('.mod-header-intro');
+  // Mémoriser une fois les libellés d'origine (= secteur resto, dans le HTML)
+  // pour pouvoir les restaurer quand on revient sur resto.
+  if (titleEl && titleEl.dataset.defaultTitle == null) titleEl.dataset.defaultTitle = titleEl.textContent;
+  if (introEl && introEl.dataset.defaultIntro == null) introEl.dataset.defaultIntro = introEl.textContent;
   var cfg = null;
   if (SECTEUR_ACTIF === 'bp') cfg = BP_HEADERS[moduleId];
   else if (SECTEUR_ACTIF === 'rapide') cfg = RAPIDE_HEADERS[moduleId];
   else if (SECTEUR_ACTIF === 'boucherie') cfg = BOUCHERIE_HEADERS[moduleId];
   else if (SECTEUR_ACTIF === 'collective') cfg = COLLECTIVE_HEADERS[moduleId];
-  if (!cfg) return;
-  var page = document.getElementById(pageId);
-  if (!page) return;
-  var titleEl = page.querySelector('.mod-header-title');
-  var introEl = page.querySelector('.mod-header-intro');
+  // Secteur resto / par défaut : restaurer le titre d'origine au lieu de laisser
+  // figé celui d'un autre secteur (sinon titre « Boulangerie » alors qu'on est en
+  // resto → contrôle mal étiqueté).
+  if (!cfg) {
+    if (titleEl && titleEl.dataset.defaultTitle != null) titleEl.textContent = titleEl.dataset.defaultTitle;
+    if (introEl && introEl.dataset.defaultIntro != null) introEl.textContent = introEl.dataset.defaultIntro;
+    return;
+  }
   if (titleEl) titleEl.textContent = cfg.title;
   if (introEl) introEl.textContent = cfg.intro;
 
