@@ -18956,7 +18956,7 @@ function ouvrirMesRapports() {
       // n'est PAS une case à cocher). Avant : un carré ⬜ qui ressemblait à une
       // case vide cliquable → confusion. La ligne est cliquable pour OUVRIR le module.
       var pill, pillBg, pillTxt;
-      if (!done) { pill = 'À faire'; pillBg = '#e2e8f0'; pillTxt = '#475569'; }
+      if (!done) { pill = 'Non fait'; pillBg = '#e2e8f0'; pillTxt = '#475569'; }
       else if (hasNC) { pill = '⚠ ' + d.nc + ' NC'; pillBg = '#fef3c7'; pillTxt = '#b45309'; }
       else { pill = '✓ Fait'; pillBg = '#dcfce7'; pillTxt = '#15803d'; }
       return '<div onclick="(function(){var c=\'' + m.id.replace('page-','') + '\';if(typeof openModule===\'function\')openModule(c);else if(typeof showPage===\'function\')showPage(\'' + m.id + '\');})()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer">'
