@@ -13059,6 +13059,22 @@ var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
     stored.unshift(entry); // plus récent en premier
     if (stored.length > 200) stored = stored.slice(0, 200); // V86 — 200 entrées max (7 jours de tests)
     lsSet(key, JSON.stringify(stored));
+    // ENVOI CLOUD IMMÉDIAT vers controles_haccp (la table lue par les rapports).
+    // On ne dépend plus du seul « espion » 3s, dont l'instantané de démarrage
+    // ignore les contrôles antérieurs et qui ne retente jamais après un échec.
+    // Tous les modules passent ici → comportement identique et fiable pour tous.
+    // Idempotent via signature partagée avec l'espion (window._pushedSigs).
+    try {
+      if (typeof enregistrerControleHACCP === 'function' && (typeof ETAB_ID !== 'undefined' && ETAB_ID)) {
+        window._pushedSigs = window._pushedSigs || {};
+        var _sigPush = pageId + '|' + ((data && data.timestamp) || entry.timestamp || '') + '|' + ((data && (data.signe || data.signataire)) || '');
+        if (!window._pushedSigs[_sigPush]) {
+          window._pushedSigs[_sigPush] = true;
+          var _modNom = (data && data.module) || pageId.replace('page-', '');
+          enregistrerControleHACCP(_modNom, data);
+        }
+      }
+    } catch(ePush) { console.warn('push cloud immédiat:', ePush && ePush.message); }
     // V113 — B/C : marquer le module comme "fraîchement validé"
     // → provoque un reset propre à la prochaine ouverture (pas de pré-remplissage de la session précédente)
     try {
@@ -18486,6 +18502,11 @@ window.synchroniserControlesManquants = synchroniserControlesManquants;
           nouveaux.forEach(function(entry) {
             var donnees = entry.data || entry;
             var moduleNom = (donnees && donnees.module) || moduleCourt;
+            // Éviter de renvoyer ce que la sauvegarde a déjà poussé directement.
+            window._pushedSigs = window._pushedSigs || {};
+            var sigW = ((donnees && donnees.pageId) || ('page-' + moduleCourt)) + '|' + ((donnees && donnees.timestamp) || entry.timestamp || '') + '|' + ((donnees && (donnees.signe || donnees.signataire)) || '');
+            if (window._pushedSigs[sigW]) return;
+            window._pushedSigs[sigW] = true;
             enregistrerControleHACCP(moduleNom, donnees);
           });
           console.info('[HACCP Espion v3] ✓ ' + nouveaux.length + ' contrôle(s) "' + moduleCourt + '" envoyé(s) au cloud');
