@@ -10479,7 +10479,6 @@ function imprimerEtiquettesHTML() {
   _tbBtns.appendChild(_btnImpr); _tbBtns.appendChild(_btnFerm);
   _tb.appendChild(_tbTitle); _tb.appendChild(_tbBtns);
   var _ct = document.createElement('div');
-  var _ct = document.createElement('div');
   var headerDiv = document.createElement('div');
   headerDiv.className = 'no-print';
   headerDiv.style.cssText = 'background:#f0fdf4;border:1px solid #0f766e;border-radius:8px;padding:8px 12px;margin:12px 0;font-size:11px;color:#065f46;font-weight:600';
