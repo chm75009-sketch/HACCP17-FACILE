@@ -8511,6 +8511,16 @@ var CATALOGUE_NC_DEFS = [
     actions:['Lavage refait selon le protocole','Réapprovisionnement savon / essuie-mains','Formation au protocole de lavage planifiée'] },
 
   /* ── NETTOYAGE — Zones (modules Ouverture & Fermeture) ── */
+  /* ── PLANCHES À DÉCOUPER — Code couleur HACCP + état de propreté ── */
+  { labels:['ROUGE — Viandes crues','JAUNE — Volailles','BLEU — Poissons / Fruits de mer','VERT — Légumes / Fruits','MARRON — Viandes cuites','BLANC — Produits laitiers / Pain','Planche à découper','État de propreté','Etat de proprete','Etat de propreté'],
+    norme:'Surface/planche propre et désinfectée, code couleur respecté',
+    ncs:['Souillures / résidus visibles','Mauvaise planche utilisée (code couleur non respecté)','Désinfection non réalisée','Usure / rayures profondes (à remplacer)'],
+    actions:['Nettoyage et désinfection immédiats','Planche conforme remise en service','Rappel du code couleur au personnel','Planche usée remplacée'] },
+  /* ── ÉQUIPEMENTS & ZONES — Nettoyage (cuisine, fournil, découpe) ── */
+  { labels:['Plan de travail','Laminoir / Façonneuse','Laminoir','Façonneuse','Four(s) & sole','Four','Pétrin(s)','Pétrin','Plans de travail fournil','Tours réfrigérées & moules','Chambres froides beurre & crèmes','Vitrine réfrigérée','Moules & plaques','Plonge & ustensiles','Sol du fournil','Trancheuse','Hachoir','Scie à os','Billot'],
+    norme:'Équipement/zone démonté si besoin, nettoyé et désinfecté',
+    ncs:['Souillures / résidus visibles','Nettoyage non réalisé','Désinfection non réalisée','Démontage non effectué'],
+    actions:['Nettoyage et désinfection immédiats','Démontage et nettoyage complet effectués','Rappel du protocole au personnel'] },
   { labels:['Plans de travail cuisine','Sol cuisine','Hottes & filtres','Plonge & éviers','Intérieur chambres froides','Réfrigérateurs','Ustensiles & planches à découper','Vestiaires & sanitaires','Zone stockage déchets'],
     norme:'Zone propre et désinfectée',
     ncs:['Souillures / résidus visibles','Traces grasses non éliminées','Nettoyage non réalisé','Désinfection non réalisée','Matériel de nettoyage défaillant'],
@@ -13577,6 +13587,10 @@ function initDashboard() {
     // ── Récupérer historique ──
     var historique = [];
     try { historique = JSON.parse(lsGet('haccp_historique') || '[]'); } catch(e) {}
+    // Isolation par secteur actif : le tableau de bord ne mélange pas les secteurs.
+    if (Array.isArray(historique) && typeof _secteurActifMatch === 'function') {
+      historique = historique.filter(function(e){ return _secteurActifMatch(e); });
+    }
 
     // ── Filtrer sur la période sélectionnée ──
     var entriesPeriode = historique.filter(function(e){ return e.date >= periode.from && e.date <= periode.to; });
@@ -13784,6 +13798,7 @@ function initDashboard() {
               for (var iIc = 0; iIc < storedIc.length; iIc++) {
                 var entIc = storedIc[iIc];
                 if (!entIc || !entIc.timestamp || !entIc.data) continue;
+                if (typeof _secteurActifMatch === 'function' && !_secteurActifMatch(entIc.data)) continue; // isolation secteur
                 if (entIc.timestamp.split('T')[0] !== e.date) continue;
                 var stIc = entIc.data.statuts || [];
                 var hasNC = stIc.some(function(s){ return s && s.statut && s.statut !== 'Conforme' && s.statut !== 'Respecté' && s.statut !== 'Effectué' && s.statut !== 'À jour' && s.statut !== 'Présente' && s.statut !== 'Présent' && s.statut !== 'N/A' && s.statut !== 'Aucun cas' && s.statut !== 'RAS' && s.statut !== 'Oui'; });
@@ -13844,6 +13859,10 @@ function imprimerDashboard() {
   var ncs = collectNCGlobales();
   var historique = [];
   try { historique = JSON.parse(lsGet('haccp_historique')||'[]'); } catch(e) {}
+  // Isolation par secteur actif (PDF tableau de bord = secteur courant)
+  if (Array.isArray(historique) && typeof _secteurActifMatch === 'function') {
+    historique = historique.filter(function(e){ return _secteurActifMatch(e); });
+  }
   var scoreEl = document.getElementById('db_score');
   var scoreTxt = scoreEl ? scoreEl.textContent.replace('%','').trim() : '—';
 
@@ -13865,7 +13884,7 @@ function imprimerDashboard() {
     '@media print{.no-print{display:none!important}}' +
   '</style>' +
   '<div class="header"><h2 style="color:white;margin:0;font-size:15px">Tableau de Bord HACCP Pro</h2>' +
-  '<div style="font-size:11px;opacity:.8">' + pdfSafe(ETAB.nom||'') + ' | ' + getNowStr() + '</div></div>' +
+  '<div style="font-size:11px;opacity:.8">' + pdfSafe(ETAB.nom||'') + ' | Secteur : ' + pdfSafe(((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + ' | ' + getNowStr() + '</div></div>' +
   '<div style="padding:16px">' +
   '<h2>Score : ' + scoreTxt + '%</h2>' +
   '<table><tr><th>KPI</th><th>Valeur</th></tr>' +
@@ -13880,8 +13899,8 @@ function imprimerDashboard() {
   }
 
   if (historique.length > 0) {
-    html += '<h2>Derniers controles</h2><table><tr><th>Date</th><th>Module</th><th>Signe par</th></tr>' +
-    historique.slice(0,15).map(function(e){ return '<tr><td>' + e.date + '</td><td>' + (e.module||'') + '</td><td>' + (e.signe||'—') + '</td></tr>'; }).join('') + '</table>';
+    html += '<h2>Derniers controles</h2><table><tr><th>Date</th><th>Heure</th><th>Module</th><th>Signe par</th></tr>' +
+    historique.slice(0,15).map(function(e){ return '<tr><td>' + (e.date||'') + '</td><td>' + (e.heure||'—') + '</td><td>' + (e.module||'') + '</td><td>' + (e.signe||'—') + '</td></tr>'; }).join('') + '</table>';
   }
   html += '<div style="font-size:8pt;color:#9ca3af;text-align:center;margin-top:12px">HACCP Pro — À conserver par vos soins 3 ans minimum — Preuve légale en cas de contrôle DDPP</div></div>';
 
@@ -13890,7 +13909,7 @@ function imprimerDashboard() {
   _tb.style.cssText = 'background:#1e1b4b;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1';
   var _tbTitle = document.createElement('div');
   _tbTitle.style.cssText = 'color:white;font-weight:800;font-size:13px';
-  _tbTitle.textContent = 'Etiquetage Interne';
+  _tbTitle.textContent = 'Tableau de Bord HACCP';
   var _tbBtns = document.createElement('div');
   _tbBtns.style.cssText = 'display:flex;gap:8px';
   var _btnImpr = document.createElement('button');
@@ -15338,6 +15357,7 @@ function collectNCGlobales() {
       try { stored = JSON.parse(lsGet(key) || '[]'); } catch(e) { return; }
       stored.forEach(function(entry) {
         if (!entry || !entry.data) return;
+        if (typeof _secteurActifMatch === 'function' && !_secteurActifMatch(entry.data)) return; // isolation secteur
         var entryDate = entry.timestamp ? new Date(entry.timestamp).getTime() : 0;
         if (entryDate < _limite30j) return;
         var modName = entry.data.module || pid.replace('page-','');
