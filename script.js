@@ -19047,17 +19047,6 @@ function ouvrirMesRapports() {
         + '<div style="display:flex;justify-content:flex-end;gap:12px;margin:0 4px 6px"><span onclick="inspModChk(true)" style="font-size:12px;font-weight:800;color:#4338ca;cursor:pointer">Tout</span><span onclick="inspModChk(false)" style="font-size:12px;font-weight:800;color:#94a3b8;cursor:pointer">Rien</span></div>'
         + '<div style="background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.06);overflow:hidden">'+modSelect+'</div>'
         + '<button onclick="inspGenererSelection()" style="width:100%;margin-top:14px;padding:16px;border:1.5px solid #4338ca;border-radius:14px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:14px;font-weight:900;cursor:pointer">📄 Générer le Pack des modules cochés</button>';
-    } else if (_inspView === 'documents') {
-      // ── Vue 2 : documents officiels ──
-      contenu =
-        '<div style="font-size:18px;font-weight:900;color:#0f172a;font-family:Outfit,sans-serif">📁 Mes documents officiels</div>'
-        + '<div style="font-size:12.5px;color:#64748b;margin:4px 2px 14px;line-height:1.4">Documents qu\'un contrôleur peut réclamer. Touchez <b>📎 Ajouter</b> pour téléverser un fichier (PDF ou photo). Une fois ajouté, <b>cochez-le</b> puis <b>« Présenter les cochés »</b> pour les montrer au contrôleur.</div>'
-        + '<div id="inspDocsBox"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
-        + '<div style="display:flex;gap:8px;margin-top:4px">'
-        +   '<button onclick="inspDocsToutCocher(true)" style="flex:1;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">☑️ Tout cocher</button>'
-        +   '<button onclick="presenterDocsCoches()" style="flex:2;padding:13px;border:none;border-radius:12px;background:#0f766e;color:#fff;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">📂 Présenter les cochés</button>'
-        + '</div>'
-        + '<div onclick="if(typeof openModule===\'function\')openModule(\'documents\')" style="text-align:center;color:#4338ca;font-size:12.5px;font-weight:800;margin-top:14px;cursor:pointer;text-decoration:underline">⚙️ Gérer / supprimer mes documents</div>';
     } else {
       // ── Vue d'accueil : 2 cartes ──
       contenu =
@@ -19066,7 +19055,7 @@ function ouvrirMesRapports() {
         +   '<div style="font-size:32px">📋</div>'
         +   '<div style="flex:1"><div style="font-size:16px;font-weight:900;font-family:Outfit,sans-serif">Mes preuves de contrôle</div><div style="font-size:12px;opacity:.85;margin-top:3px">Pack DDPP complet ou par modules + période</div></div>'
         +   '<div style="font-size:24px;opacity:.7">›</div></div>'
-        + '<div onclick="inspView(\'documents\')" style="display:flex;align-items:center;gap:14px;background:#0f766e;color:#fff;border-radius:16px;padding:20px 16px;cursor:pointer;box-shadow:0 6px 22px rgba(15,118,110,.28)">'
+        + '<div onclick="if(typeof openModule===\'function\')openModule(\'documents\')" style="display:flex;align-items:center;gap:14px;background:#0f766e;color:#fff;border-radius:16px;padding:20px 16px;cursor:pointer;box-shadow:0 6px 22px rgba(15,118,110,.28)">'
         +   '<div style="font-size:32px">📁</div>'
         +   '<div style="flex:1"><div style="font-size:16px;font-weight:900;font-family:Outfit,sans-serif">Mes documents officiels</div><div style="font-size:12px;opacity:.85;margin-top:3px">Agrément, PMS, contrats, analyses…</div></div>'
         +   '<div style="font-size:24px;opacity:.7">›</div></div>';
