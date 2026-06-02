@@ -19009,7 +19009,16 @@ function ouvrirMesRapports() {
       +   '<button onclick="inspPackDDPP()" style="width:100%;margin-top:16px;padding:17px;border:none;border-radius:14px;background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;font-family:Outfit,sans-serif;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 6px 22px rgba(67,56,202,.3)">📄 Générer le Pack DDPP complet</button>'
       +   '<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:8px;margin-bottom:12px">Tous les contrôles de la période, prêts à imprimer / envoyer</div>'
       +   '<button onclick="inspExportPerso()" style="width:100%;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">🗂️ Export personnalisé (par module)</button>'
+      // ── Documents réclamables par le contrôleur ──
+      +   '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin:26px 4px 6px">Documents réclamables par le contrôleur</div>'
+      +   '<div id="inspDocsContainer"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
+      +   '<div style="display:flex;gap:8px;margin-top:2px">'
+      +     '<button onclick="inspDocsToutCocher(true)" style="flex:1;padding:11px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:12px;font-weight:800;cursor:pointer">Tout cocher</button>'
+      +     '<button onclick="presenterDocsCoches()" style="flex:2;padding:11px;border:none;border-radius:12px;background:#0f766e;color:#fff;font-family:Outfit,sans-serif;font-size:12px;font-weight:800;cursor:pointer">📂 Présenter les documents cochés</button>'
+      +   '</div>'
+      +   '<div onclick="if(typeof openModule===\'function\')openModule(\'documents\')" style="text-align:center;color:#4338ca;font-size:12px;font-weight:700;margin-top:12px;cursor:pointer;text-decoration:underline">+ Ajouter / gérer mes documents</div>'
       + '</div>';
+    if (typeof renderInspDocs === 'function') { try { renderInspDocs(); } catch(eD){} }
   }
 
   // ── API globale (appelée depuis le HTML) ──
