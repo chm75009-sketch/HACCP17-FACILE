@@ -11188,16 +11188,21 @@ function _inspDocsHTML(tous) {
 // fichiers réellement présents dès que la base répond — pas de "Chargement…"
 // bloqué).
 function renderInspDocs() {
-  var cont = document.getElementById('inspDocsContainer');
-  if (!cont) return;
+  // Cibler TOUS les conteneurs documents (l'écran DDPP utilise #inspDocsBox,
+  // l'ancienne page page-pack-ddpp utilise #inspDocsContainer).
+  var conts = [];
+  var a = document.getElementById('inspDocsBox'); if (a) conts.push(a);
+  var b = document.getElementById('inspDocsContainer'); if (b) conts.push(b);
+  if (!conts.length) return;
   // 1) Rendu IMMÉDIAT de la liste complète (tout est "à téléverser" par défaut)
-  cont.innerHTML = _inspDocsHTML([]);
+  var htmlVide = _inspDocsHTML([]);
+  conts.forEach(function(c){ c.innerHTML = htmlVide; });
   // 2) Enrichissement async : marquer les documents déjà présents
   try {
     if (typeof coffreDB !== 'undefined' && coffreDB && coffreDB.docs) {
       Promise.resolve(coffreDB.docs.toArray()).then(function(tous){
-        var c2 = document.getElementById('inspDocsContainer');
-        if (c2) c2.innerHTML = _inspDocsHTML(tous || []);
+        var h = _inspDocsHTML(tous || []);
+        ['inspDocsBox','inspDocsContainer'].forEach(function(id){ var c = document.getElementById(id); if (c) c.innerHTML = h; });
       }).catch(function(){});
     }
   } catch(e) {}
@@ -19047,7 +19052,7 @@ function ouvrirMesRapports() {
       contenu =
         '<div style="font-size:18px;font-weight:900;color:#0f172a;font-family:Outfit,sans-serif">📁 Mes documents officiels</div>'
         + '<div style="font-size:12.5px;color:#64748b;margin:4px 2px 14px;line-height:1.4">Documents qu\'un contrôleur peut réclamer. Touchez <b>📎 Ajouter</b> pour téléverser un fichier (PDF ou photo). Une fois ajouté, <b>cochez-le</b> puis <b>« Présenter les cochés »</b> pour les montrer au contrôleur.</div>'
-        + '<div id="inspDocsContainer"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
+        + '<div id="inspDocsBox"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
         + '<div style="display:flex;gap:8px;margin-top:4px">'
         +   '<button onclick="inspDocsToutCocher(true)" style="flex:1;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">☑️ Tout cocher</button>'
         +   '<button onclick="presenterDocsCoches()" style="flex:2;padding:13px;border:none;border-radius:12px;background:#0f766e;color:#fff;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">📂 Présenter les cochés</button>'
