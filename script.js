@@ -11160,37 +11160,47 @@ function coffreDelete(id) {
 // l'écran ET/OU les imprime (PDF) depuis le même écran.
 // ════════════════════════════════════════════════════════════════
 
-// Affiche la liste cochable des documents PRÉSENTS dans le coffre-fort.
-async function renderInspDocs() {
-  var cont = document.getElementById('inspDocsContainer');
-  if (!cont) return;
-  if (typeof coffreDB === 'undefined' || !coffreDB) {
-    cont.innerHTML = '<div style="font-size:12px;color:#dc2626;padding:8px">Stockage indisponible sur ce navigateur.</div>';
-    return;
-  }
-  var tous = [];
-  try { tous = await coffreDB.docs.toArray(); } catch(e) { tous = []; }
-  // On affiche TOUS les documents dans l'ordre (y compris « Autres documents »),
-  // chacun avec son bouton de téléversement. Une case à cocher apparaît dès
-  // qu'un fichier existe (pour le présenter au contrôleur).
+// Construit le HTML de la liste des documents (fichiers existants = tableau).
+function _inspDocsHTML(tous) {
+  tous = tous || [];
   var html = '';
-  COFFRE_DOCS.forEach(function(d) {
+  COFFRE_DOCS.forEach(function(d, i) {
     var fichiers = tous.filter(function(f){ return f.cle === d.cle; });
     var aFichier = fichiers.length > 0;
-    html += '<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid ' + (aFichier ? '#bbf7d0' : '#e5e7eb') + ';border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    html += '<div style="display:flex;align-items:center;gap:11px;background:#fff;border:1.5px solid ' + (aFichier ? '#86efac' : '#e5e7eb') + ';border-radius:12px;padding:13px 12px;margin-bottom:9px">';
+    // Pastille numéro / coche
     if (aFichier) {
-      html += '<input type="checkbox" class="insp-doc-chk" value="' + d.cle + '" title="Cocher pour présenter au contrôleur" style="width:20px;height:20px;flex-shrink:0;cursor:pointer">';
+      html += '<input type="checkbox" class="insp-doc-chk" value="' + d.cle + '" title="Cocher pour présenter au contrôleur" style="width:24px;height:24px;flex-shrink:0;cursor:pointer;accent-color:#0f766e">';
     } else {
-      html += '<span style="width:20px;flex-shrink:0;text-align:center;color:#cbd5e1;font-weight:700">○</span>';
+      html += '<span style="width:24px;height:24px;flex-shrink:0;border-radius:50%;background:#f1f5f9;color:#94a3b8;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center">' + (i+1) + '</span>';
     }
-    html += '<span style="font-size:18px;flex-shrink:0">' + d.icon + '</span>';
-    html += '<span style="flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#1f2937">' + d.label
-         + '<span style="display:block;font-size:11px;font-weight:500;color:' + (aFichier ? '#15803d' : '#9ca3af') + '">'
-         + (aFichier ? (fichiers.length + ' fichier' + (fichiers.length>1?'s':'') + ' ✓') : 'Aucun fichier') + '</span></span>';
-    html += '<button onclick="coffreUpload(\'' + d.cle + '\')" style="flex-shrink:0;background:' + (aFichier ? '#eef2ff' : '#16a34a') + ';color:' + (aFichier ? '#4338ca' : '#fff') + ';border:none;border-radius:8px;font-size:11px;font-weight:800;padding:7px 12px;cursor:pointer;white-space:nowrap">' + (aFichier ? '＋ Ajouter' : '📎 Téléverser') + '</button>';
+    html += '<span style="font-size:22px;flex-shrink:0">' + d.icon + '</span>';
+    html += '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:800;color:#0f172a;line-height:1.25">' + d.label
+         + '<span style="display:block;font-size:11.5px;font-weight:600;margin-top:2px;color:' + (aFichier ? '#15803d' : '#dc2626') + '">'
+         + (aFichier ? ('✓ ' + fichiers.length + ' fichier' + (fichiers.length>1?'s':'') + ' — coché = à présenter') : '⚠ Manquant — à téléverser') + '</span></span>';
+    html += '<button onclick="coffreUpload(\'' + d.cle + '\')" style="flex-shrink:0;background:' + (aFichier ? '#eef2ff' : '#16a34a') + ';color:' + (aFichier ? '#4338ca' : '#fff') + ';border:none;border-radius:10px;font-size:12px;font-weight:800;padding:10px 14px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.08)">' + (aFichier ? '＋' : '📎 Ajouter') + '</button>';
     html += '</div>';
   });
-  cont.innerHTML = html;
+  return html;
+}
+
+// Affiche la liste des documents (rendu immédiat, puis enrichi avec les
+// fichiers réellement présents dès que la base répond — pas de "Chargement…"
+// bloqué).
+function renderInspDocs() {
+  var cont = document.getElementById('inspDocsContainer');
+  if (!cont) return;
+  // 1) Rendu IMMÉDIAT de la liste complète (tout est "à téléverser" par défaut)
+  cont.innerHTML = _inspDocsHTML([]);
+  // 2) Enrichissement async : marquer les documents déjà présents
+  try {
+    if (typeof coffreDB !== 'undefined' && coffreDB && coffreDB.docs) {
+      Promise.resolve(coffreDB.docs.toArray()).then(function(tous){
+        var c2 = document.getElementById('inspDocsContainer');
+        if (c2) c2.innerHTML = _inspDocsHTML(tous || []);
+      }).catch(function(){});
+    }
+  } catch(e) {}
 }
 
 // Coche / décoche tous les documents de la liste.
@@ -19020,13 +19030,16 @@ function ouvrirMesRapports() {
       +   '<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:8px;margin-bottom:12px">Tous les contrôles de la période, prêts à imprimer / envoyer</div>'
       +   '<button onclick="inspExportPerso()" style="width:100%;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">🗂️ Export personnalisé (par module)</button>'
       // ── Documents réclamables par le contrôleur ──
-      +   '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin:26px 4px 6px">Documents réclamables par le contrôleur</div>'
-      +   '<div id="inspDocsContainer"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
-      +   '<div style="display:flex;gap:8px;margin-top:2px">'
-      +     '<button onclick="inspDocsToutCocher(true)" style="flex:1;padding:11px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:12px;font-weight:800;cursor:pointer">Tout cocher</button>'
-      +     '<button onclick="presenterDocsCoches()" style="flex:2;padding:11px;border:none;border-radius:12px;background:#0f766e;color:#fff;font-family:Outfit,sans-serif;font-size:12px;font-weight:800;cursor:pointer">📂 Présenter les documents cochés</button>'
+      +   '<div style="margin:28px 2px 10px">'
+      +     '<div style="font-size:17px;font-weight:900;color:#0f172a;font-family:Outfit,sans-serif">📁 Mes documents officiels</div>'
+      +     '<div style="font-size:12.5px;color:#64748b;margin-top:4px;line-height:1.4">Documents qu\'un contrôleur peut réclamer. Touchez <b>📎 Ajouter</b> pour téléverser un fichier (PDF ou photo). Une fois ajouté, <b>cochez-le</b> puis <b>« Présenter les documents cochés »</b> pour les montrer au contrôleur.</div>'
       +   '</div>'
-      +   '<div onclick="if(typeof openModule===\'function\')openModule(\'documents\')" style="text-align:center;color:#4338ca;font-size:12px;font-weight:700;margin-top:12px;cursor:pointer;text-decoration:underline">+ Ajouter / gérer mes documents</div>'
+      +   '<div id="inspDocsContainer"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
+      +   '<div style="display:flex;gap:8px;margin-top:4px">'
+      +     '<button onclick="inspDocsToutCocher(true)" style="flex:1;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">☑️ Tout cocher</button>'
+      +     '<button onclick="presenterDocsCoches()" style="flex:2;padding:13px;border:none;border-radius:12px;background:#0f766e;color:#fff;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">📂 Présenter les cochés</button>'
+      +   '</div>'
+      +   '<div onclick="if(typeof openModule===\'function\')openModule(\'documents\')" style="text-align:center;color:#4338ca;font-size:12.5px;font-weight:800;margin-top:14px;cursor:pointer;text-decoration:underline">⚙️ Gérer / supprimer mes documents</div>'
       + '</div>';
     if (typeof renderInspDocs === 'function') { try { renderInspDocs(); } catch(eD){} }
   }
