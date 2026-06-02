@@ -11108,6 +11108,10 @@ function coffreUpload(cle) {
         });
         if (typeof showToast === 'function') showToast('Document enregistré ✓', 'ok');
         await renderCoffre();
+        // Rafraîchir aussi la liste du Mode Inspecteur si elle est affichée
+        if (typeof renderInspDocs === 'function' && document.getElementById('inspDocsContainer')) {
+          try { await renderInspDocs(); } catch(eR){}
+        }
       } catch(err) {
         console.error('[Coffre-fort] Erreur enregistrement:', err);
         if (typeof showToast === 'function') showToast('Erreur d\'enregistrement', 'warn');
@@ -11166,19 +11170,25 @@ async function renderInspDocs() {
   }
   var tous = [];
   try { tous = await coffreDB.docs.toArray(); } catch(e) { tous = []; }
-  if (!tous.length) {
-    cont.innerHTML = '<div style="font-size:12px;color:#6b7280;padding:10px;background:#fff;border:1px dashed #d1d5db;border-radius:10px">Aucun document enregistré. Ajoutez vos documents depuis « Mes documents » 📁 pour pouvoir les présenter ici.</div>';
-    return;
-  }
+  // On affiche TOUS les documents dans l'ordre (y compris « Autres documents »),
+  // chacun avec son bouton de téléversement. Une case à cocher apparaît dès
+  // qu'un fichier existe (pour le présenter au contrôleur).
   var html = '';
   COFFRE_DOCS.forEach(function(d) {
     var fichiers = tous.filter(function(f){ return f.cle === d.cle; });
-    if (!fichiers.length) return; // n'afficher que les catégories qui ont un fichier
-    html += '<label style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer">';
-    html += '<input type="checkbox" class="insp-doc-chk" value="' + d.cle + '" style="width:20px;height:20px;flex-shrink:0;cursor:pointer">';
-    html += '<span style="font-size:18px">' + d.icon + '</span>';
-    html += '<span style="flex:1;font-size:12.5px;font-weight:700;color:#1f2937">' + d.label + '<span style="display:block;font-size:11px;font-weight:500;color:#6b7280">' + fichiers.length + ' fichier' + (fichiers.length>1?'s':'') + '</span></span>';
-    html += '</label>';
+    var aFichier = fichiers.length > 0;
+    html += '<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid ' + (aFichier ? '#bbf7d0' : '#e5e7eb') + ';border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    if (aFichier) {
+      html += '<input type="checkbox" class="insp-doc-chk" value="' + d.cle + '" title="Cocher pour présenter au contrôleur" style="width:20px;height:20px;flex-shrink:0;cursor:pointer">';
+    } else {
+      html += '<span style="width:20px;flex-shrink:0;text-align:center;color:#cbd5e1;font-weight:700">○</span>';
+    }
+    html += '<span style="font-size:18px;flex-shrink:0">' + d.icon + '</span>';
+    html += '<span style="flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#1f2937">' + d.label
+         + '<span style="display:block;font-size:11px;font-weight:500;color:' + (aFichier ? '#15803d' : '#9ca3af') + '">'
+         + (aFichier ? (fichiers.length + ' fichier' + (fichiers.length>1?'s':'') + ' ✓') : 'Aucun fichier') + '</span></span>';
+    html += '<button onclick="coffreUpload(\'' + d.cle + '\')" style="flex-shrink:0;background:' + (aFichier ? '#eef2ff' : '#16a34a') + ';color:' + (aFichier ? '#4338ca' : '#fff') + ';border:none;border-radius:8px;font-size:11px;font-weight:800;padding:7px 12px;cursor:pointer;white-space:nowrap">' + (aFichier ? '＋ Ajouter' : '📎 Téléverser') + '</button>';
+    html += '</div>';
   });
   cont.innerHTML = html;
 }
