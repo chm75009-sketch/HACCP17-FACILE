@@ -18863,6 +18863,8 @@ function ouvrirMesRapports() {
    Défaut : 7 derniers jours. Le score peut être masqué (interrupteur).
 ═══════════════════════════════════════════════════════════════════ */
 (function(){
+  // Vue courante de l'écran DDPP : 'hub' (2 cartes), 'preuves', 'documents'
+  var _inspView = 'hub';
   // Modules affichés dans la check-list (cœur du quotidien)
   var INSP_CHECK = [
     {id:'page-reception',      label:'Réception & traçabilité', ico:'📦'},
@@ -18991,24 +18993,8 @@ function ouvrirMesRapports() {
       ? '<div style="font-size:34px;font-weight:900;color:#fff;font-family:Outfit,sans-serif;line-height:1;margin-top:6px">'+stats.score+'%<span style="font-size:13px;font-weight:700;opacity:.85;margin-left:6px">de conformité</span></div>'
       : '';
 
-    host.innerHTML =
-      // ── Barre du haut ──
-      '<div style="background:#0f172a;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">'
-      +   '<button onclick="inspQuitter()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">✕ Quitter</button>'
-      +   '<div style="color:rgba(255,255,255,.5);font-size:11px;font-weight:700;letter-spacing:1px">MODE INSPECTEUR</div>'
-      + '</div>'
-      // ── Identité + bandeau d'état ──
-      + '<div style="background:'+b.bg+';padding:18px 16px 22px;text-align:center">'
-      +   '<div style="color:#fff;font-size:20px;font-weight:900;font-family:Outfit,sans-serif">'+esc(etabNom)+'</div>'
-      +   '<div style="color:rgba(255,255,255,.85);font-size:12px;margin-top:2px">'+esc(secteurLabel())+'</div>'
-      +   '<div style="color:rgba(255,255,255,.7);font-size:11px;margin-top:1px">📅 '+esc(dateStr)+' · '+heure+'</div>'
-      +   '<div style="margin-top:14px;font-size:30px">'+b.ico+'</div>'
-      +   '<div style="color:#fff;font-size:18px;font-weight:900;font-family:Outfit,sans-serif;letter-spacing:.3px">'+b.txt+'</div>'
-      +   '<div style="color:rgba(255,255,255,.8);font-size:12px;margin-top:2px">'+esc(b.sub)+'</div>'
-      +   scoreBlock
-      + '</div>'
-      // ── Réglages : période + score ──
-      + '<div style="background:#0f172a;padding:14px 16px 16px">'
+    // Sélecteur de période (réutilisé dans la vue "preuves")
+    var periodeBloc = '<div style="background:#0f172a;border-radius:14px;padding:13px 14px 14px;margin-bottom:14px">'
       +   '<div style="color:rgba(255,255,255,.55);font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Période · '+esc(p.label)+'</div>'
       +   '<div style="display:flex;gap:8px">'+periodBtns+'</div>'
       +   '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;background:rgba(255,255,255,.05);border-radius:10px;padding:8px 10px">'
@@ -19017,36 +19003,80 @@ function ouvrirMesRapports() {
       +     '<input type="date" id="insp_to" value="'+p.to+'" style="flex:1;min-width:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:6px;font-size:12px;font-family:Outfit,sans-serif">'
       +     '<button onclick="inspApplyCustom()" style="background:#3b82f6;border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">OK</button>'
       +   '</div>'
-      +   '<div onclick="inspToggleScore()" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;cursor:pointer">'
-      +     '<span style="color:rgba(255,255,255,.75);font-size:13px;font-weight:700">Afficher le score de conformité</span>'
-      +     '<span style="width:44px;height:24px;border-radius:14px;background:'+(showScore?'#10b981':'rgba(255,255,255,.2)')+';position:relative;transition:.15s;flex-shrink:0"><span style="position:absolute;top:2px;left:'+(showScore?'22px':'2px')+';width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s"></span></span>'
-      +   '</div>'
-      + '</div>'
-      // ── Check-list des contrôles ──
-      + '<div style="background:#f8fafc;border-radius:18px 18px 0 0;padding:16px 14px 24px;min-height:30vh">'
-      +   '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin:0 4px 6px">Contrôles sur la période</div>'
-      +   '<div style="background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.06);overflow:hidden">'+rows+'</div>'
-      +   '<button onclick="inspPackDDPP()" style="width:100%;margin-top:16px;padding:17px;border:none;border-radius:14px;background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;font-family:Outfit,sans-serif;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 6px 22px rgba(67,56,202,.3)">📄 Générer le Pack DDPP complet</button>'
-      +   '<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:8px;margin-bottom:12px">Tous les contrôles de la période, prêts à imprimer / envoyer</div>'
-      +   '<button onclick="inspExportPerso()" style="width:100%;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">🗂️ Export personnalisé (par module)</button>'
-      // ── Documents réclamables par le contrôleur ──
-      +   '<div style="margin:28px 2px 10px">'
-      +     '<div style="font-size:17px;font-weight:900;color:#0f172a;font-family:Outfit,sans-serif">📁 Mes documents officiels</div>'
-      +     '<div style="font-size:12.5px;color:#64748b;margin-top:4px;line-height:1.4">Documents qu\'un contrôleur peut réclamer. Touchez <b>📎 Ajouter</b> pour téléverser un fichier (PDF ou photo). Une fois ajouté, <b>cochez-le</b> puis <b>« Présenter les documents cochés »</b> pour les montrer au contrôleur.</div>'
-      +   '</div>'
-      +   '<div id="inspDocsContainer"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
-      +   '<div style="display:flex;gap:8px;margin-top:4px">'
-      +     '<button onclick="inspDocsToutCocher(true)" style="flex:1;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">☑️ Tout cocher</button>'
-      +     '<button onclick="presenterDocsCoches()" style="flex:2;padding:13px;border:none;border-radius:12px;background:#0f766e;color:#fff;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">📂 Présenter les cochés</button>'
-      +   '</div>'
-      +   '<div onclick="if(typeof openModule===\'function\')openModule(\'documents\')" style="text-align:center;color:#4338ca;font-size:12.5px;font-weight:800;margin-top:14px;cursor:pointer;text-decoration:underline">⚙️ Gérer / supprimer mes documents</div>'
       + '</div>';
-    if (typeof renderInspDocs === 'function') { try { renderInspDocs(); } catch(eD){} }
+
+    // Liste des modules à cocher (pour le pack personnalisé)
+    var modSelect = INSP_CHECK.map(function(m){
+      var d = stats.detail[m.id] || {n:0,nc:0};
+      var done = d.n>0, hasNC = d.nc>0;
+      var code = m.id.replace('page-','');
+      var stat = !done ? '<span style="color:#94a3b8">—</span>' : (hasNC ? '<span style="color:#d97706">⚠ '+d.nc+'</span>' : '<span style="color:#15803d">✓ '+d.n+'</span>');
+      return '<label style="display:flex;align-items:center;gap:11px;padding:11px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer">'
+        + '<input type="checkbox" class="insp-mod-chk" value="'+code+'" '+(done?'checked':'')+' style="width:22px;height:22px;flex-shrink:0;accent-color:#4338ca;cursor:pointer">'
+        + '<span style="font-size:18px;width:22px;text-align:center;flex-shrink:0">'+m.ico+'</span>'
+        + '<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:#0f172a">'+esc(m.label)+'</span>'
+        + '<span style="font-size:12px;font-weight:800;white-space:nowrap">'+stat+'</span></label>';
+    }).join('');
+
+    // ── En-tête commun (barre + identité + bandeau conformité) ──
+    var header =
+      '<div style="background:#0f172a;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">'
+      +   '<button onclick="' + (_inspView==='hub' ? 'inspQuitter()' : 'inspView(\'hub\')') + '" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">' + (_inspView==='hub' ? '✕ Quitter' : '‹ Retour') + '</button>'
+      +   '<div style="color:rgba(255,255,255,.5);font-size:11px;font-weight:700;letter-spacing:1px">CONTRÔLE DDPP</div>'
+      + '</div>'
+      + '<div style="background:'+b.bg+';padding:16px 16px 18px;text-align:center">'
+      +   '<div style="color:#fff;font-size:19px;font-weight:900;font-family:Outfit,sans-serif">'+esc(etabNom)+'</div>'
+      +   '<div style="color:rgba(255,255,255,.85);font-size:12px;margin-top:2px">'+esc(secteurLabel())+' · 📅 '+esc(dateStr)+'</div>'
+      +   '<div style="margin-top:10px;font-size:15px;font-weight:900;color:#fff;font-family:Outfit,sans-serif">'+b.ico+' '+b.txt+'</div>'
+      +   scoreBlock
+      + '</div>';
+
+    var contenu;
+    if (_inspView === 'preuves') {
+      // ── Vue 1 : générer les contrôles ──
+      contenu =
+        periodeBloc
+        + '<button onclick="inspPackDDPP()" style="width:100%;padding:18px;border:none;border-radius:14px;background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;font-family:Outfit,sans-serif;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 6px 22px rgba(67,56,202,.3)">📄 PACK DDPP COMPLET</button>'
+        + '<div style="text-align:center;color:#94a3b8;font-size:11.5px;margin:8px 0 18px">Tous les contrôles de la période, prêts à imprimer / envoyer</div>'
+        + '<div style="font-size:13px;font-weight:900;color:#0f172a;margin:0 2px 8px;font-family:Outfit,sans-serif">… ou choisir les modules à inclure</div>'
+        + '<div style="display:flex;justify-content:flex-end;gap:12px;margin:0 4px 6px"><span onclick="inspModChk(true)" style="font-size:12px;font-weight:800;color:#4338ca;cursor:pointer">Tout</span><span onclick="inspModChk(false)" style="font-size:12px;font-weight:800;color:#94a3b8;cursor:pointer">Rien</span></div>'
+        + '<div style="background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.06);overflow:hidden">'+modSelect+'</div>'
+        + '<button onclick="inspGenererSelection()" style="width:100%;margin-top:14px;padding:16px;border:1.5px solid #4338ca;border-radius:14px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:14px;font-weight:900;cursor:pointer">📄 Générer le Pack des modules cochés</button>';
+    } else if (_inspView === 'documents') {
+      // ── Vue 2 : documents officiels ──
+      contenu =
+        '<div style="font-size:18px;font-weight:900;color:#0f172a;font-family:Outfit,sans-serif">📁 Mes documents officiels</div>'
+        + '<div style="font-size:12.5px;color:#64748b;margin:4px 2px 14px;line-height:1.4">Documents qu\'un contrôleur peut réclamer. Touchez <b>📎 Ajouter</b> pour téléverser un fichier (PDF ou photo). Une fois ajouté, <b>cochez-le</b> puis <b>« Présenter les cochés »</b> pour les montrer au contrôleur.</div>'
+        + '<div id="inspDocsContainer"><div style="font-size:12px;color:#94a3b8;padding:8px">Chargement…</div></div>'
+        + '<div style="display:flex;gap:8px;margin-top:4px">'
+        +   '<button onclick="inspDocsToutCocher(true)" style="flex:1;padding:13px;border:1.5px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#4338ca;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">☑️ Tout cocher</button>'
+        +   '<button onclick="presenterDocsCoches()" style="flex:2;padding:13px;border:none;border-radius:12px;background:#0f766e;color:#fff;font-family:Outfit,sans-serif;font-size:13px;font-weight:800;cursor:pointer">📂 Présenter les cochés</button>'
+        + '</div>'
+        + '<div onclick="if(typeof openModule===\'function\')openModule(\'documents\')" style="text-align:center;color:#4338ca;font-size:12.5px;font-weight:800;margin-top:14px;cursor:pointer;text-decoration:underline">⚙️ Gérer / supprimer mes documents</div>';
+    } else {
+      // ── Vue d'accueil : 2 cartes ──
+      contenu =
+        '<div style="font-size:13px;font-weight:800;color:#475569;text-align:center;margin:2px 4px 16px">Que demande le contrôleur ?</div>'
+        + '<div onclick="inspView(\'preuves\')" style="display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#1e1b4b,#4338ca);color:#fff;border-radius:16px;padding:20px 16px;margin-bottom:12px;cursor:pointer;box-shadow:0 6px 22px rgba(67,56,202,.28)">'
+        +   '<div style="font-size:32px">📋</div>'
+        +   '<div style="flex:1"><div style="font-size:16px;font-weight:900;font-family:Outfit,sans-serif">Mes preuves de contrôle</div><div style="font-size:12px;opacity:.85;margin-top:3px">Pack DDPP complet ou par modules + période</div></div>'
+        +   '<div style="font-size:24px;opacity:.7">›</div></div>'
+        + '<div onclick="inspView(\'documents\')" style="display:flex;align-items:center;gap:14px;background:#0f766e;color:#fff;border-radius:16px;padding:20px 16px;cursor:pointer;box-shadow:0 6px 22px rgba(15,118,110,.28)">'
+        +   '<div style="font-size:32px">📁</div>'
+        +   '<div style="flex:1"><div style="font-size:16px;font-weight:900;font-family:Outfit,sans-serif">Mes documents officiels</div><div style="font-size:12px;opacity:.85;margin-top:3px">Agrément, PMS, contrats, analyses…</div></div>'
+        +   '<div style="font-size:24px;opacity:.7">›</div></div>';
+    }
+
+    host.innerHTML = header
+      + '<div style="background:#f8fafc;border-radius:18px 18px 0 0;padding:18px 14px 32px;min-height:44vh">' + contenu + '</div>';
+
+    if (_inspView === 'documents' && typeof renderInspDocs === 'function') { try { renderInspDocs(); } catch(eD){} }
   }
 
   // ── API globale (appelée depuis le HTML) ──
   window.ouvrirModeInspecteur = function(ret){
     _inspReturn = ret || ((_ls('haccp_mode')==='expert') ? 'page-home' : 'page-guide');
+    _inspView = 'hub'; // toujours démarrer sur l'écran d'accueil (2 cartes)
     if (typeof showPage==='function') showPage('page-inspecteur');
     render();
     // Rafraîchir avec les contrôles du cloud (tous appareils) puis re-rendre
@@ -19076,6 +19106,21 @@ function ouvrirMesRapports() {
       if (typeof lancerPackDDPPAvecPhotos==='function') { window._PACK_DDPP_SELECTION = null; lancerPackDDPPAvecPhotos(p.from, p.to, null); return; }
     } catch(e){}
     try { if (typeof genererPackDDPP==='function') genererPackDDPP(); } catch(e){}
+  };
+  // Navigation entre les vues de l'écran DDPP (hub / preuves / documents)
+  window.inspView = function(v){ _inspView = (v==='preuves'||v==='documents') ? v : 'hub'; render(); };
+  // Tout cocher / décocher la liste des modules (pack personnalisé)
+  window.inspModChk = function(val){ document.querySelectorAll('.insp-mod-chk').forEach(function(c){ c.checked = !!val; }); };
+  // Générer le Pack avec les modules cochés (selectionIds = codes cochés)
+  window.inspGenererSelection = function(){
+    var codes = [];
+    document.querySelectorAll('.insp-mod-chk:checked').forEach(function(c){ codes.push(c.value); });
+    if (!codes.length){ if (typeof showToast==='function') showToast('Cochez au moins un module','warn',2500); return; }
+    var p = currentPeriod();
+    try {
+      if (typeof lancerPackDDPPAvecPhotos==='function') { window._PACK_DDPP_SELECTION = codes; lancerPackDDPPAvecPhotos(p.from, p.to, codes); return; }
+    } catch(e){}
+    try { if (typeof lancerPackDDPP==='function') lancerPackDDPP(p.from, p.to, codes); } catch(e2){}
   };
 })();
 
