@@ -5929,12 +5929,13 @@ function selStatut(id, type) {
 }
 
 // V80 — Compression photos base64 pour économiser le localStorage iPhone (limite ~5 Mo)
-// Réduit l'image à 800px de large max + qualité JPEG 70% → divise le poids par 5-10
+// Réduit l'image à 1280px de large max + qualité JPEG 82% → bon compromis
+// poids/lisibilité (un n° de lot / une DLC doit rester lisible sur l'étiquette).
 function compresserPhoto(dataURL, callback) {
   try {
     var img = new Image();
     img.onload = function() {
-      var maxW = 800;
+      var maxW = 1280;
       var ratio = img.width > maxW ? maxW / img.width : 1;
       var w = Math.round(img.width * ratio);
       var h = Math.round(img.height * ratio);
@@ -5943,8 +5944,8 @@ function compresserPhoto(dataURL, callback) {
       canvas.height = h;
       var ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      // JPEG qualité 70% (compromis taille/qualité optimal pour étiquettes)
-      var compressed = canvas.toDataURL('image/jpeg', 0.7);
+      // JPEG qualité 82% — lot / DLC lisibles tout en restant raisonnable
+      var compressed = canvas.toDataURL('image/jpeg', 0.82);
       callback(compressed);
     };
     img.onerror = function() { callback(dataURL); }; // Fallback non compressé
@@ -11089,10 +11090,10 @@ function coffreUpload(cle) {
   input.onchange = function(e) {
     var file = e.target.files[0];
     if (!file) { try { document.body.removeChild(input); } catch(_){} return; }
-    // Limite de sécurité : 15 Mo par fichier
-    if (file.size > 15 * 1024 * 1024) {
-      if (typeof showToast === 'function') showToast('Fichier trop lourd (max 15 Mo)', 'warn');
-      else alert('Fichier trop lourd (max 15 Mo).');
+    // Limite de sécurité : 50 Mo par fichier (le PMS complet peut être lourd)
+    if (file.size > 50 * 1024 * 1024) {
+      if (typeof showToast === 'function') showToast('Fichier trop lourd (max 50 Mo)', 'warn');
+      else alert('Fichier trop lourd (max 50 Mo).');
       try { document.body.removeChild(input); } catch(_){}
       return;
     }
