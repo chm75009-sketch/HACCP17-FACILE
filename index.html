@@ -22,6 +22,43 @@
       });
     });
   }
+  // ── Bouton « Installer l'application » (PWA) ──
+  (function () {
+    var deferredPrompt = null;
+    function isInstalled() {
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    }
+    function instructions() {
+      var ua = navigator.userAgent || '';
+      if (/Firefox\//.test(ua) && !/Seamonkey/.test(ua)) {
+        alert("Firefox (sur PC) ne permet pas d'installer les applications web.\n\nOuvrez ce même site dans Microsoft Edge (déjà présent sur Windows 10) ou Google Chrome, puis :\n• Edge : menu ··· → Applications → « Installer ce site en tant qu'application ».\n• Chrome : menu ⋮ → « Installer l'application… ».");
+        return;
+      }
+      alert("Pour installer l'application sur ce PC (Windows 10) :\n\n• Microsoft Edge : menu ··· (en haut à droite) → Applications → « Installer ce site en tant qu'application ».\n• Google Chrome : menu ⋮ → « Installer l'application… », ou l'icône ⊞ dans la barre d'adresse.\n\nUne icône sera créée sur le Bureau et dans le menu Démarrer.");
+    }
+    function showInstallBtn() {
+      if (!document.body) { document.addEventListener('DOMContentLoaded', showInstallBtn); return; }
+      if (/Firefox\//.test(navigator.userAgent || '') && !/Seamonkey/.test(navigator.userAgent || '')) return;
+      if (isInstalled() || document.getElementById('pwaInstallBtn')) return;
+      var b = document.createElement('button');
+      b.id = 'pwaInstallBtn';
+      b.type = 'button';
+      b.setAttribute('aria-label', "Installer l'application");
+      b.textContent = "📥 Installer l'application";
+      b.style.cssText = 'position:fixed;right:16px;top:14px;z-index:999999;background:#1e1b4b;color:#fff;border:none;border-radius:999px;padding:11px 18px;font-family:sans-serif;font-size:.9rem;font-weight:700;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.4)';
+      b.onclick = function () {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(function () { deferredPrompt = null; b.remove(); });
+        } else { instructions(); }
+      };
+      document.body.appendChild(b);
+    }
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredPrompt = e; showInstallBtn(); });
+    window.addEventListener('appinstalled', function () { deferredPrompt = null; var b = document.getElementById('pwaInstallBtn'); if (b) b.remove(); });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showInstallBtn);
+    else showInstallBtn();
+  })();
 </script>
 <!-- V120 — Perf : preconnect aux origines CDN/fonts pour accélérer le 1er chargement -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
