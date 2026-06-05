@@ -6994,10 +6994,6 @@ function openModule(id) {
     });
     return;
   }
-  // Pré-remplir la signature avec la personne choisie (une fois la page affichée)
-  if (!_UTIL_SANS_INTERVENANT[id] && INTERVENANT_ACTUEL && INTERVENANT_ACTUEL !== 'none') {
-    setTimeout(prefillIntervenantSig, 300);
-  }
   if (id === 'audits') {
     auditSig.v=false;
     document.getElementById('audit_timestamp').textContent=getNowStr();
@@ -7628,6 +7624,13 @@ function showPage(id, noReset) {
   // Alimenter les menus déroulants (noms de l'équipe) à l'ouverture de tout module
   if (typeof syncEquipeDatalist === 'function') {
     setTimeout(syncEquipeDatalist, 120);
+  }
+  // Pré-remplir la signature avec l'intervenant choisi + bandeau « Saisie réalisée par … ».
+  // Déclenché ici pour couvrir tous les chemins d'ouverture (modules, retour de PDF…),
+  // avec une seconde passe pour les appareils lents (après l'init des signatures).
+  if (id !== 'page-guide' && id !== 'page-equipe' && typeof prefillIntervenantSig === 'function') {
+    setTimeout(prefillIntervenantSig, 200);
+    setTimeout(prefillIntervenantSig, 550);
   }
   var sa = document.getElementById('scrollArea');
   if (sa) sa.scrollTop = 0;
@@ -14383,9 +14386,14 @@ function demanderIntervenant(callback) {
 
 // Pré-remplit la signature du module affiché avec l'intervenant choisi
 function prefillIntervenantSig() {
-  if (!INTERVENANT_ACTUEL || INTERVENANT_ACTUEL === 'none') return;
   var page = document.querySelector('.page.active');
   if (!page) return;
+  // Pas d'intervenant valide : retirer un éventuel bandeau résiduel et sortir
+  if (!INTERVENANT_ACTUEL || INTERVENANT_ACTUEL === 'none') {
+    var old = page.querySelector('.bandeau-intervenant');
+    if (old) old.remove();
+    return;
+  }
   var prenom = INTERVENANT_ACTUEL.prenom || '';
   var nom = INTERVENANT_ACTUEL.nom || '';
   var complet = (prenom + ' ' + nom).trim();
@@ -14396,6 +14404,27 @@ function prefillIntervenantSig() {
   // Champs génériques « Nom & prénom » / responsable (seulement s'ils sont vides)
   var combos = page.querySelectorAll('input[placeholder="Nom & prénom"], input[placeholder="Nom & Prénom"], input[placeholder="Nom du responsable"]');
   combos.forEach(function(inp){ if (!inp.value) inp.value = complet; });
+  // Bandeau visible « Saisie réalisée par … » en haut du module
+  afficherBandeauIntervenant(page, complet);
+}
+
+// Affiche (ou met à jour) un bandeau indiquant qui réalise la saisie, juste sous l'en-tête du module
+function afficherBandeauIntervenant(page, nomComplet) {
+  if (!page || !nomComplet) return;
+  var b = page.querySelector('.bandeau-intervenant');
+  if (!b) {
+    b = document.createElement('div');
+    b.className = 'bandeau-intervenant';
+    b.style.cssText = 'display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-bottom:1px solid #c7d2fe;color:#3730a3;font-size:12.5px;font-weight:700;padding:9px 16px;font-family:Outfit,sans-serif';
+    // Insérer juste après l'en-tête du module si présent, sinon en tête de page
+    var header = page.querySelector('.mod-header');
+    if (header && header.parentNode === page) {
+      page.insertBefore(b, header.nextSibling);
+    } else {
+      page.insertBefore(b, page.firstChild);
+    }
+  }
+  b.innerHTML = '<span style="font-size:14px">👤</span><span>Saisie réalisée par <strong>' + _baroEsc(nomComplet) + '</strong></span>';
 }
 function exportModule(id) {
   // V52 — temperatures/cuisson/refroidissement : impression directe via imprimerModule (sans openModule)
