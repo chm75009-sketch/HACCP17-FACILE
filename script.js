@@ -20105,6 +20105,42 @@ function getEnceintesConfig() {
   try { var a = JSON.parse(lsGet(ENCEINTES_CFG_KEY) || '[]'); return Array.isArray(a) ? a : []; }
   catch (e) { return []; }
 }
+// Nettoie une chaîne des « demi-caractères » (surrogates UTF-16 non appariés —
+// ex. une moitié d'emoji 🌡️ coupée en deux) et des caractères de contrôle.
+// Ces fragments rendent le JSON invalide pour la base (type jsonb) et
+// provoquaient l'erreur PGRST102 « Empty or invalid json » lors de la synchro.
+function _wellFormedStr(s) {
+  if (typeof s !== 'string' || !s) return s;
+  var out = '';
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charCodeAt(i);
+    if (c >= 0xD800 && c <= 0xDBFF) {                 // moitié haute d'un caractère
+      var n = s.charCodeAt(i + 1);
+      if (n >= 0xDC00 && n <= 0xDFFF) { out += s.charAt(i) + s.charAt(i + 1); i++; } // paire valide
+      // sinon : moitié haute orpheline → ignorée
+    } else if (c >= 0xDC00 && c <= 0xDFFF) {
+      // moitié basse orpheline → ignorée
+    } else if (c < 0x20 && c !== 0x09 && c !== 0x0A && c !== 0x0D) {
+      // caractère de contrôle → ignoré
+    } else {
+      out += s.charAt(i);
+    }
+  }
+  return out;
+}
+function _sanitizeEnceintes(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(function (e) {
+    if (!e || typeof e !== 'object') return e;
+    return {
+      nom: _wellFormedStr(e.nom || '').trim(),
+      type: _wellFormedStr(e.type || ''),
+      seuil: e.seuil,
+      precision: _wellFormedStr(e.precision || ''),
+      refNum: _wellFormedStr(e.refNum || '')
+    };
+  });
+}
 function _saveEncCfgRaw(a) { try { lsSet(ENCEINTES_CFG_KEY, JSON.stringify(a || [])); } catch (e) {} }
 function getEncCfgMaj() { try { var v = lsGet(ENCEINTES_CFG_MAJ_KEY); return v ? (Number(v) || 0) : 0; } catch (e) { return 0; } }
 function setEncCfgMaj(t) { try { lsSet(ENCEINTES_CFG_MAJ_KEY, String(t || Date.now())); } catch (e) {} }
@@ -20117,7 +20153,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b35';
+  h.textContent = txt + ' · maj b36';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20143,7 +20179,10 @@ function collectEnceintesConfig() {
       refNum: (refEl ? (refEl.value || '') : '')
     });
   });
-  return arr;
+  // Nettoie les demi-caractères (moitiés d'emoji coupées) avant tout usage : sans
+  // ça, un nom comme « 🌡️ Enceinte » tronqué laisse un fragment invalide qui fait
+  // échouer la synchro (PGRST102).
+  return _sanitizeEnceintes(arr);
 }
 
 function enregistrerMesEnceintes() {
@@ -20171,7 +20210,7 @@ function enregistrerMesEnceintes() {
 // et réponse brute du serveur, et surtout une éventuelle REDIRECTION (qui
 // viderait le corps et provoquerait « Empty or invalid json »).
 function diagSyncEnceintes(saveRes) {
-  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b35)', ''];
+  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b36)', ''];
   var etab = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : '(non connecté)';
   L.push('Compte : ' + etab);
   if (saveRes) L.push('Échec enregistrement : ' + (saveRes.status || '?') + ' ' + String(saveRes.body || saveRes.msg || '').slice(0, 120));
@@ -20234,7 +20273,10 @@ function pushEncCfgCloud() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return Promise.resolve({ ok: false, msg: 'Non connecté' });
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return Promise.resolve({ ok: false, msg: 'Cloud indisponible' });
-    var arr = getEnceintesConfig();
+    // Nettoyage des demi-caractères (cause de PGRST102). On purge aussi la copie
+    // locale si elle en contenait, pour ne plus jamais renvoyer un contenu invalide.
+    var arr = _sanitizeEnceintes(getEnceintesConfig());
+    try { if (JSON.stringify(arr) !== JSON.stringify(getEnceintesConfig())) _saveEncCfgRaw(arr); } catch (e) {}
     var maj = getEncCfgMaj(); if (!maj) { maj = Date.now(); setEncCfgMaj(maj); }
     var payload = {
       code_client: String(ETAB_ID), module: ENCEINTES_CFG_MODULE,
