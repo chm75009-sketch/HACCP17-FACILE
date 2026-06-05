@@ -13076,7 +13076,9 @@ function startBrouillonAuto(pageId) {
       if (!page || !page.classList.contains('active')) { stopBrouillonAuto(); return; }
       var fields = {};
       page.querySelectorAll('input, select, textarea').forEach(function(el) {
-        if (el.id && el.value) fields[el.id] = el.value;
+        // Ne pas sauvegarder les champs fichier (photo) : leur valeur ne peut
+        // pas être réinjectée par script (lève InvalidStateError à la restauration).
+        if (el.id && el.value && el.type !== 'file') fields[el.id] = el.value;
       });
       var key = 'haccp_brouillon_' + pageId + '_' + (ETAB_ID||'local');
       lsSet(key, JSON.stringify({pageId:pageId, ts:Date.now(), fields:fields}));
@@ -13100,7 +13102,7 @@ function restaurerBrouillon(pageId) {
     var nbChamps = 0;
     Object.keys(brouillon.fields||{}).forEach(function(id) {
       var el = document.getElementById(id);
-      if (el && !el.value) nbChamps++;
+      if (el && el.type !== 'file' && !el.value) nbChamps++;
     });
     if (nbChamps === 0) return false;
     // V80 — Demande explicite à l'utilisateur AVANT de restaurer
@@ -13110,7 +13112,11 @@ function restaurerBrouillon(pageId) {
       if (reponse === 'recuperer') {
         Object.keys(brouillon.fields||{}).forEach(function(id) {
           var el = document.getElementById(id);
-          if (el && !el.value) el.value = brouillon.fields[id];
+          // Champ fichier exclu + garde défensive : ne jamais laisser une valeur
+          // non assignable interrompre la restauration (sinon retour à l'accueil).
+          if (el && el.type !== 'file' && !el.value) {
+            try { el.value = brouillon.fields[id]; } catch (e) {}
+          }
         });
         if (typeof showToast === 'function') showToast('Brouillon restauré', 'ok', 3000);
       } else {

@@ -4,7 +4,7 @@
  * cache quand on est hors-ligne (utile sur le terrain sans réseau).
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptés.
  */
-const CACHE = 'haccp-pro-v10';
+const CACHE = 'haccp-pro-v11';
 const CORE = [
   './',
   './index.html',
