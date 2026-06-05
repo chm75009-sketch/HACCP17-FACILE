@@ -20117,7 +20117,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b33';
+  h.textContent = txt + ' · maj b34';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20154,13 +20154,52 @@ function enregistrerMesEnceintes() {
   if (typeof showToast === 'function') showToast('💾 Enregistrement…', 'info', 1500);
   // Envoi cloud immédiat + retour visible (succès / cause d'échec).
   pushEncCfgCloud().then(function (res) {
-    if (typeof showToast !== 'function') return;
     if (res && res.ok) {
-      showToast('✓ Vos ' + arr.length + ' enceinte(s) sont synchronisées sur tous vos appareils.', 'ok', 4000);
+      if (typeof showToast === 'function') showToast('✓ Vos ' + arr.length + ' enceinte(s) sont synchronisées sur tous vos appareils.', 'ok', 4000);
     } else {
       var why = (res && (res.body || res.msg)) ? (' — ' + String(res.body || res.msg).slice(0, 110)) : '';
-      showToast('Enregistrées sur cet appareil, mais synchro cloud échouée' + why + '.', 'warn', 7000);
+      if (typeof showToast === 'function') showToast('Enregistrées sur cet appareil, mais synchro cloud échouée' + why + '.', 'warn', 7000);
+      // Échec : on lance un diagnostic visible (fenêtre) pour identifier la cause.
+      try { diagSyncEnceintes(res); } catch (e) {}
     }
+  });
+}
+
+// Diagnostic affiché dans une fenêtre (alert) — utilisable sans outils du
+// navigateur. Reproduit un envoi minimal et rapporte tout ce qui permet de
+// comprendre un échec de synchro : connexion, longueur du corps envoyé, statut
+// et réponse brute du serveur, et surtout une éventuelle REDIRECTION (qui
+// viderait le corps et provoquerait « Empty or invalid json »).
+function diagSyncEnceintes(saveRes) {
+  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b34)', ''];
+  var etab = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : '(non connecté)';
+  var url = (typeof SUPABASE_URL !== 'undefined') ? SUPABASE_URL : '(URL absente)';
+  L.push('Compte (ETAB_ID) : ' + etab);
+  L.push('Projet : ' + url);
+  if (saveRes) L.push('Enregistrement : statut=' + (saveRes.status || '?') + ' ' + String(saveRes.body || saveRes.msg || '').slice(0, 160));
+  if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') { alert(L.join('\n')); return; }
+  var probe = JSON.stringify({ code_client: etab, module: '__diag__', contenu: { ok: 1 }, signature: null, photos: [], date_controle: new Date().toISOString() });
+  L.push('Corps test envoyé : ' + probe.length + ' caractères');
+  L.push('');
+  L.push('… test d\'envoi en cours …');
+  fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: probe
+  }).then(function (r) {
+    return r.text().then(function (t) { return { status: r.status, ok: r.ok, body: t, finalUrl: r.url, redirected: r.redirected, type: r.type }; });
+  }).then(function (o) {
+    L[L.length - 1] = 'TEST D\'ENVOI :';
+    L.push('  statut HTTP : ' + o.status + (o.ok ? ' (OK)' : ' (ÉCHEC)'));
+    L.push('  réponse : ' + (o.body ? o.body.slice(0, 200) : '(vide)'));
+    L.push('  URL finale : ' + o.finalUrl);
+    L.push('  redirigé : ' + (o.redirected ? 'OUI ⚠️ (cause probable !)' : 'non'));
+    L.push('  type réponse : ' + o.type);
+    alert(L.join('\n'));
+  }).catch(function (e) {
+    L[L.length - 1] = 'TEST D\'ENVOI : erreur réseau';
+    L.push('  ' + ((e && e.message) || e));
+    alert(L.join('\n'));
   });
 }
 
