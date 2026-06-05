@@ -15,12 +15,36 @@
 <meta name="apple-mobile-web-app-title" content="HACCP Pro">
 <script>
   // Enregistrement du service worker (mode hors-ligne). Nécessite HTTPS (ex: GitHub Pages).
+  // V126 — Mise à jour AUTOMATIQUE : dès qu'une nouvelle version est déployée,
+  // le nouveau service worker prend la main et la page se recharge toute seule,
+  // sans que l'utilisateur ait à vider le cache ou réinstaller l'application.
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (e) {
-        console.warn('Service worker non enregistré :', e && e.message);
+    (function () {
+      var hadController = !!navigator.serviceWorker.controller;
+      var refreshing = false;
+      // Quand le nouveau SW prend le contrôle -> recharge une seule fois
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (refreshing) return;
+        // 1ère prise de contrôle (toute première installation) : ne pas recharger
+        if (!hadController) { hadController = true; return; }
+        refreshing = true;
+        window.location.reload();
       });
-    });
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').then(function (reg) {
+          // Vérifier les mises à jour à l'ouverture, au retour au premier plan,
+          // et toutes les heures pour les sessions longues (app installée).
+          var verifier = function () { try { reg.update(); } catch (e) {} };
+          verifier();
+          setInterval(verifier, 60 * 60 * 1000);
+          document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') verifier();
+          });
+        }).catch(function (e) {
+          console.warn('Service worker non enregistré :', e && e.message);
+        });
+      });
+    })();
   }
   // ── Bouton « Installer l'application » (PWA) ──
   (function () {
