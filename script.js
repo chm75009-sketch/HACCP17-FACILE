@@ -1562,6 +1562,15 @@ async function connexion() {
     if (estEssai) { lsSet('haccp_trial_pwd', pwd); }
     else { lsRemove('haccp_trial_pwd'); }
   } catch(e) {}
+  // Changement de compte sur le même appareil : on repart d'une équipe locale
+  // propre, pour ne pas mélanger / faire fuiter l'équipe d'un compte vers un autre.
+  try {
+    var _ancienEtabId = lsGet('haccp_etab_id');
+    if (_ancienEtabId && String(_ancienEtabId) !== String(d.id)) {
+      lsRemove(EQUIPE_KEY);
+      lsRemove(EQUIPE_MAJ_KEY);
+    }
+  } catch(e) {}
   ETAB_ID = d.id;
   SECTEUR_ACTIF = d.secteur || 'resto';
   ETAB.nom = d.nom || '';
@@ -1593,6 +1602,9 @@ async function connexion() {
     }));
   } catch(e) {}
   SB_READY = true;
+  // Multi-appareils : récupérer l'équipe enregistrée dans le cloud pour ce compte
+  // (les personnes ajoutées sur un autre appareil deviennent visibles ici).
+  try { if (typeof pullEquipeCloud === 'function') setTimeout(pullEquipeCloud, 400); } catch(e){}
   // V102 — Mettre à jour le bandeau du haut avec les vraies infos client
   try { if (typeof updateTopbarEtab === 'function') updateTopbarEtab(); } catch(e){}
   // Indicateur mode local — V106 : bandeau retiré côté client (visible uniquement en console)
@@ -3442,6 +3454,10 @@ function deconnecterConfirme() {
     lsRemove('haccp_etab_data');
     lsRemove('haccp_mode');
     lsRemove('haccp_trial_pwd'); // ne pas reconnecter auto après une déconnexion volontaire
+    // L'équipe est synchronisée dans le cloud : on l'efface en local à la déconnexion
+    // pour qu'un autre compte ne récupère pas l'équipe du compte précédent (appareil partagé).
+    lsRemove(EQUIPE_KEY);
+    lsRemove(EQUIPE_MAJ_KEY);
     sessionClear();
   } catch(e) {}
   ETAB = {nom:'', secteur:'', siret:'', adresse:'', cp:'', ville:'', tel:'', email:'', responsable:'', fonction:'', typeStructure:'', repasJour:'', liaison:''};
@@ -7620,7 +7636,10 @@ function showPage(id, noReset) {
   if (id === 'page-guide') { INTERVENANT_ACTUEL = null; }
   // Module Équipe — registre des personnes
   if (id === 'page-equipe' && typeof renderEquipe === 'function') {
+    if (typeof _resetEquipeForm === 'function') { try { _resetEquipeForm(); } catch(e) {} }
     setTimeout(renderEquipe, 30);
+    // Récupérer aussi les dernières personnes ajoutées depuis un autre appareil.
+    if (typeof pullEquipeCloud === 'function') { try { pullEquipeCloud(); } catch(e) {} }
   }
   // Alimenter les menus déroulants (noms de l'équipe) à l'ouverture de tout module
   if (typeof syncEquipeDatalist === 'function') {
@@ -13450,6 +13469,9 @@ async function chargerControlesCloudCache() {
     var seen = {};
     var rowsUniques = [];
     rows.forEach(function(r) {
+      // Les lignes « registre équipe » ne sont pas des contrôles : on les ignore
+      // pour ne pas polluer l'historique ni le tableau de bord.
+      if (r.module === EQUIPE_MODULE) return;
       var contenu = r.contenu;
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
@@ -14188,7 +14210,10 @@ function _baroEsc(s) {
 // MODULE ÉQUIPE — registre des personnes (utilisateurs des modules)
 // ══════════════════════════════════════════════════════════════════
 var EQUIPE_KEY = 'haccp_equipe';
+var EQUIPE_MAJ_KEY = 'haccp_equipe_maj';      // horodatage de la dernière modif locale (pour la fusion cloud)
+var EQUIPE_MODULE = '__equipe_registre__';    // « module » réservé dans controles_haccp pour stocker l'équipe
 var _equipePhotoTmp = ''; // photo en attente lors de l'ajout
+var _pushEquipeTimer = null;
 
 function getEquipe() {
   try {
@@ -14196,8 +14221,140 @@ function getEquipe() {
     return Array.isArray(arr) ? arr : [];
   } catch(e) { return []; }
 }
+function getEquipeMaj() {
+  try { var v = lsGet(EQUIPE_MAJ_KEY); return v ? (Number(v) || 0) : 0; } catch(e) { return 0; }
+}
+function setEquipeMaj(t) {
+  try { lsSet(EQUIPE_MAJ_KEY, String(t || Date.now())); } catch(e) {}
+}
 function saveEquipe(arr) {
   try { lsSet(EQUIPE_KEY, JSON.stringify(arr || [])); } catch(e) {}
+  // Toute modif locale est horodatée puis poussée vers le cloud (multi-appareils).
+  setEquipeMaj(Date.now());
+  schedulePushEquipeCloud();
+}
+
+// ── Synchronisation de l'équipe sur tous les appareils ──
+// On réutilise la table controles_haccp déjà en place (mêmes colonnes que les
+// contrôles), avec module = EQUIPE_MODULE. Aucune nouvelle table nécessaire.
+// La ligne la plus récente (date_controle) fait foi ; fusion « dernier écrit gagne ».
+function schedulePushEquipeCloud() {
+  if (_pushEquipeTimer) clearTimeout(_pushEquipeTimer);
+  _pushEquipeTimer = setTimeout(function() {
+    _pushEquipeTimer = null;
+    pushEquipeCloud();
+  }, 800);
+}
+
+async function pushEquipeCloud() {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return { ok: false, msg: 'Non connecté' };
+    if (typeof MODE_LOCAL !== 'undefined' && MODE_LOCAL) return { ok: false, msg: 'Mode local' };
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return { ok: false, msg: 'Cloud indisponible' };
+    var membres = getEquipe();
+    // Équipe créée avant l'arrivée de la synchro (pas d'horodatage) : on en fixe un
+    // maintenant, pour qu'elle serve de référence cohérente côté cloud et local.
+    var maj = getEquipeMaj();
+    if (!maj) { maj = Date.now(); setEquipeMaj(maj); }
+    var payload = {
+      code_client:   String(ETAB_ID),
+      module:        EQUIPE_MODULE,
+      contenu:       { equipe: membres, maj: maj },
+      signature:     null,
+      photos:        [],
+      date_controle: new Date().toISOString()
+    };
+    var resp = await fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+      method: 'POST',
+      headers: {
+        'apikey':        SUPABASE_ANON,
+        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      var t = ''; try { t = await resp.text(); } catch(e) {}
+      console.warn('[HACCP Équipe] Envoi cloud échec ' + resp.status + (t ? ' — ' + t.slice(0, 200) : ''));
+      return { ok: false, status: resp.status, body: t, msg: 'Erreur ' + resp.status };
+    }
+    console.info('[HACCP Équipe] ✓ Équipe synchronisée (' + membres.length + ' personne(s))');
+    return { ok: true, count: membres.length };
+  } catch(e) {
+    console.warn('[HACCP Équipe] Envoi cloud erreur:', e && e.message);
+    return { ok: false, msg: (e && e.message) || 'Erreur réseau' };
+  }
+}
+
+async function pullEquipeCloud() {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return { ok: false, msg: 'Non connecté' };
+    if (typeof MODE_LOCAL !== 'undefined' && MODE_LOCAL) return { ok: false, msg: 'Mode local' };
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return { ok: false, msg: 'Cloud indisponible' };
+    var url = SUPABASE_URL + '/rest/v1/controles_haccp'
+      + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+      + '&module=eq.' + encodeURIComponent(EQUIPE_MODULE)
+      + '&select=contenu,date_controle'
+      + '&order=date_controle.desc'
+      + '&limit=1';
+    var resp = await fetch(url, {
+      method: 'GET',
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
+    });
+    if (!resp.ok) {
+      var et = ''; try { et = await resp.text(); } catch(e) {}
+      return { ok: false, status: resp.status, body: et, msg: 'Erreur ' + resp.status };
+    }
+    var rows = await resp.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      // Rien dans le cloud : si une équipe existe en local, on l'envoie pour initialiser.
+      if (getEquipe().length) schedulePushEquipeCloud();
+      return { ok: true, count: 0, adopted: false, empty: true };
+    }
+    var contenu = rows[0].contenu;
+    if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(e) { contenu = null; } }
+    if (!contenu || !Array.isArray(contenu.equipe)) return { ok: true, count: 0, adopted: false };
+    var cloudMaj = Number(contenu.maj) || new Date(rows[0].date_controle).getTime() || 0;
+    var localMaj = getEquipeMaj();
+    if (cloudMaj > localMaj) {
+      // Le cloud est plus récent → on adopte sa version (sans re-déclencher d'envoi).
+      try { lsSet(EQUIPE_KEY, JSON.stringify(contenu.equipe)); } catch(e) {}
+      setEquipeMaj(cloudMaj);
+      if (typeof renderEquipe === 'function')      { try { renderEquipe(); } catch(e) {} }
+      if (typeof syncEquipeDatalist === 'function'){ try { syncEquipeDatalist(); } catch(e) {} }
+      console.info('[HACCP Équipe] ✓ Équipe récupérée depuis le cloud (' + contenu.equipe.length + ' personne(s))');
+      return { ok: true, count: contenu.equipe.length, adopted: true };
+    } else if (localMaj > cloudMaj && getEquipe().length) {
+      // Le local est plus récent → on met le cloud à jour.
+      schedulePushEquipeCloud();
+    }
+    return { ok: true, count: contenu.equipe.length, adopted: false };
+  } catch(e) {
+    console.warn('[HACCP Équipe] Récupération cloud erreur:', e && e.message);
+    return { ok: false, msg: (e && e.message) || 'Erreur réseau' };
+  }
+}
+
+// Synchronisation manuelle déclenchée par le bouton « Synchroniser » de la page Équipe.
+// Donne un retour clair à l'utilisateur (succès ou cause de l'échec).
+async function synchroniserEquipeManuel() {
+  if (typeof ETAB_ID === 'undefined' || !ETAB_ID || (typeof MODE_LOCAL !== 'undefined' && MODE_LOCAL)) {
+    if (typeof showToast === 'function') showToast('Synchronisation indisponible : vous êtes en mode local ou non connecté.', 'warn', 5000);
+    return;
+  }
+  if (typeof showToast === 'function') showToast('Synchronisation de l\'équipe…', 'info', 1800);
+  var pull1 = await pullEquipeCloud();   // d'abord récupérer une version plus récente d'un autre appareil
+  var push1 = await pushEquipeCloud();   // puis publier la version locale
+  renderEquipe();
+  if (push1 && push1.ok) {
+    if (typeof showToast === 'function') showToast('✓ Équipe synchronisée sur tous vos appareils (' + (push1.count || 0) + ' personne(s)).', 'ok', 4000);
+  } else if (pull1 && pull1.ok && pull1.adopted) {
+    if (typeof showToast === 'function') showToast('✓ Équipe à jour récupérée depuis le cloud (' + (pull1.count || 0) + ' personne(s)).', 'ok', 4000);
+  } else {
+    var raison = (push1 && (push1.body || push1.msg)) || (pull1 && (pull1.body || pull1.msg)) || 'cause inconnue';
+    if (typeof showToast === 'function') showToast('⚠️ Échec de la synchronisation — ' + String(raison).slice(0, 140), 'warn', 8000);
+  }
 }
 
 // Liste des prénoms/noms pour alimenter les menus déroulants (datalist) des modules
@@ -14253,6 +14410,7 @@ function renderEquipe() {
       return '<div style="background:white;border-radius:14px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">' +
         avatar +
         '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:#1f2937">' + _baroEsc(nomComplet) + '</div></div>' +
+        '<button onclick="editerMembreEquipe(\'' + m.id + '\')" aria-label="Modifier" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer;flex-shrink:0">✏️</button>' +
         '<button onclick="supprimerMembreEquipe(\'' + m.id + '\')" aria-label="Supprimer" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;width:34px;height:34px;font-size:16px;cursor:pointer;flex-shrink:0">🗑️</button>' +
       '</div>';
     }).join('');
@@ -14284,6 +14442,28 @@ function previewEquipePhoto(input) {
   reader.readAsDataURL(file);
 }
 
+var _editingMembreId = null; // id du membre en cours de modification (null = ajout)
+
+// Remet le formulaire à zéro et le repasse en mode « ajout ».
+function _resetEquipeForm() {
+  var prenomEl = document.getElementById('equipePrenom');
+  var nomEl = document.getElementById('equipeNom');
+  if (prenomEl) prenomEl.value = '';
+  if (nomEl) nomEl.value = '';
+  _equipePhotoTmp = '';
+  _editingMembreId = null;
+  var prev = document.getElementById('equipePhotoPreview');
+  if (prev) prev.innerHTML = '<span style="font-size:24px">📷</span>';
+  var fileInput = document.getElementById('equipePhotoInput');
+  if (fileInput) fileInput.value = '';
+  var titre = document.getElementById('equipeFormTitre');
+  if (titre) titre.textContent = '➕ Ajouter une personne';
+  var btn = document.getElementById('equipeSubmitBtn');
+  if (btn) btn.textContent = 'Enregistrer la personne';
+  var cancel = document.getElementById('equipeCancelBtn');
+  if (cancel) cancel.style.display = 'none';
+}
+
 function ajouterMembreEquipe() {
   var prenomEl = document.getElementById('equipePrenom');
   var nomEl = document.getElementById('equipeNom');
@@ -14294,6 +14474,23 @@ function ajouterMembreEquipe() {
     return;
   }
   var membres = getEquipe();
+  if (_editingMembreId) {
+    // Mode modification : on met à jour la personne existante.
+    var trouve = false;
+    membres = membres.map(function(m){
+      if (m.id === _editingMembreId) {
+        trouve = true;
+        return { id: m.id, prenom: prenom, nom: nom, photo: _equipePhotoTmp || '' };
+      }
+      return m;
+    });
+    saveEquipe(membres);
+    _resetEquipeForm();
+    renderEquipe();
+    if (typeof showToast === 'function') showToast(trouve ? 'Intervenant modifié' : 'Personne enregistrée', 'ok', 2500);
+    return;
+  }
+  // Mode ajout
   membres.push({
     id: 'm' + Date.now() + Math.floor(Math.random() * 1000),
     prenom: prenom,
@@ -14301,19 +14498,48 @@ function ajouterMembreEquipe() {
     photo: _equipePhotoTmp || ''
   });
   saveEquipe(membres);
-  // Réinitialiser le formulaire
-  if (prenomEl) prenomEl.value = '';
-  if (nomEl) nomEl.value = '';
-  _equipePhotoTmp = '';
-  var prev = document.getElementById('equipePhotoPreview');
-  if (prev) prev.innerHTML = '<span style="font-size:24px">📷</span>';
-  var fileInput = document.getElementById('equipePhotoInput');
-  if (fileInput) fileInput.value = '';
+  _resetEquipeForm();
   renderEquipe();
   if (typeof showToast === 'function') showToast('Personne ajoutée à l\'équipe', 'ok', 2500);
 }
 
+// Charge un intervenant dans le formulaire pour le modifier.
+function editerMembreEquipe(id) {
+  var m = getEquipe().filter(function(x){ return x.id === id; })[0];
+  if (!m) return;
+  _editingMembreId = id;
+  var prenomEl = document.getElementById('equipePrenom');
+  var nomEl = document.getElementById('equipeNom');
+  if (prenomEl) prenomEl.value = m.prenom || '';
+  if (nomEl) nomEl.value = m.nom || '';
+  _equipePhotoTmp = m.photo || '';
+  var prev = document.getElementById('equipePhotoPreview');
+  if (prev) {
+    prev.innerHTML = m.photo
+      ? '<img src="' + m.photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
+      : '<span style="font-size:24px">📷</span>';
+  }
+  var titre = document.getElementById('equipeFormTitre');
+  if (titre) titre.textContent = '✏️ Modifier l\'intervenant';
+  var btn = document.getElementById('equipeSubmitBtn');
+  if (btn) btn.textContent = 'Enregistrer les modifications';
+  var cancel = document.getElementById('equipeCancelBtn');
+  if (cancel) cancel.style.display = 'block';
+  // Remonter sur le formulaire pour que la saisie soit visible.
+  try {
+    var sa = document.getElementById('scrollArea');
+    if (sa) sa.scrollTop = 0;
+    if (titre && titre.scrollIntoView) titre.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {}
+}
+
+function annulerEditionEquipe() {
+  _resetEquipeForm();
+}
+
 function supprimerMembreEquipe(id) {
+  // Si on supprime la personne en cours d'édition, on remet le formulaire à zéro.
+  if (_editingMembreId === id) _resetEquipeForm();
   var membres = getEquipe().filter(function(m){ return m.id !== id; });
   saveEquipe(membres);
   renderEquipe();
