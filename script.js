@@ -6996,6 +6996,11 @@ function openModule(id) {
   if (id === 'dashboard') {
     showPage('page-dashboard'); return;
   }
+  if (id === 'equipe') {
+    showPage('page-equipe');
+    setTimeout(renderEquipe, 50);
+    return;
+  }
   if (id === 'exports') {
     showPage('page-exports'); return;
   }
@@ -7589,6 +7594,18 @@ function showPage(id, noReset) {
   }
   if (id === 'page-documents' && typeof renderCoffre === 'function') {
     setTimeout(renderCoffre, 50);
+  }
+  // Baromètre temps réel sur l'écran Modules
+  if (id === 'page-guide' && typeof renderBarometre === 'function') {
+    setTimeout(renderBarometre, 30);
+  }
+  // Module Équipe — registre des personnes
+  if (id === 'page-equipe' && typeof renderEquipe === 'function') {
+    setTimeout(renderEquipe, 30);
+  }
+  // Alimenter les menus déroulants (noms de l'équipe) à l'ouverture de tout module
+  if (typeof syncEquipeDatalist === 'function') {
+    setTimeout(syncEquipeDatalist, 120);
   }
   var sa = document.getElementById('scrollArea');
   if (sa) sa.scrollTop = 0;
@@ -14033,7 +14050,232 @@ function sauvegarderHistorique(module, signe) {
     // Garder seulement 3 ans (1095 jours max, limiter à 500 entrées)
     if (historique.length > 500) historique = historique.slice(-500);
     lsSet('haccp_historique', JSON.stringify(historique));
+    // Baromètre temps réel : rafraîchir immédiatement après chaque contrôle validé
+    try { if (typeof renderBarometre === 'function') renderBarometre(); } catch(eBaro) {}
   } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BAROMÈTRE TEMPS RÉEL — activité de contrôle du jour (écran Modules)
+// ══════════════════════════════════════════════════════════════════
+var BAROMETRE_OBJECTIF = 6; // nb de contrôles/jour visé pour la jauge pleine
+
+// Construit un point sur l'arc du baromètre (t ∈ [0,1] : 0 = gauche, 1 = droite, par le haut)
+function _baroPoint(cx, cy, r, t) {
+  var ang = Math.PI * (1 - Math.max(0, Math.min(1, t)));
+  return { x: cx + r * Math.cos(ang), y: cy - r * Math.sin(ang) };
+}
+function _baroArc(cx, cy, r, t0, t1) {
+  var s = _baroPoint(cx, cy, r, t0), e = _baroPoint(cx, cy, r, t1);
+  var large = Math.abs(t1 - t0) > 0.5 ? 1 : 0;
+  return 'M ' + s.x.toFixed(1) + ' ' + s.y.toFixed(1) +
+         ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + e.x.toFixed(1) + ' ' + e.y.toFixed(1);
+}
+
+function renderBarometre() {
+  var host = document.getElementById('barometreHaccp');
+  if (!host) return;
+  try {
+    var today = new Date().toISOString().split('T')[0];
+    var historique = [];
+    try { historique = JSON.parse(lsGet('haccp_historique') || '[]'); } catch(e) {}
+    if (!Array.isArray(historique)) historique = [];
+    // Isolation par secteur actif (cohérent avec le tableau de bord)
+    if (typeof _secteurActifMatch === 'function') {
+      historique = historique.filter(function(en){ return _secteurActifMatch(en); });
+    }
+    var jour = historique.filter(function(en){ return en && en.date === today; });
+    var nb = jour.length;
+    var modulesCouverts = {};
+    jour.forEach(function(en){ if (en && en.module) modulesCouverts[en.module] = true; });
+    var nbModules = Object.keys(modulesCouverts).length;
+
+    var pct = Math.max(0, Math.min(1, nb / BAROMETRE_OBJECTIF));
+    var couleur = nb === 0 ? '#94a3b8' : (pct < 0.34 ? '#dc2626' : pct < 0.67 ? '#f59e0b' : '#16a34a');
+    var etat = nb === 0 ? 'Aucun contrôle' : (pct < 0.34 ? 'À compléter' : pct < 0.67 ? 'En bonne voie' : 'Journée à jour');
+
+    // Jauge SVG demi-cercle
+    var cx = 130, cy = 122, r = 104;
+    var needle = _baroPoint(cx, cy, r - 14, pct);
+    var svg = '<svg viewBox="0 0 260 142" width="100%" style="max-width:260px;display:block;margin:0 auto">' +
+      '<path d="' + _baroArc(cx, cy, r, 0, 1) + '" fill="none" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round"/>' +
+      '<path d="' + _baroArc(cx, cy, r, 0, pct < 0.02 ? 0.02 : pct) + '" fill="none" stroke="' + couleur + '" stroke-width="18" stroke-linecap="round"/>' +
+      '<line x1="' + cx + '" y1="' + cy + '" x2="' + needle.x.toFixed(1) + '" y2="' + needle.y.toFixed(1) + '" stroke="#1f2937" stroke-width="3.5" stroke-linecap="round"/>' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="7" fill="#1f2937"/>' +
+      '<text x="' + cx + '" y="100" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="900" font-size="40" fill="' + couleur + '">' + nb + '</text>' +
+      '<text x="' + cx + '" y="118" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="11" fill="#9ca3af">contrôle' + (nb > 1 ? 's' : '') + ' aujourd\'hui</text>' +
+      '</svg>';
+
+    // Fil temps réel : 4 derniers contrôles
+    var fil = '';
+    var derniers = jour.slice(-4).reverse();
+    if (derniers.length === 0) {
+      fil = '<div style="font-size:11.5px;color:#9ca3af;text-align:center;padding:8px 0">Validez un module — il apparaîtra ici en direct.</div>';
+    } else {
+      derniers.forEach(function(en){
+        var qui = (en.signe && String(en.signe).trim()) ? String(en.signe).trim() : '—';
+        var mod = en.module ? String(en.module) : 'Contrôle';
+        var heure = en.heure ? String(en.heure) : '';
+        fil += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f1f5f9">' +
+          '<div style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0"></div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:12px;font-weight:700;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _baroEsc(mod) + '</div>' +
+            '<div style="font-size:10.5px;color:#6b7280">signé par ' + _baroEsc(qui) + '</div>' +
+          '</div>' +
+          '<div style="font-size:11px;font-weight:700;color:#9ca3af;flex-shrink:0">' + _baroEsc(heure) + '</div>' +
+        '</div>';
+      });
+    }
+
+    host.innerHTML =
+      '<div style="background:white;border-radius:16px;padding:14px 16px 12px;box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
+          '<div style="font-size:13px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:6px">🌡️ Baromètre du jour</div>' +
+          '<div style="font-size:10px;font-weight:800;color:' + couleur + ';background:' + couleur + '1a;padding:3px 9px;border-radius:20px">● ' + etat + '</div>' +
+        '</div>' +
+        svg +
+        '<div style="display:flex;justify-content:center;gap:18px;margin:2px 0 10px">' +
+          '<div style="text-align:center"><div style="font-size:18px;font-weight:900;color:#1f2937">' + nbModules + '</div><div style="font-size:10px;color:#9ca3af;font-weight:700">modules couverts</div></div>' +
+          '<div style="width:1px;background:#e5e7eb"></div>' +
+          '<div style="text-align:center"><div style="font-size:18px;font-weight:900;color:#1f2937">' + nb + '/' + BAROMETRE_OBJECTIF + '</div><div style="font-size:10px;color:#9ca3af;font-weight:700">objectif jour</div></div>' +
+        '</div>' +
+        '<div style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#9ca3af;margin-bottom:2px">⚡ En temps réel</div>' +
+        fil +
+      '</div>';
+  } catch(e) {
+    host.innerHTML = '';
+  }
+}
+function _baroEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODULE ÉQUIPE — registre des personnes (utilisateurs des modules)
+// ══════════════════════════════════════════════════════════════════
+var EQUIPE_KEY = 'haccp_equipe';
+var _equipePhotoTmp = ''; // photo en attente lors de l'ajout
+
+function getEquipe() {
+  try {
+    var arr = JSON.parse(lsGet(EQUIPE_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch(e) { return []; }
+}
+function saveEquipe(arr) {
+  try { lsSet(EQUIPE_KEY, JSON.stringify(arr || [])); } catch(e) {}
+}
+
+// Liste des prénoms/noms pour alimenter les menus déroulants (datalist) des modules
+function getEquipeNoms() {
+  return getEquipe().map(function(m){
+    return ((m.prenom || '') + ' ' + (m.nom || '')).trim();
+  }).filter(function(n){ return n; });
+}
+
+// Crée/met à jour le <datalist> partagé et le branche sur les champs de signature/responsable
+function syncEquipeDatalist() {
+  try {
+    var dl = document.getElementById('equipeNames');
+    if (!dl) {
+      dl = document.createElement('datalist');
+      dl.id = 'equipeNames';
+      document.body.appendChild(dl);
+    }
+    var noms = getEquipeNoms();
+    dl.innerHTML = noms.map(function(n){ return '<option value="' + _baroEsc(n) + '"></option>'; }).join('');
+    // Brancher la datalist sur tous les champs de signature / responsable
+    var sels = document.querySelectorAll(
+      'input[id$="_sig_prenom"], input[id$="_sig_nom"], input[id="sig_prenom"], input[id="sig_nom"], input[placeholder="Nom & prénom"], input[placeholder="Nom & Prénom"], input[placeholder="Nom du responsable"]'
+    );
+    sels.forEach(function(inp){ try { inp.setAttribute('list', 'equipeNames'); } catch(e){} });
+  } catch(e) {}
+}
+
+function renderEquipe() {
+  var host = document.getElementById('equipeListe');
+  if (!host) return;
+  var membres = getEquipe();
+  if (membres.length === 0) {
+    host.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:26px 12px">' +
+      '<div style="font-size:34px;margin-bottom:8px">👥</div>' +
+      'Aucune personne enregistrée.<br>Ajoutez les membres de votre équipe ci-dessus.</div>';
+  } else {
+    host.innerHTML = membres.map(function(m){
+      var nomComplet = ((m.prenom || '') + ' ' + (m.nom || '')).trim();
+      var initiales = ((m.prenom || ' ')[0] + (m.nom || ' ')[0]).toUpperCase();
+      var avatar = m.photo
+        ? '<img src="' + m.photo + '" alt="" style="width:46px;height:46px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+        : '<div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4338ca);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0">' + _baroEsc(initiales) + '</div>';
+      return '<div style="background:white;border-radius:14px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">' +
+        avatar +
+        '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:#1f2937">' + _baroEsc(nomComplet) + '</div></div>' +
+        '<button onclick="supprimerMembreEquipe(\'' + m.id + '\')" aria-label="Supprimer" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;width:34px;height:34px;font-size:16px;cursor:pointer;flex-shrink:0">🗑️</button>' +
+      '</div>';
+    }).join('');
+  }
+  syncEquipeDatalist();
+  // Compteur
+  var cnt = document.getElementById('equipeCount');
+  if (cnt) cnt.textContent = membres.length;
+}
+
+function previewEquipePhoto(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var apply = function(dataUrl) {
+      _equipePhotoTmp = dataUrl;
+      var prev = document.getElementById('equipePhotoPreview');
+      if (prev) {
+        prev.innerHTML = '<img src="' + dataUrl + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+      }
+    };
+    if (typeof compresserPhoto === 'function') {
+      compresserPhoto(ev.target.result, apply);
+    } else {
+      apply(ev.target.result);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function ajouterMembreEquipe() {
+  var prenomEl = document.getElementById('equipePrenom');
+  var nomEl = document.getElementById('equipeNom');
+  var prenom = prenomEl ? prenomEl.value.trim() : '';
+  var nom = nomEl ? nomEl.value.trim() : '';
+  if (!prenom && !nom) {
+    if (typeof showToast === 'function') showToast('Indiquez au moins un nom ou un prénom', 'warn', 3000);
+    return;
+  }
+  var membres = getEquipe();
+  membres.push({
+    id: 'm' + Date.now() + Math.floor(Math.random() * 1000),
+    prenom: prenom,
+    nom: nom,
+    photo: _equipePhotoTmp || ''
+  });
+  saveEquipe(membres);
+  // Réinitialiser le formulaire
+  if (prenomEl) prenomEl.value = '';
+  if (nomEl) nomEl.value = '';
+  _equipePhotoTmp = '';
+  var prev = document.getElementById('equipePhotoPreview');
+  if (prev) prev.innerHTML = '<span style="font-size:24px">📷</span>';
+  var fileInput = document.getElementById('equipePhotoInput');
+  if (fileInput) fileInput.value = '';
+  renderEquipe();
+  if (typeof showToast === 'function') showToast('Personne ajoutée à l\'équipe', 'ok', 2500);
+}
+
+function supprimerMembreEquipe(id) {
+  var membres = getEquipe().filter(function(m){ return m.id !== id; });
+  saveEquipe(membres);
+  renderEquipe();
 }
 function exportModule(id) {
   // V52 — temperatures/cuisson/refroidissement : impression directe via imprimerModule (sans openModule)
