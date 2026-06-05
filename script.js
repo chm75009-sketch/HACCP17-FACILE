@@ -6979,6 +6979,25 @@ function applyDocsAffSecteur(moduleId) {
 }
 
 function openModule(id) {
+  // ── « Qui réalise ce contrôle ? » ──
+  // Avant la saisie d'un module, proposer la personne qui intervient (si l'équipe
+  // est renseignée). On ne demande qu'une fois par saisie : le choix est mémorisé
+  // jusqu'au retour à la liste des modules, pour ne pas redemander lors d'un
+  // retour de PDF. Les pages utilitaires ne déclenchent pas la question.
+  var _UTIL_SANS_INTERVENANT = { equipe:1, dashboard:1, exports:1, allergenes:1 };
+  if (!_UTIL_SANS_INTERVENANT[id] && !openModule._skipInterv &&
+      INTERVENANT_ACTUEL === null && getEquipe().length > 0) {
+    demanderIntervenant(function(membre) {
+      INTERVENANT_ACTUEL = membre || 'none';   // objet personne, ou 'none' si non précisé
+      openModule._skipInterv = true;
+      try { openModule(id); } finally { openModule._skipInterv = false; }
+    });
+    return;
+  }
+  // Pré-remplir la signature avec la personne choisie (une fois la page affichée)
+  if (!_UTIL_SANS_INTERVENANT[id] && INTERVENANT_ACTUEL && INTERVENANT_ACTUEL !== 'none') {
+    setTimeout(prefillIntervenantSig, 300);
+  }
   if (id === 'audits') {
     auditSig.v=false;
     document.getElementById('audit_timestamp').textContent=getNowStr();
@@ -7599,6 +7618,9 @@ function showPage(id, noReset) {
   if (id === 'page-guide' && typeof renderBarometre === 'function') {
     setTimeout(renderBarometre, 30);
   }
+  // Retour à la liste des modules => on redemandera « qui intervient ? »
+  // au prochain module ouvert (nouvelle saisie).
+  if (id === 'page-guide') { INTERVENANT_ACTUEL = null; }
   // Module Équipe — registre des personnes
   if (id === 'page-equipe' && typeof renderEquipe === 'function') {
     setTimeout(renderEquipe, 30);
@@ -14276,6 +14298,98 @@ function supprimerMembreEquipe(id) {
   var membres = getEquipe().filter(function(m){ return m.id !== id; });
   saveEquipe(membres);
   renderEquipe();
+}
+
+// ════════ « Qui réalise ce contrôle ? » — intervenant avant saisie ════════
+// null = pas encore demandé ; objet personne = choisie ; 'none' = « sans préciser »
+var INTERVENANT_ACTUEL = null;
+var _dernierIntervenantId = null; // mémoire de la dernière personne, pour la proposer en 1er
+
+function _avatarIntervenant(m, size) {
+  size = size || 44;
+  var initiales = ((m.prenom || ' ')[0] + (m.nom || ' ')[0]).toUpperCase();
+  return m.photo
+    ? '<img src="' + m.photo + '" alt="" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+    : '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4338ca);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0">' + _baroEsc(initiales) + '</div>';
+}
+
+// Affiche un sélecteur de personne ; appelle callback(membre) ou callback(null) si « sans préciser ».
+// Si l'utilisateur ferme sans choisir, callback n'est pas appelé (annulation).
+function demanderIntervenant(callback) {
+  var membres = getEquipe();
+  if (!membres.length) { callback(null); return; }
+  // Proposer en premier la dernière personne utilisée
+  membres.sort(function(a, b){
+    if (a.id === _dernierIntervenantId) return -1;
+    if (b.id === _dernierIntervenantId) return 1;
+    return 0;
+  });
+  var old = document.getElementById('intervenantOverlay');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+  var ov = document.createElement('div');
+  ov.id = 'intervenantOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,15,35,.55);display:flex;align-items:flex-end;justify-content:center';
+  var liste = membres.map(function(m){
+    var nomComplet = ((m.prenom||'')+' '+(m.nom||'')).trim();
+    var badge = (m.id === _dernierIntervenantId)
+      ? '<span style="font-size:9px;font-weight:800;color:#4338ca;background:#eef2ff;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px">Dernier</span>'
+      : '<span style="color:#c7d2fe;font-size:20px">›</span>';
+    return '<button data-id="'+m.id+'" class="intervBtn" style="width:100%;box-sizing:border-box;display:flex;align-items:center;gap:12px;background:white;border:1px solid #eef2ff;border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:inherit;text-align:left">'
+      + _avatarIntervenant(m)
+      + '<span style="flex:1;font-size:15px;font-weight:700;color:#1f2937">'+_baroEsc(nomComplet)+'</span>'
+      + badge
+      + '</button>';
+  }).join('');
+  ov.innerHTML =
+    '<div style="background:#f8f9fc;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:84vh;overflow:auto;box-shadow:0 -8px 30px rgba(0,0,0,.28)">'
+    + '<div style="width:40px;height:4px;background:#d1d5db;border-radius:4px;margin:0 auto 14px"></div>'
+    + '<div style="font-size:17px;font-weight:900;color:#1f2937;margin-bottom:3px;font-family:Outfit,sans-serif">👤 Qui réalise ce contrôle ?</div>'
+    + '<div style="font-size:12px;color:#6b7280;margin-bottom:14px">La personne choisie sera pré-remplie dans la signature du module.</div>'
+    + liste
+    + '<button id="intervSansPreciser" style="width:100%;background:transparent;border:none;color:#9ca3af;font-size:13px;font-weight:700;padding:11px;margin-top:2px;cursor:pointer;font-family:inherit">Continuer sans préciser</button>'
+    + '<button id="intervAjouter" style="width:100%;box-sizing:border-box;background:#eef2ff;border:1px dashed #c7d2fe;color:#4338ca;font-size:13px;font-weight:800;padding:11px;border-radius:12px;margin-top:4px;cursor:pointer;font-family:inherit">＋ Ajouter une personne à l\'équipe</button>'
+    + '</div>';
+  document.body.appendChild(ov);
+  var close = function(){ if (ov && ov.parentNode) ov.parentNode.removeChild(ov); };
+  var choose = function(membre){
+    if (membre) _dernierIntervenantId = membre.id;
+    close();
+    callback(membre || null);
+  };
+  ov.querySelectorAll('.intervBtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var mid = b.getAttribute('data-id');
+      var m = getEquipe().filter(function(x){ return x.id === mid; })[0] || null;
+      choose(m);
+    });
+  });
+  var sp = ov.querySelector('#intervSansPreciser');
+  if (sp) sp.addEventListener('click', function(){ choose(null); });
+  var aj = ov.querySelector('#intervAjouter');
+  if (aj) aj.addEventListener('click', function(){
+    close(); // on n'ouvre pas le module : on va d'abord ajouter la personne
+    showPage('page-equipe');
+    setTimeout(renderEquipe, 40);
+  });
+  // Clic sur le fond = annulation (ne pas ouvrir le module)
+  ov.addEventListener('click', function(e){ if (e.target === ov) close(); });
+}
+
+// Pré-remplit la signature du module affiché avec l'intervenant choisi
+function prefillIntervenantSig() {
+  if (!INTERVENANT_ACTUEL || INTERVENANT_ACTUEL === 'none') return;
+  var page = document.querySelector('.page.active');
+  if (!page) return;
+  var prenom = INTERVENANT_ACTUEL.prenom || '';
+  var nom = INTERVENANT_ACTUEL.nom || '';
+  var complet = (prenom + ' ' + nom).trim();
+  var p = page.querySelector('input[id$="_sig_prenom"]');
+  var n = page.querySelector('input[id$="_sig_nom"]');
+  if (p) { p.value = prenom; }
+  if (n) { n.value = nom; }
+  // Champs génériques « Nom & prénom » / responsable (seulement s'ils sont vides)
+  var combos = page.querySelectorAll('input[placeholder="Nom & prénom"], input[placeholder="Nom & Prénom"], input[placeholder="Nom du responsable"]');
+  combos.forEach(function(inp){ if (!inp.value) inp.value = complet; });
 }
 function exportModule(id) {
   // V52 — temperatures/cuisson/refroidissement : impression directe via imprimerModule (sans openModule)
