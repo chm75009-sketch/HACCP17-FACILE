@@ -1,10 +1,11 @@
 /* HACCP Pro — Service Worker (PWA)
- * Stratégie : "network-first" pour les fichiers de l'appli (afin d'avoir
- * toujours la dernière version quand on est en ligne), avec repli sur le
- * cache quand on est hors-ligne (utile sur le terrain sans réseau).
- * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptés.
+ * cache-first + revalidation en arriere-plan (stale-while-revalidate) :
+ * l'app se charge INSTANTANEMENT depuis le cache (meme apres une mise en veille
+ * ou en zone de mauvais reseau), puis se met a jour discretement pour la fois
+ * suivante. Fini l'ecran « hors ligne » fige au reveil pendant un audit.
+ * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptes.
  */
-const CACHE = 'haccp-pro-v14';
+const CACHE = 'haccp-pro-v15';
 const CORE = [
   './',
   './index.html',
@@ -28,7 +29,9 @@ const CORE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((cache) =>
+      Promise.allSettled(CORE.map((u) => cache.add(u)))
+    ).then(() => self.skipWaiting())
   );
 });
 
@@ -40,29 +43,50 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Met a jour le cache en arriere-plan (ne bloque jamais la reponse).
+// Timeout reseau pour ne jamais laisser une requete tirer en longueur.
+function revalidate(req) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);
+  return fetch(req, { signal: ctrl.signal }).then((res) => {
+    clearTimeout(t);
+    if (res && (res.ok || res.type === 'opaque')) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+    }
+    return res;
+  }).catch(() => {
+    clearTimeout(t);
+    return null;
+  });
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   // Ne gérer que les GET de notre propre origine ; laisser passer les CDN.
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
-  // Navigation (ouverture de page) -> réseau d'abord, repli index.html hors-ligne.
+  // Navigation (ouverture / rechargement de page, retour de veille) :
+  // on sert IMMEDIATEMENT la page en cache si elle existe, puis on revalide
+  // en arriere-plan. Sinon on tente le reseau, avec repli sur index.html.
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put('./index.html', copy));
-        return res;
-      }).catch(() => caches.match('./index.html'))
+      caches.match(req).then((cached) => {
+        if (cached) {
+          revalidate(req); // mise a jour silencieuse pour la prochaine fois
+          return cached;
+        }
+        return revalidate(req).then((res) => res || caches.match('./index.html'));
+      })
     );
     return;
   }
 
-  // Autres ressources locales -> réseau d'abord, repli cache.
+  // Autres ressources same-origin : cache d'abord, revalidation en arriere-plan.
   event.respondWith(
-    fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy));
-      return res;
-    }).catch(() => caches.match(req))
+    caches.match(req).then((cached) => {
+      const network = revalidate(req);
+      return cached || network.then((res) => res || cached);
+    })
   );
 });
