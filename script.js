@@ -8421,6 +8421,8 @@ function ajouterEnceinteDynamique() {
   div.innerHTML = buildEnceinteBlock(id, nom, '', null);
   container.appendChild(div.firstElementChild);
   initEnceinteSelect(id);
+  // Ajouter le micro de dictée sur la nouvelle enceinte (saisie vocale).
+  if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 60);
   setTimeout(function() {
     var el = document.getElementById('enc_block_' + id);
     if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
