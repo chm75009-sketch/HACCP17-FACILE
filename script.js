@@ -14401,8 +14401,12 @@ function prefillIntervenantSig() {
   var n = page.querySelector('input[id$="_sig_nom"]');
   if (p) { p.value = prenom; }
   if (n) { n.value = nom; }
-  // Champs génériques « Nom & prénom » / responsable (seulement s'ils sont vides)
-  var combos = page.querySelectorAll('input[placeholder="Nom & prénom"], input[placeholder="Nom & Prénom"], input[placeholder="Nom du responsable"]');
+  // Champs intermédiaires « personne qui réalise / responsable » : on les pré-remplit
+  // SEULEMENT s'ils sont vides (non destructif). On cible « Nom & prénom » (et variantes
+  // comme « … de l'auditeur ») et « Nom du responsable ». On NE touche PAS aux champs qui
+  // désignent quelqu'un d'autre (fournisseur, transporteur/chauffeur, responsable HACCP
+  // de l'établissement, titulaire d'un document, inscription…).
+  var combos = page.querySelectorAll('input[placeholder^="Nom & prénom"], input[placeholder^="Nom & Prénom"], input[placeholder="Nom du responsable"]');
   combos.forEach(function(inp){ if (!inp.value) inp.value = complet; });
   // Bandeau visible « Saisie réalisée par … » en haut du module
   afficherBandeauIntervenant(page, complet);
