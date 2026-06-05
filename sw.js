@@ -5,7 +5,7 @@
  * suivante. Fini l'ecran « hors ligne » fige au reveil pendant un audit.
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptes.
  */
-const CACHE = 'haccp-pro-v28';
+const CACHE = 'haccp-pro-v29';
 const CORE = [
   './',
   './index.html',

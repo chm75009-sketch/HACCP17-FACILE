@@ -20141,9 +20141,19 @@ function collectEnceintesConfig() {
 function enregistrerMesEnceintes() {
   var arr = collectEnceintesConfig();
   if (!arr.length) { if (typeof showToast === 'function') showToast('Ajoutez au moins une enceinte avant d\'enregistrer.', 'warn', 3000); return; }
-  saveEnceintesConfig(arr);
+  _saveEncCfgRaw(arr); setEncCfgMaj(Date.now());
   _majMesEnceintesHint();
-  if (typeof showToast === 'function') showToast('✓ Vos ' + arr.length + ' enceinte(s) sont mémorisées — elles reviendront à chaque session, sur tous vos appareils.', 'ok', 4000);
+  if (typeof showToast === 'function') showToast('💾 Enregistrement…', 'info', 1500);
+  // Envoi cloud immédiat + retour visible (succès / cause d'échec).
+  pushEncCfgCloud().then(function (res) {
+    if (typeof showToast !== 'function') return;
+    if (res && res.ok) {
+      showToast('✓ Vos ' + arr.length + ' enceinte(s) sont synchronisées sur tous vos appareils.', 'ok', 4000);
+    } else {
+      var why = (res && (res.body || res.msg)) ? (' — ' + String(res.body || res.msg).slice(0, 110)) : '';
+      showToast('Enregistrées sur cet appareil, mais synchro cloud échouée' + why + '.', 'warn', 7000);
+    }
+  });
 }
 
 function reinitMesEnceintes() {
@@ -20163,8 +20173,8 @@ function scheduleEncCfgPush() {
 
 function pushEncCfgCloud() {
   try {
-    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
-    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return;
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return Promise.resolve({ ok: false, msg: 'Non connecté' });
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return Promise.resolve({ ok: false, msg: 'Cloud indisponible' });
     var arr = getEnceintesConfig();
     var maj = getEncCfgMaj(); if (!maj) { maj = Date.now(); setEncCfgMaj(maj); }
     var payload = {
@@ -20172,13 +20182,16 @@ function pushEncCfgCloud() {
       contenu: { enceintes: arr, maj: maj }, signature: null, photos: [],
       date_controle: new Date().toISOString()
     };
-    fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+    return fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
       method: 'POST',
       headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify(payload)
-    }).then(function (r) { if (!r.ok) console.warn('[Enceintes] envoi cloud ' + r.status); else console.info('[Enceintes] ✓ config synchronisée (' + arr.length + ')'); })
-      .catch(function (e) { console.warn('[Enceintes] envoi err', e && e.message); });
-  } catch (e) { console.warn('[Enceintes] envoi ex', e && e.message); }
+    }).then(function (r) {
+      if (!r.ok) { return r.text().then(function (t) { console.warn('[Enceintes] envoi cloud ' + r.status + ' ' + t); return { ok: false, status: r.status, body: t, msg: 'Erreur ' + r.status }; }); }
+      console.info('[Enceintes] ✓ config synchronisée (' + arr.length + ')');
+      return { ok: true, count: arr.length };
+    }).catch(function (e) { console.warn('[Enceintes] envoi err', e && e.message); return { ok: false, msg: (e && e.message) || 'Erreur réseau' }; });
+  } catch (e) { console.warn('[Enceintes] envoi ex', e && e.message); return Promise.resolve({ ok: false, msg: (e && e.message) || 'Erreur' }); }
 }
 
 function pullEncCfgCloud() {
@@ -20205,6 +20218,7 @@ function pullEncCfgCloud() {
             try { buildEnceintesPreconfigees(); if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 80); } catch (e) {}
           }
           _majMesEnceintesHint();
+          if (typeof showToast === 'function') showToast('✓ Vos ' + contenu.enceintes.length + ' enceinte(s) ont été récupérées.', 'ok', 3000);
           console.info('[Enceintes] ✓ config récupérée du cloud (' + contenu.enceintes.length + ')');
         } else if (localMaj > cloudMaj && getEnceintesConfig().length) { scheduleEncCfgPush(); }
       }).catch(function (e) { console.warn('[Enceintes] récup err', e && e.message); });
