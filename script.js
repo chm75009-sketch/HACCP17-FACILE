@@ -19946,7 +19946,7 @@ function hvStartVoice(input, micBtn) {
   var rec;
   try { rec = new SR(); } catch (e) { return; }
   rec.lang = 'fr-FR';
-  rec.interimResults = false;
+  rec.interimResults = true; // remplissage « en direct » → ressenti plus rapide
   rec.maxAlternatives = 3;
   try { rec.continuous = false; } catch (e) {}
   _hvActiveRec = rec; _hvActiveBtn = micBtn;
@@ -19962,15 +19962,24 @@ function hvStartVoice(input, micBtn) {
   };
   // Sécurité : si rien ne se passe en 12 s, on débloque le bouton tout seul.
   watchdog = setTimeout(function () { try { rec.stop(); } catch (e) {} try { rec.abort(); } catch (e) {} cleanup(); }, 12000);
+  var _lastNum = null;
   rec.onresult = function (e) {
-    var said = '';
-    try { for (var i = 0; i < e.results.length; i++) { said += e.results[i][0].transcript; } } catch (er) {}
+    var said = '', isFinal = false;
+    try {
+      for (var i = 0; i < e.results.length; i++) {
+        said += e.results[i][0].transcript;
+        if (e.results[i].isFinal) isFinal = true;
+      }
+    } catch (er) {}
     var n = hvParseNumber(said);
-    if (n !== null) {
-      hvFillInput(input, n);
-      if (typeof showToast === 'function') showToast('🎤 ' + n + ' °C', 'ok', 1500);
-    } else if (typeof showToast === 'function') {
-      showToast('Chiffre non reconnu : « ' + said + ' »', 'warn', 2800);
+    if (n !== null) { hvFillInput(input, n); _lastNum = n; } // écriture immédiate (live)
+    if (isFinal) {
+      if (_lastNum !== null) {
+        if (typeof showToast === 'function') showToast('🎤 ' + _lastNum + ' °C', 'ok', 1200);
+      } else if (typeof showToast === 'function') {
+        showToast('Chiffre non reconnu : « ' + said + ' »', 'warn', 2800);
+      }
+      try { rec.stop(); } catch (_) {} // on arrête dès le résultat final → plus rapide
     }
   };
   rec.onerror = function (ev) {
