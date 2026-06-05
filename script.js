@@ -20109,15 +20109,19 @@ function hvVoiceInit() {
 // Observe tout le document : les champs température créés dynamiquement (à
 // l'ouverture d'un module, ou en ajoutant une enceinte/plat/etc.) reçoivent
 // automatiquement leur micro. Mise en place une seule fois, débouncée.
-var _hvObserver = null;
+var _hvObserver = null, _hvScanPending = false;
 function hvVoiceObserve() {
   if (_hvObserver || typeof MutationObserver === 'undefined') return;
   var root = document.body;
   if (!root) return;
-  var t = null;
   _hvObserver = new MutationObserver(function () {
-    if (t) clearTimeout(t);
-    t = setTimeout(hvVoiceInit, 250);
+    // Anti-rebond NON réinitialisable : on programme un scan ~300 ms après le
+    // DÉBUT d'une rafale de modifications, sans le repousser si elles continuent.
+    // (Sinon un horodatage/horloge qui se rafraîchit en boucle — comme en
+    // Réception — empêcherait le scan de se déclencher, donc pas de micro.)
+    if (_hvScanPending) return;
+    _hvScanPending = true;
+    setTimeout(function () { _hvScanPending = false; hvVoiceInit(); }, 300);
   });
   try { _hvObserver.observe(root, { childList: true, subtree: true }); } catch (e) {}
 }
@@ -20196,7 +20200,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b38';
+  h.textContent = txt + ' · maj b39';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20253,7 +20257,7 @@ function enregistrerMesEnceintes() {
 // et réponse brute du serveur, et surtout une éventuelle REDIRECTION (qui
 // viderait le corps et provoquerait « Empty or invalid json »).
 function diagSyncEnceintes(saveRes) {
-  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b38)', ''];
+  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b39)', ''];
   var etab = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : '(non connecté)';
   L.push('Compte : ' + etab);
   if (saveRes) L.push('Échec enregistrement : ' + (saveRes.status || '?') + ' ' + String(saveRes.body || saveRes.msg || '').slice(0, 120));
