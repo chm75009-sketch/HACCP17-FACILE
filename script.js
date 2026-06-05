@@ -19916,7 +19916,20 @@ function hvStartVoice(input, micBtn) {
     }
   };
   rec.onerror = function (ev) {
-    if (typeof showToast === 'function') showToast('Micro indisponible (' + (ev && ev.error || '') + ')', 'warn', 2500);
+    var err = (ev && ev.error) || '';
+    var msg;
+    if (err === 'not-allowed' || err === 'service-not-allowed') {
+      msg = '🎤 Micro bloqué : autorisez le microphone pour ce site (icône 🔒 / 🎤 dans la barre d\'adresse), puis réessayez.';
+    } else if (err === 'network') {
+      msg = '🎤 Reconnaissance en ligne injoignable. Sur PC : cliquez dans la case puis faites « touche Windows + H » pour dicter. (Sinon : Google Chrome + Internet.)';
+    } else if (err === 'no-speech') {
+      msg = '🎤 Rien entendu — réessayez en parlant près du micro.';
+    } else if (err === 'audio-capture') {
+      msg = '🎤 Aucun micro détecté sur cet appareil.';
+    } else {
+      msg = 'Micro indisponible (' + err + ').';
+    }
+    if (typeof showToast === 'function') showToast(msg, 'warn', 6000);
   };
   rec.onend = function () { micBtn.textContent = prevTxt; micBtn.style.background = '#eef2ff'; };
   try { rec.start(); } catch (e) { micBtn.textContent = prevTxt; micBtn.style.background = '#eef2ff'; }
