@@ -20117,7 +20117,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b32';
+  h.textContent = txt + ' · maj b33';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20179,26 +20179,54 @@ function scheduleEncCfgPush() {
   _pushEncCfgTimer = setTimeout(function () { _pushEncCfgTimer = null; pushEncCfgCloud(); }, 800);
 }
 
+// Envoi cloud : on maintient UNE SEULE ligne « canonique » par établissement
+// (repérée par l'id serveur, le plus grand). On la met à jour sur place (PATCH)
+// au lieu d'empiler une nouvelle ligne à chaque enregistrement. Deux bénéfices :
+//   • plus de saturation de la table (un seul enregistrement par client) ;
+//   • la récupération lit toujours cette même ligne via id.desc, sans jamais
+//     comparer les horloges des appareils (cause des échecs PC -> iPhone).
 function pushEncCfgCloud() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return Promise.resolve({ ok: false, msg: 'Non connecté' });
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return Promise.resolve({ ok: false, msg: 'Cloud indisponible' });
     var arr = getEnceintesConfig();
     var maj = getEncCfgMaj(); if (!maj) { maj = Date.now(); setEncCfgMaj(maj); }
-    var payload = {
-      code_client: String(ETAB_ID), module: ENCEINTES_CFG_MODULE,
-      contenu: { enceintes: arr, maj: maj }, signature: null, photos: [],
-      date_controle: new Date().toISOString()
-    };
-    return fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
-      method: 'POST',
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify(payload)
-    }).then(function (r) {
-      if (!r.ok) { return r.text().then(function (t) { console.warn('[Enceintes] envoi cloud ' + r.status + ' ' + t); return { ok: false, status: r.status, body: t, msg: 'Erreur ' + r.status }; }); }
-      console.info('[Enceintes] ✓ config synchronisée (' + arr.length + ')');
-      return { ok: true, count: arr.length };
-    }).catch(function (e) { console.warn('[Enceintes] envoi err', e && e.message); return { ok: false, msg: (e && e.message) || 'Erreur réseau' }; });
+    var base = SUPABASE_URL + '/rest/v1/controles_haccp';
+    var hAuth = { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON };
+    var hWrite = { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
+    var hDel = { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Prefer': 'return=minimal' };
+    var contenu = { enceintes: arr, maj: maj };
+    var corps = { contenu: contenu, date_controle: new Date().toISOString() };
+    var qFiltre = '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+                + '&module=eq.' + encodeURIComponent(ENCEINTES_CFG_MODULE);
+    // 1) Récupère les lignes existantes (id décroissant = ordre d'insertion serveur).
+    return fetch(base + qFiltre + '&select=id&order=id.desc', { method: 'GET', cache: 'no-store', headers: hAuth })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        if (Array.isArray(rows) && rows.length) {
+          var canonId = rows[0].id;
+          // Nettoyage best-effort des doublons hérités (ne bloque pas la synchro si refusé par RLS).
+          if (rows.length > 1) {
+            var extras = rows.slice(1).map(function (x) { return encodeURIComponent(x.id); });
+            try { fetch(base + '?id=in.(' + extras.join(',') + ')', { method: 'DELETE', headers: hDel }).catch(function () {}); } catch (e) {}
+          }
+          // Met à jour la ligne canonique sur place.
+          return fetch(base + '?id=eq.' + encodeURIComponent(canonId), {
+            method: 'PATCH', headers: hWrite, body: JSON.stringify(corps)
+          }).then(function (r) {
+            if (!r.ok) { return r.text().then(function (t) { console.warn('[Enceintes] maj cloud ' + r.status + ' ' + t); return { ok: false, status: r.status, body: t, msg: 'Erreur ' + r.status }; }); }
+            console.info('[Enceintes] ✓ config mise à jour (' + arr.length + ')');
+            return { ok: true, count: arr.length };
+          });
+        }
+        // Aucune ligne : on crée la ligne canonique.
+        var payload = { code_client: String(ETAB_ID), module: ENCEINTES_CFG_MODULE, contenu: contenu, signature: null, photos: [], date_controle: corps.date_controle };
+        return fetch(base, { method: 'POST', headers: hWrite, body: JSON.stringify(payload) }).then(function (r) {
+          if (!r.ok) { return r.text().then(function (t) { console.warn('[Enceintes] envoi cloud ' + r.status + ' ' + t); return { ok: false, status: r.status, body: t, msg: 'Erreur ' + r.status }; }); }
+          console.info('[Enceintes] ✓ config créée (' + arr.length + ')');
+          return { ok: true, count: arr.length };
+        });
+      }).catch(function (e) { console.warn('[Enceintes] envoi err', e && e.message); return { ok: false, msg: (e && e.message) || 'Erreur réseau' }; });
   } catch (e) { console.warn('[Enceintes] envoi ex', e && e.message); return Promise.resolve({ ok: false, msg: (e && e.message) || 'Erreur' }); }
 }
 
@@ -20209,7 +20237,7 @@ function pullEncCfgCloud() {
     var url = SUPABASE_URL + '/rest/v1/controles_haccp'
       + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
       + '&module=eq.' + encodeURIComponent(ENCEINTES_CFG_MODULE)
-      + '&select=contenu,date_controle&order=date_controle.desc&limit=1';
+      + '&select=contenu,date_controle,id&order=id.desc&limit=1';
     fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (rows) {
@@ -20227,7 +20255,7 @@ function pullEncCfgCloud() {
         // Détection de changement SANS horloge : on retient la signature de la
         // dernière version cloud qu'on a déjà vue. Si la version actuelle est
         // différente de cette signature, c'est une nouveauté -> on l'adopte.
-        var sig = String(rows[0].date_controle || '') + '#' + JSON.stringify(cloudArr);
+        var sig = String(rows[0].id || '') + '#' + JSON.stringify(cloudArr);
         var lastSig = ''; try { lastSig = lsGet(ENCEINTES_CFG_CLOUD_SIG_KEY) || ''; } catch (e) {}
         var cloudJson = JSON.stringify(cloudArr);
         var sameAsLocal = (cloudJson === JSON.stringify(localArr));
