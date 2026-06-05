@@ -7621,10 +7621,12 @@ function showPage(id, noReset) {
   if (typeof marquerChampsFacultatifsAuto === 'function') {
     setTimeout(marquerChampsFacultatifsAuto, 100);
   }
-  // Saisie vocale des relevés de température (PC/Android en direct, iPhone via micro clavier)
+  // Saisie vocale des températures (PC/Android en direct, iPhone via micro clavier).
+  // Généralisée à TOUS les modules et secteurs : on (re)branche les micros à chaque
+  // ouverture de page, et un observateur global capte les champs créés ensuite.
+  if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 250);
+  if (typeof hvVoiceObserve === 'function') setTimeout(hvVoiceObserve, 300);
   if (id === 'page-temperatures') {
-    if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 250);
-    if (typeof hvVoiceObserve === 'function') setTimeout(hvVoiceObserve, 300);
     // « Mes enceintes » : récupérer la config du client depuis le cloud (multi-appareils)
     if (typeof pullEncCfgCloud === 'function') setTimeout(pullEncCfgCloud, 200);
     if (typeof _majMesEnceintesHint === 'function') setTimeout(_majMesEnceintesHint, 260);
@@ -20063,27 +20065,61 @@ function hvAttachMic(input) {
 }
 
 // Ajoute le micro à tous les champs de température de la page Températures.
-function hvVoiceInit() {
-  var page = document.getElementById('page-temperatures');
-  if (!page) return;
-  var sel = '.tinput-wrap input[type="number"], input[type="number"][id^="temp_"], input[type="number"][id^="enc_temp_"], input[type="number"][id^="tcat_temp_"], input[type="number"][id^="plat_temp_"]';
-  var inputs;
-  try { inputs = page.querySelectorAll(sel); } catch (e) { inputs = page.querySelectorAll('input[type="number"]'); }
-  for (var i = 0; i < inputs.length; i++) { hvAttachMic(inputs[i]); }
+// Identifiants connus de champs de température (tous modules / secteurs).
+var _HV_TEMP_ID = /^(temp_|enc_temp_|tcat_temp_|plat_temp_|remise_t0_|remise_tf_|refroi_t0_|refroi_t2_|fr_temp_|comp_tbord_|comp_tsonde_|pt_temp_|lt_tprod_|lt_tdist_)/;
+
+// Détermine si un champ <input type="number"> est une saisie de TEMPÉRATURE.
+// Robuste et indépendant du module : reconnaît un id connu, OU l'unité « °C »
+// affichée à côté, OU un libellé « T° / température / degré ». Exclut de fait les
+// quantités, pourcentages, n° de réf, durées (pas d'unité °C ni de libellé T°).
+function hvIsTempInput(input) {
+  if (!input) return false;
+  var type = (input.getAttribute && input.getAttribute('type')) || input.type;
+  if (type !== 'number') return false;
+  if (input.getAttribute && input.getAttribute('data-hv-skip') === '1') return false; // exclusion manuelle éventuelle
+  var id = input.id || '';
+  if (_HV_TEMP_ID.test(id)) return true;
+  // Si une unité est affichée à côté du champ, c'est elle qui tranche :
+  // « °C » = température ; toute autre unité (%, g, €, min…) = NON température.
+  var wrap = input.closest ? input.closest('.tinput-wrap') : null;
+  if (wrap) {
+    var u = wrap.querySelector('.tunit');
+    if (u && (u.textContent || '').trim()) return /°\s*c/i.test(u.textContent);
+  }
+  // Pas d'unité explicite : on se fie au libellé direct du champ.
+  var frow = input.closest ? input.closest('.frow, label') : null;
+  if (frow) {
+    var lbl = frow.querySelector ? frow.querySelector('.flabel') : null;
+    var txt = (lbl ? lbl.textContent : frow.textContent) || '';
+    if (/°\s*c|(^|[^a-z])t°|temp[ée]rature|degr[ée]/i.test(txt)) return true;
+  }
+  return false;
 }
 
-// Réagit aux enceintes ajoutées dynamiquement (une seule fois).
+// Branche le micro 🎤 sur TOUS les champs de température présents dans le
+// document (tous modules, tous secteurs), de façon idempotente.
+function hvVoiceInit() {
+  var inputs;
+  try { inputs = document.querySelectorAll('input[type="number"]'); } catch (e) { return; }
+  for (var i = 0; i < inputs.length; i++) {
+    try { if (hvIsTempInput(inputs[i])) hvAttachMic(inputs[i]); } catch (e) {}
+  }
+}
+
+// Observe tout le document : les champs température créés dynamiquement (à
+// l'ouverture d'un module, ou en ajoutant une enceinte/plat/etc.) reçoivent
+// automatiquement leur micro. Mise en place une seule fois, débouncée.
 var _hvObserver = null;
 function hvVoiceObserve() {
-  if (_hvObserver) return;
-  var page = document.getElementById('page-temperatures');
-  if (!page || typeof MutationObserver === 'undefined') return;
+  if (_hvObserver || typeof MutationObserver === 'undefined') return;
+  var root = document.body;
+  if (!root) return;
   var t = null;
   _hvObserver = new MutationObserver(function () {
     if (t) clearTimeout(t);
-    t = setTimeout(hvVoiceInit, 200);
+    t = setTimeout(hvVoiceInit, 250);
   });
-  try { _hvObserver.observe(page, { childList: true, subtree: true }); } catch (e) {}
+  try { _hvObserver.observe(root, { childList: true, subtree: true }); } catch (e) {}
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -20160,7 +20196,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b37';
+  h.textContent = txt + ' · maj b38';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20217,7 +20253,7 @@ function enregistrerMesEnceintes() {
 // et réponse brute du serveur, et surtout une éventuelle REDIRECTION (qui
 // viderait le corps et provoquerait « Empty or invalid json »).
 function diagSyncEnceintes(saveRes) {
-  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b37)', ''];
+  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b38)', ''];
   var etab = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : '(non connecté)';
   L.push('Compte : ' + etab);
   if (saveRes) L.push('Échec enregistrement : ' + (saveRes.status || '?') + ' ' + String(saveRes.body || saveRes.msg || '').slice(0, 120));
