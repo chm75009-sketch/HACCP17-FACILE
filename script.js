@@ -19867,18 +19867,55 @@ function hvVoiceSupported() {
   return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
 }
 
-// Convertit ce qui est dit en nombre : « moins 18 », « 4 degrés », « 6 virgule 5 ».
+// Mots-nombres français → valeur (gère « quatre-vingt-dix », « soixante-dix », etc.)
+var _HV_NUM = {
+  'zero': 0, 'zéro': 0, 'un': 1, 'une': 1, 'deux': 2, 'trois': 3, 'quatre': 4,
+  'cinq': 5, 'six': 6, 'sept': 7, 'huit': 8, 'neuf': 9, 'dix': 10, 'onze': 11,
+  'douze': 12, 'treize': 13, 'quatorze': 14, 'quinze': 15, 'seize': 16,
+  'vingt': 20, 'vingts': 20, 'trente': 30, 'quarante': 40, 'cinquante': 50,
+  'soixante': 60, 'cent': 100, 'cents': 100
+};
+function _hvWordsToNumber(str) {
+  if (!str) return null;
+  var tokens = str.replace(/-/g, ' ').replace(/\bet\b/g, ' ').split(/\s+/);
+  var total = 0, current = 0, any = false;
+  for (var i = 0; i < tokens.length; i++) {
+    var w = tokens[i];
+    if (!(w in _HV_NUM)) continue;
+    any = true;
+    var v = _HV_NUM[w];
+    if (v === 100) { current = (current === 0 ? 1 : current) * 100; total += current; current = 0; }
+    else if (v === 20 && i > 0 && tokens[i - 1] === 'quatre') { current = current - 4 + 80; } // quatre-vingt(s)
+    else { current += v; }
+  }
+  return any ? (total + current) : null;
+}
+
+// Convertit ce qui est dit en nombre : chiffres (« -18 », « 6,5 ») OU lettres
+// (« sept », « moins dix-huit », « trois virgule cinq »).
 function hvParseNumber(text) {
   if (text == null) return null;
   var t = ('' + text).toLowerCase().trim();
-  var neg = /(^|\s)(moins|negatif|négatif|moin)\b/.test(t) || /^\s*-/.test(t);
-  t = t.replace(/virgule/g, '.').replace(/,/g, '.');
-  var m = t.match(/-?\d+(\.\d+)?/);
-  if (!m) return null;
-  var n = parseFloat(m[0]);
-  if (isNaN(n)) return null;
-  if (neg && n > 0) n = -n;
-  return n;
+  t = t.replace(/°/g, ' ').replace(/degr[ée]s?/g, ' ');
+  var neg = /(^|\s)(moins|negatif|négatif|moin)(\s|$)/.test(t) || /[-−]\s*\d/.test(t);
+  // 1) Forme chiffrée (« 18 », « -4 », « 3,5 »)
+  var tnum = t.replace(/\s*(virgule|point|,)\s*/g, '.');
+  var m = tnum.match(/\d+(\.\d+)?/);
+  if (m) {
+    var n = parseFloat(m[0]);
+    if (!isNaN(n)) { if (neg && n > 0) n = -n; return n; }
+  }
+  // 2) Forme en toutes lettres
+  var parts = t.split(/\s*(?:virgule|point|,)\s*/);
+  var intPart = _hvWordsToNumber(parts[0]);
+  if (intPart === null) return null;
+  var val = intPart;
+  if (parts.length > 1) {
+    var dec = _hvWordsToNumber(parts[1]);
+    if (dec !== null && dec >= 0) { val = parseFloat(intPart + '.' + dec); }
+  }
+  if (neg && val > 0) val = -val;
+  return val;
 }
 
 function hvFillInput(input, value) {
