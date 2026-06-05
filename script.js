@@ -910,14 +910,15 @@ function lsSet(key, value) {
   } catch(e) {
     // Quota dépassé — nettoyer SANS récursion
     try {
-      // Vider tous les brouillons anciens
+      // Vider les brouillons + snapshots locaux détaillés (les données validées
+      // restent sauvegardées côté serveur / PDF — ces caches locaux sont non essentiels).
       var toDelete = [];
       for (var i = 0; i < localStorage.length; i++) {
         var k = localStorage.key(i);
-        if (k && k.indexOf('haccp_brouillon_') === 0) toDelete.push(k);
+        if (k && (k.indexOf('haccp_brouillon_') === 0 || k.indexOf('haccp_module_data_') === 0)) toDelete.push(k);
       }
       toDelete.forEach(function(k){ try { localStorage.removeItem(k); } catch(x){} });
-      // Vider l'historique
+      // Vider l'historique (cache local du baromètre)
       try { localStorage.removeItem('haccp_historique'); } catch(x){}
       // Réessayer avec localStorage.setItem direct (pas de récursion)
       try {
@@ -14206,22 +14207,31 @@ function getEquipeNoms() {
   }).filter(function(n){ return n; });
 }
 
-// Crée/met à jour le <datalist> partagé et le branche sur les champs de signature/responsable
+// Crée/met à jour les <datalist> et les branche sur les bons champs :
+//  • champ « Prénom » → liste de prénoms,  • champ « Nom » → liste de noms,
+//  • champs « Nom & prénom » / responsable → liste de noms complets.
+// Évite que choisir un nom complet remplisse une seule case sans séparer prénom/nom.
+function _setDatalist(id, valeurs) {
+  var dl = document.getElementById(id);
+  if (!dl) { dl = document.createElement('datalist'); dl.id = id; document.body.appendChild(dl); }
+  // dédoublonnage
+  var vus = {}, out = [];
+  valeurs.forEach(function(v){ v = (v||'').trim(); if (v && !vus[v]) { vus[v] = 1; out.push(v); } });
+  dl.innerHTML = out.map(function(v){ return '<option value="' + _baroEsc(v) + '"></option>'; }).join('');
+}
 function syncEquipeDatalist() {
   try {
-    var dl = document.getElementById('equipeNames');
-    if (!dl) {
-      dl = document.createElement('datalist');
-      dl.id = 'equipeNames';
-      document.body.appendChild(dl);
-    }
-    var noms = getEquipeNoms();
-    dl.innerHTML = noms.map(function(n){ return '<option value="' + _baroEsc(n) + '"></option>'; }).join('');
-    // Brancher la datalist sur tous les champs de signature / responsable
-    var sels = document.querySelectorAll(
-      'input[id$="_sig_prenom"], input[id$="_sig_nom"], input[id="sig_prenom"], input[id="sig_nom"], input[placeholder="Nom & prénom"], input[placeholder="Nom & Prénom"], input[placeholder="Nom du responsable"]'
-    );
-    sels.forEach(function(inp){ try { inp.setAttribute('list', 'equipeNames'); } catch(e){} });
+    var equipe = getEquipe();
+    _setDatalist('equipeNames',  equipe.map(function(m){ return ((m.prenom||'')+' '+(m.nom||'')).trim(); }));
+    _setDatalist('equipePrenoms', equipe.map(function(m){ return m.prenom || ''; }));
+    _setDatalist('equipeNomsList', equipe.map(function(m){ return m.nom || ''; }));
+    // Champs « Prénom » (sig_prenom / xxx_sig_prenom) → prénoms
+    document.querySelectorAll('input[id$="sig_prenom"]').forEach(function(inp){ try { inp.setAttribute('list','equipePrenoms'); } catch(e){} });
+    // Champs « Nom » (sig_nom / xxx_sig_nom) → noms
+    document.querySelectorAll('input[id$="sig_nom"]').forEach(function(inp){ try { inp.setAttribute('list','equipeNomsList'); } catch(e){} });
+    // Champs « Nom & prénom » / « Nom du responsable » → noms complets
+    document.querySelectorAll('input[placeholder^="Nom & prénom"], input[placeholder^="Nom & Prénom"], input[placeholder="Nom du responsable"]')
+      .forEach(function(inp){ try { inp.setAttribute('list','equipeNames'); } catch(e){} });
   } catch(e) {}
 }
 
@@ -14384,9 +14394,15 @@ function demanderIntervenant(callback) {
   ov.addEventListener('click', function(e){ if (e.target === ov) close(); });
 }
 
-// Pré-remplit la signature du module affiché avec l'intervenant choisi
+// Pré-remplit la signature + champs « responsable » du module affiché avec l'intervenant choisi
 function prefillIntervenantSig() {
-  var page = document.querySelector('.page.active');
+  ensureIntervObserver();
+  remplirChampsIntervenant(document.querySelector('.page.active'));
+}
+
+// Remplit (sans écraser) les champs liés à l'intervenant dans la page donnée :
+// signature (prénom/nom) + champs intermédiaires « Nom & prénom » / « Nom du responsable ».
+function remplirChampsIntervenant(page) {
   if (!page) return;
   // Pas d'intervenant valide : retirer un éventuel bandeau résiduel et sortir
   if (!INTERVENANT_ACTUEL || INTERVENANT_ACTUEL === 'none') {
@@ -14397,19 +14413,37 @@ function prefillIntervenantSig() {
   var prenom = INTERVENANT_ACTUEL.prenom || '';
   var nom = INTERVENANT_ACTUEL.nom || '';
   var complet = (prenom + ' ' + nom).trim();
-  var p = page.querySelector('input[id$="_sig_prenom"]');
-  var n = page.querySelector('input[id$="_sig_nom"]');
-  if (p) { p.value = prenom; }
-  if (n) { n.value = nom; }
-  // Champs intermédiaires « personne qui réalise / responsable » : on les pré-remplit
-  // SEULEMENT s'ils sont vides (non destructif). On cible « Nom & prénom » (et variantes
-  // comme « … de l'auditeur ») et « Nom du responsable ». On NE touche PAS aux champs qui
-  // désignent quelqu'un d'autre (fournisseur, transporteur/chauffeur, responsable HACCP
-  // de l'établissement, titulaire d'un document, inscription…).
-  var combos = page.querySelectorAll('input[placeholder^="Nom & prénom"], input[placeholder^="Nom & Prénom"], input[placeholder="Nom du responsable"]');
-  combos.forEach(function(inp){ if (!inp.value) inp.value = complet; });
+  // Signature — couvre « sig_prenom » (réception) ET « xxx_sig_prenom » (autres modules)
+  page.querySelectorAll('input[id$="sig_prenom"]').forEach(function(inp){ if (!inp.value) inp.value = prenom; });
+  page.querySelectorAll('input[id$="sig_nom"]').forEach(function(inp){ if (!inp.value) inp.value = nom; });
+  // Champs intermédiaires « personne qui réalise / responsable » (non destructif).
+  // On cible « Nom & prénom » (et « … de l'auditeur ») et « Nom du responsable ». On NE
+  // touche PAS aux champs désignant quelqu'un d'autre (fournisseur, transporteur/chauffeur,
+  // responsable HACCP de l'établissement, titulaire d'un document, inscription…).
+  page.querySelectorAll('input[placeholder^="Nom & prénom"], input[placeholder^="Nom & Prénom"], input[placeholder="Nom du responsable"]')
+    .forEach(function(inp){ if (!inp.value) inp.value = complet; });
   // Bandeau visible « Saisie réalisée par … » en haut du module
   afficherBandeauIntervenant(page, complet);
+}
+
+// Observe l'apparition de nouveaux champs (ex. bloc « action corrective » créé après coup)
+// et les pré-remplit avec l'intervenant. Démarré à la 1re ouverture d'un module concerné.
+var _intervObs = null, _intervObsPending = false;
+function ensureIntervObserver() {
+  if (_intervObs || typeof MutationObserver === 'undefined' || !document.body) return;
+  _intervObs = new MutationObserver(function(muts){
+    if (!INTERVENANT_ACTUEL || INTERVENANT_ACTUEL === 'none' || _intervObsPending) return;
+    var ajout = false;
+    for (var i = 0; i < muts.length; i++) { if (muts[i].addedNodes && muts[i].addedNodes.length) { ajout = true; break; } }
+    if (!ajout) return;
+    _intervObsPending = true;
+    requestAnimationFrame(function(){
+      _intervObsPending = false;
+      remplirChampsIntervenant(document.querySelector('.page.active'));
+      if (typeof syncEquipeDatalist === 'function') syncEquipeDatalist();
+    });
+  });
+  _intervObs.observe(document.body, { childList: true, subtree: true });
 }
 
 // Affiche (ou met à jour) un bandeau indiquant qui réalise la saisie, juste sous l'en-tête du module
@@ -16354,17 +16388,20 @@ function nuisAddDoc(type) {
     files.forEach(function(file) {
       var reader = new FileReader();
       reader.onload = function(e) {
-        docs.push({ name: file.name, data: e.target.result });
-        // V116 — Range aussi dans la boîte d'attente (cloud)
-        apresLaCapturePhoto(e.target.result, type, 'nuisibles_' + type);
-        loaded++;
-        if (loaded === total) {
-          nuisSaveDocs(type, docs);
-          nuisRenderDocs(type);
-          showToast(total === 1 ? 'Document ajouté' : total + ' documents ajoutés', 'ok', 2000);
-          // V116 — Nettoyage
-          try { document.body.removeChild(input); } catch(_){}
-        }
+        // Compresser les images avant stockage (évite la saturation du localStorage)
+        _compresserSiImage(e.target.result, function(dataURL) {
+          docs.push({ name: file.name, data: dataURL });
+          // V116 — Range aussi dans la boîte d'attente (cloud)
+          apresLaCapturePhoto(dataURL, type, 'nuisibles_' + type);
+          loaded++;
+          if (loaded === total) {
+            nuisSaveDocs(type, docs);
+            nuisRenderDocs(type);
+            showToast(total === 1 ? 'Document ajouté' : total + ' documents ajoutés', 'ok', 2000);
+            // V116 — Nettoyage
+            try { document.body.removeChild(input); } catch(_){}
+          }
+        });
       };
       reader.onerror = function() {
         loaded++;
@@ -16662,25 +16699,36 @@ function amAjouterEchantillon() {
   if (ncBtn) (function(b){ b.addEventListener('click', function(){ selHyg(b,'bad'); }); })(ncBtn);
 }
 
+// Compresse une image base64 si possible (économie de stockage), sinon renvoie l'original (PDF…)
+function _compresserSiImage(dataURL, cb) {
+  if (typeof dataURL === 'string' && dataURL.indexOf('data:image') === 0 && typeof compresserPhoto === 'function') {
+    try { compresserPhoto(dataURL, cb); return; } catch(e) {}
+  }
+  cb(dataURL);
+}
+
 function amSaveDoc(input) {
   if (!input.files || !input.files[0]) return;
   var file = input.files[0];
   var reader = new FileReader();
   reader.onload = function(e) {
-    try {
-      lsSet('haccp_am_doc_rapport', e.target.result);
-      var preview = document.getElementById('am_doc_preview');
-      if (preview) {
-        if (e.target.result.startsWith('data:image')) {
-          preview.innerHTML = '<img src="' + e.target.result + '" alt="' + (file.name||'Document rapport') + '" style="max-width:100%;max-height:100px;border-radius:6px;margin-top:4px"/>';
-        } else {
-          preview.innerHTML = '<div style="background:#f3f4f6;border-radius:6px;padding:8px;font-size:12px;margin-top:4px">📄 ' + file.name + '</div>';
+    // Compresser les images avant stockage (évite la saturation du localStorage iPhone ~5 Mo)
+    _compresserSiImage(e.target.result, function(dataURL) {
+      try {
+        lsSet('haccp_am_doc_rapport', dataURL);
+        var preview = document.getElementById('am_doc_preview');
+        if (preview) {
+          if (dataURL.startsWith('data:image')) {
+            preview.innerHTML = '<img src="' + dataURL + '" alt="' + (file.name||'Document rapport') + '" style="max-width:100%;max-height:100px;border-radius:6px;margin-top:4px"/>';
+          } else {
+            preview.innerHTML = '<div style="background:#f3f4f6;border-radius:6px;padding:8px;font-size:12px;margin-top:4px">📄 ' + file.name + '</div>';
+          }
         }
-      }
-      // V116 — Range aussi dans la boîte d'attente (cloud)
-      apresLaCapturePhoto(e.target.result, 'rapport', 'analyses_micro_rapport');
-      showToast('Document enregistré', 'ok', 2000);
-    } catch(err) { showToast('Erreur stockage', 'err', 2000); }
+        // V116 — Range aussi dans la boîte d'attente (cloud)
+        apresLaCapturePhoto(dataURL, 'rapport', 'analyses_micro_rapport');
+        showToast('Document enregistré', 'ok', 2000);
+      } catch(err) { showToast('Erreur stockage', 'err', 2000); }
+    });
   };
   reader.readAsDataURL(file);
 }
