@@ -20094,6 +20094,10 @@ function hvVoiceObserve() {
 // ══════════════════════════════════════════════════════════════════
 var ENCEINTES_CFG_KEY = 'haccp_enceintes_config';
 var ENCEINTES_CFG_MAJ_KEY = 'haccp_enceintes_config_maj';
+// Signature de la dernière version cloud DÉJÀ VUE par cet appareil.
+// Sert à détecter une nouveauté côté cloud sans comparer les horloges des
+// appareils (qui peuvent être désynchronisées et bloquaient PC -> iPhone).
+var ENCEINTES_CFG_CLOUD_SIG_KEY = 'haccp_enceintes_config_cloudsig';
 var ENCEINTES_CFG_MODULE = '__enceintes_config__';
 var _pushEncCfgTimer = null;
 
@@ -20109,9 +20113,11 @@ function saveEnceintesConfig(a) { _saveEncCfgRaw(a); setEncCfgMaj(Date.now()); s
 function _majMesEnceintesHint() {
   var h = document.getElementById('mesEnceintesHint'); if (!h) return;
   var n = getEnceintesConfig().length;
-  h.textContent = n
+  var txt = n
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
+  // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
+  h.textContent = txt + ' · maj b32';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20207,22 +20213,43 @@ function pullEncCfgCloud() {
     fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (rows) {
-        if (!Array.isArray(rows) || !rows.length) { if (getEnceintesConfig().length) scheduleEncCfgPush(); return; }
+        var localArr = getEnceintesConfig();
+        if (!Array.isArray(rows) || !rows.length) {
+          // Rien dans le cloud : si on a une config locale, on l'y envoie.
+          if (localArr.length) scheduleEncCfgPush();
+          return;
+        }
         var contenu = rows[0].contenu;
         if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch (e) { contenu = null; } }
         if (!contenu || !Array.isArray(contenu.enceintes)) return;
-        var cloudMaj = Number(contenu.maj) || new Date(rows[0].date_controle).getTime() || 0;
-        var localMaj = getEncCfgMaj();
-        if (cloudMaj > localMaj) {
-          _saveEncCfgRaw(contenu.enceintes); setEncCfgMaj(cloudMaj);
-          var p = document.querySelector('.page.active');
-          if (p && p.id === 'page-temperatures' && typeof buildEnceintesPreconfigees === 'function') {
-            try { buildEnceintesPreconfigees(); if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 80); } catch (e) {}
-          }
-          _majMesEnceintesHint();
-          if (typeof showToast === 'function') showToast('✓ Vos ' + contenu.enceintes.length + ' enceinte(s) ont été récupérées.', 'ok', 3000);
-          console.info('[Enceintes] ✓ config récupérée du cloud (' + contenu.enceintes.length + ')');
-        } else if (localMaj > cloudMaj && getEnceintesConfig().length) { scheduleEncCfgPush(); }
+        var cloudArr = contenu.enceintes;
+
+        // Détection de changement SANS horloge : on retient la signature de la
+        // dernière version cloud qu'on a déjà vue. Si la version actuelle est
+        // différente de cette signature, c'est une nouveauté -> on l'adopte.
+        var sig = String(rows[0].date_controle || '') + '#' + JSON.stringify(cloudArr);
+        var lastSig = ''; try { lastSig = lsGet(ENCEINTES_CFG_CLOUD_SIG_KEY) || ''; } catch (e) {}
+        var cloudJson = JSON.stringify(cloudArr);
+        var sameAsLocal = (cloudJson === JSON.stringify(localArr));
+
+        if (sig === lastSig) {
+          // Version cloud déjà connue : si le local a divergé depuis, on pousse.
+          if (!sameAsLocal && localArr.length) scheduleEncCfgPush();
+          return;
+        }
+        // Nouvelle version cloud (jamais vue par cet appareil).
+        try { lsSet(ENCEINTES_CFG_CLOUD_SIG_KEY, sig); } catch (e) {}
+        if (sameAsLocal) return; // déjà à jour (souvent : c'est notre propre envoi)
+
+        // On adopte la dernière version partagée (le dernier enregistrement gagne).
+        _saveEncCfgRaw(cloudArr); setEncCfgMaj(Date.now());
+        var p = document.querySelector('.page.active');
+        if (p && p.id === 'page-temperatures' && typeof buildEnceintesPreconfigees === 'function') {
+          try { buildEnceintesPreconfigees(); if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 80); } catch (e) {}
+        }
+        _majMesEnceintesHint();
+        if (typeof showToast === 'function') showToast('✓ Vos ' + cloudArr.length + ' enceinte(s) ont été récupérées.', 'ok', 3000);
+        console.info('[Enceintes] ✓ config récupérée du cloud (' + cloudArr.length + ')');
       }).catch(function (e) { console.warn('[Enceintes] récup err', e && e.message); });
   } catch (e) { console.warn('[Enceintes] récup ex', e && e.message); }
 }
