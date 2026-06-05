@@ -1,11 +1,15 @@
 /* HACCP Pro — Service Worker (PWA)
- * cache-first + revalidation en arriere-plan (stale-while-revalidate) :
- * l'app se charge INSTANTANEMENT depuis le cache (meme apres une mise en veille
- * ou en zone de mauvais reseau), puis se met a jour discretement pour la fois
- * suivante. Fini l'ecran « hors ligne » fige au reveil pendant un audit.
+ * Strategie hybride pour avoir le beurre ET l'argent du beurre :
+ *  - COQUILLE de l'app (page, script.js, style.css…) = RESEAU D'ABORD avec un
+ *    court delai, repli sur le cache. => des qu'il y a du reseau, l'appareil
+ *    charge TOUJOURS la derniere version (fini les iPhone bloques sur un vieux
+ *    build, plus besoin de reinstaller). Sans reseau / au reveil de veille, on
+ *    retombe vite sur le cache : l'app reste utilisable hors-ligne.
+ *  - Ressources stables (images, icones, slides) = CACHE D'ABORD + revalidation
+ *    en arriere-plan : chargement instantane, mise a jour discrete.
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptes.
  */
-const CACHE = 'haccp-pro-v29';
+const CACHE = 'haccp-pro-v30';
 const CORE = [
   './',
   './index.html',
@@ -61,28 +65,47 @@ function revalidate(req) {
   });
 }
 
+// RESEAU D'ABORD pour la coquille : on tente le reseau (delai court), on met le
+// cache a jour au passage, et on retombe sur le cache si le reseau manque/traine.
+function networkFirst(req, timeoutMs) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(req, { signal: ctrl.signal }).then((res) => {
+    clearTimeout(t);
+    if (res && res.ok) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      return res;
+    }
+    // Reponse invalide (404/500…) -> on prefere le cache s'il existe.
+    return caches.match(req).then((c) => c || res);
+  }).catch(() => {
+    clearTimeout(t);
+    // Hors-ligne ou trop lent -> cache, avec repli ultime sur la page d'accueil.
+    return caches.match(req).then((c) => c || caches.match('./index.html'));
+  });
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   // Ne gérer que les GET de notre propre origine ; laisser passer les CDN.
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
-  // Navigation (ouverture / rechargement de page, retour de veille) :
-  // on sert IMMEDIATEMENT la page en cache si elle existe, puis on revalide
-  // en arriere-plan. Sinon on tente le reseau, avec repli sur index.html.
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      caches.match(req).then((cached) => {
-        if (cached) {
-          revalidate(req); // mise a jour silencieuse pour la prochaine fois
-          return cached;
-        }
-        return revalidate(req).then((res) => res || caches.match('./index.html'));
-      })
-    );
+  const path = new URL(req.url).pathname;
+  // Coquille de l'app : navigation (ouverture/rechargement) + fichiers de code.
+  const isShell = req.mode === 'navigate'
+    || path === '/'
+    || /\/(index\.html|script\.js|style\.css|patch_photo_bl\.js)$/.test(path);
+
+  if (isShell) {
+    // Reseau d'abord (delai court) -> la derniere version arrive des qu'il y a
+    // du reseau ; repli cache pour rester utilisable hors-ligne / au reveil.
+    event.respondWith(networkFirst(req, 2500));
     return;
   }
 
-  // Autres ressources same-origin : cache d'abord, revalidation en arriere-plan.
+  // Autres ressources same-origin (images, icones, slides…) : cache d'abord,
+  // revalidation en arriere-plan.
   event.respondWith(
     caches.match(req).then((cached) => {
       const network = revalidate(req);

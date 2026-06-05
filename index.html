@@ -31,7 +31,7 @@
         window.location.reload();
       });
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').then(function (reg) {
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
           // Vérifier les mises à jour à l'ouverture, au retour au premier plan,
           // et toutes les heures pour les sessions longues (app installée).
           var verifier = function () { try { reg.update(); } catch (e) {} };
