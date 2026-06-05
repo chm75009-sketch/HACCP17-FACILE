@@ -14249,7 +14249,10 @@ function schedulePushEquipeCloud() {
 async function pushEquipeCloud() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return { ok: false, msg: 'Non connecté' };
-    if (typeof MODE_LOCAL !== 'undefined' && MODE_LOCAL) return { ok: false, msg: 'Mode local' };
+    // Note : on NE bloque PAS sur MODE_LOCAL — on se cale sur le comportement des
+    // contrôles (enregistrerControleHACCP) qui s'envoient au cloud via REST dès
+    // qu'un ETAB_ID existe. Sinon l'équipe ne se synchroniserait jamais sur les
+    // comptes de test, contrairement au reste de l'application.
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return { ok: false, msg: 'Cloud indisponible' };
     var membres = getEquipe();
     // Équipe créée avant l'arrivée de la synchro (pas d'horodatage) : on en fixe un
@@ -14290,7 +14293,7 @@ async function pushEquipeCloud() {
 async function pullEquipeCloud() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return { ok: false, msg: 'Non connecté' };
-    if (typeof MODE_LOCAL !== 'undefined' && MODE_LOCAL) return { ok: false, msg: 'Mode local' };
+    // Pas de blocage sur MODE_LOCAL (cohérence avec la synchro des contrôles).
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return { ok: false, msg: 'Cloud indisponible' };
     var url = SUPABASE_URL + '/rest/v1/controles_haccp'
       + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
@@ -14339,8 +14342,8 @@ async function pullEquipeCloud() {
 // Synchronisation manuelle déclenchée par le bouton « Synchroniser » de la page Équipe.
 // Donne un retour clair à l'utilisateur (succès ou cause de l'échec).
 async function synchroniserEquipeManuel() {
-  if (typeof ETAB_ID === 'undefined' || !ETAB_ID || (typeof MODE_LOCAL !== 'undefined' && MODE_LOCAL)) {
-    if (typeof showToast === 'function') showToast('Synchronisation indisponible : vous êtes en mode local ou non connecté.', 'warn', 5000);
+  if (typeof ETAB_ID === 'undefined' || !ETAB_ID) {
+    if (typeof showToast === 'function') showToast('Synchronisation indisponible : vous n\'êtes pas connecté.', 'warn', 5000);
     return;
   }
   if (typeof showToast === 'function') showToast('Synchronisation de l\'équipe…', 'info', 1800);
