@@ -13121,12 +13121,24 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
 
 // Sauvegarde brouillon toutes les 30 secondes
 var _brouillonTimer = null;
+var _brouillonDirty = false; // true seulement si l'utilisateur a réellement saisi/modifié un champ
+function _markBrouillonDirty() { _brouillonDirty = true; }
 function startBrouillonAuto(pageId) {
   stopBrouillonAuto();
+  _brouillonDirty = false; // on repart « propre » à chaque ouverture
+  var pageEl = document.getElementById(pageId);
+  if (pageEl && !pageEl._brouillonDirtyBound) {
+    // Les remplissages programmés (config enceintes, pré-remplissage…) ne déclenchent
+    // PAS ces évènements → seule une vraie saisie utilisateur marque « dirty ».
+    pageEl._brouillonDirtyBound = true;
+    pageEl.addEventListener('input', _markBrouillonDirty, true);
+    pageEl.addEventListener('change', _markBrouillonDirty, true);
+  }
   _brouillonTimer = setInterval(function() {
     try {
       var page = document.getElementById(pageId);
       if (!page || !page.classList.contains('active')) { stopBrouillonAuto(); return; }
+      if (!_brouillonDirty) return; // rien saisi par l'utilisateur → aucun brouillon créé
       var fields = {};
       page.querySelectorAll('input, select, textarea').forEach(function(el) {
         // Ne pas sauvegarder les champs fichier (photo) : leur valeur ne peut
@@ -13172,9 +13184,12 @@ function restaurerBrouillon(pageId) {
           }
         });
         if (typeof showToast === 'function') showToast('Brouillon restauré', 'ok', 3000);
+        _brouillonDirty = false; // valeurs réinjectées par script → pas un nouveau brouillon
       } else {
-        // Repartir de zéro : on efface le brouillon
+        // Repartir de zéro : on efface le brouillon et on ne le recrée pas tant
+        // que l'utilisateur n'a rien saisi.
         lsRemove(key);
+        _brouillonDirty = false;
       }
     });
     return true;
