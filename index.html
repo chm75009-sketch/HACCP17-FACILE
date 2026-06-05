@@ -935,6 +935,11 @@
           <button class="btn-add-produit" onclick="ajouterEnceinteDynamique()" style="border-color:#0891b2;color:#0891b2;font-size:14px;padding:12px 20px">
             <span style="font-size:20px">+</span> Ajouter une enceinte
           </button>
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <button onclick="enregistrerMesEnceintes()" title="Mémoriser vos enceintes pour les retrouver à chaque session, sur tous vos appareils" style="background:#ecfeff;border:1px solid #67e8f9;color:#0e7490;font-size:13px;font-weight:800;padding:11px 16px;border-radius:10px;cursor:pointer;font-family:Outfit,sans-serif">💾 Enregistrer mes enceintes</button>
+            <button onclick="reinitMesEnceintes()" title="Revenir aux enceintes par défaut" style="background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;font-size:13px;font-weight:700;padding:11px 14px;border-radius:10px;cursor:pointer;font-family:Outfit,sans-serif">↺ Réinitialiser</button>
+          </div>
+          <div id="mesEnceintesHint" style="font-size:11px;color:#0891b2;margin-top:8px;text-align:center"></div>
         <div class="fblock haccp-adv" id="tempCategoriesBlock" style="display:none">
           <div class="fblock-title">📊 Catégories supplémentaires</div>
           <div id="tempCategoriesContainer"></div>

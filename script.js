@@ -1605,6 +1605,7 @@ async function connexion() {
   // Multi-appareils : récupérer l'équipe enregistrée dans le cloud pour ce compte
   // (les personnes ajoutées sur un autre appareil deviennent visibles ici).
   try { if (typeof pullEquipeCloud === 'function') setTimeout(pullEquipeCloud, 400); } catch(e){}
+  try { if (typeof pullEncCfgCloud === 'function') setTimeout(pullEncCfgCloud, 500); } catch(e){}
   // V102 — Mettre à jour le bandeau du haut avec les vraies infos client
   try { if (typeof updateTopbarEtab === 'function') updateTopbarEtab(); } catch(e){}
   // Indicateur mode local — V106 : bandeau retiré côté client (visible uniquement en console)
@@ -7624,6 +7625,9 @@ function showPage(id, noReset) {
   if (id === 'page-temperatures') {
     if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 250);
     if (typeof hvVoiceObserve === 'function') setTimeout(hvVoiceObserve, 300);
+    // « Mes enceintes » : récupérer la config du client depuis le cloud (multi-appareils)
+    if (typeof pullEncCfgCloud === 'function') setTimeout(pullEncCfgCloud, 200);
+    if (typeof _majMesEnceintesHint === 'function') setTimeout(_majMesEnceintesHint, 260);
   }
   // Coffre-fort : rafraîchir la liste des documents à l'ouverture du module
   if (id === 'page-pack-ddpp' && typeof renderInspDocs === 'function') {
@@ -8383,11 +8387,30 @@ function getBySection(resto, bp, rapide, boucherie, collective) {
 
 function buildEnceintesPreconfigees() {
   var container = document.getElementById('enceintesPreconfigContainer');
+  if (!container) return;
+  // Si le client a enregistré SES enceintes, on les recharge (au lieu des défauts).
+  var cfg = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
+  if (cfg && cfg.length) {
+    container.innerHTML = cfg.map(function (e, i) {
+      return buildEnceinteBlock('cfg' + (i + 1), e.nom || ('Enceinte N°' + (i + 1)), e.type || '', (e.seuil == null ? null : e.seuil));
+    }).join('');
+    cfg.forEach(function (e, i) {
+      var id = 'cfg' + (i + 1);
+      initEnceinteSelect(id);
+      var sel = document.getElementById('enc_ref_type_' + id);
+      if (sel && e.type) { try { sel.value = e.type; } catch (_) {} if (typeof onTypeEnceinteChange === 'function') { try { onTypeEnceinteChange(sel); } catch (_) {} } }
+      var precEl = document.getElementById('enc_precision_' + id); if (precEl && e.precision) precEl.value = e.precision;
+      var refEl = document.getElementById('enc_ref_num_' + id); if (refEl && e.refNum) refEl.value = e.refNum;
+    });
+    if (typeof _majMesEnceintesHint === 'function') _majMesEnceintesHint();
+    return;
+  }
   var list = getBySection(ENCEINTES_PRECONFIG, ENCEINTES_PRECONFIG_BP, ENCEINTES_PRECONFIG_RAPIDE, ENCEINTES_PRECONFIG_BOUCHERIE, ENCEINTES_PRECONFIG_COLLECTIVE);
   container.innerHTML = list.map(function(e) {
     return buildEnceinteBlock(e.id, e.nom, e.type, e.seuil);
   }).join('');
   list.forEach(function(e) { initEnceinteSelect(e.id); });
+  if (typeof _majMesEnceintesHint === 'function') _majMesEnceintesHint();
 }
 
 function selTypeEnceinte(type) {
@@ -13476,9 +13499,9 @@ async function chargerControlesCloudCache() {
     var seen = {};
     var rowsUniques = [];
     rows.forEach(function(r) {
-      // Les lignes « registre équipe » ne sont pas des contrôles : on les ignore
-      // pour ne pas polluer l'historique ni le tableau de bord.
-      if (r.module === EQUIPE_MODULE) return;
+      // Les lignes techniques (registre équipe, config enceintes) ne sont pas des
+      // contrôles : on les ignore pour ne pas polluer l'historique ni le tableau de bord.
+      if (r.module === EQUIPE_MODULE || r.module === ENCEINTES_CFG_MODULE) return;
       var contenu = r.contenu;
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
@@ -20044,4 +20067,131 @@ function hvVoiceObserve() {
     t = setTimeout(hvVoiceInit, 200);
   });
   try { _hvObserver.observe(page, { childList: true, subtree: true }); } catch (e) {}
+}
+
+// ══════════════════════════════════════════════════════════════════
+// « MES ENCEINTES » — configuration des enceintes du client, enregistrée
+// et synchronisée par établissement (même principe que « Mon équipe »).
+// Le client règle ses enceintes une fois → elles reviennent à chaque
+// session, sur tous ses appareils. Il n'a plus qu'à saisir/dicter la T°.
+// ══════════════════════════════════════════════════════════════════
+var ENCEINTES_CFG_KEY = 'haccp_enceintes_config';
+var ENCEINTES_CFG_MAJ_KEY = 'haccp_enceintes_config_maj';
+var ENCEINTES_CFG_MODULE = '__enceintes_config__';
+var _pushEncCfgTimer = null;
+
+function getEnceintesConfig() {
+  try { var a = JSON.parse(lsGet(ENCEINTES_CFG_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function _saveEncCfgRaw(a) { try { lsSet(ENCEINTES_CFG_KEY, JSON.stringify(a || [])); } catch (e) {} }
+function getEncCfgMaj() { try { var v = lsGet(ENCEINTES_CFG_MAJ_KEY); return v ? (Number(v) || 0) : 0; } catch (e) { return 0; } }
+function setEncCfgMaj(t) { try { lsSet(ENCEINTES_CFG_MAJ_KEY, String(t || Date.now())); } catch (e) {} }
+function saveEnceintesConfig(a) { _saveEncCfgRaw(a); setEncCfgMaj(Date.now()); scheduleEncCfgPush(); }
+
+function _majMesEnceintesHint() {
+  var h = document.getElementById('mesEnceintesHint'); if (!h) return;
+  var n = getEnceintesConfig().length;
+  h.textContent = n
+    ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
+    : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
+}
+
+// Lit les enceintes présentes à l'écran → configuration à mémoriser.
+function collectEnceintesConfig() {
+  var blocks = document.querySelectorAll('#page-temperatures [id^="enc_block_"]');
+  var arr = [];
+  blocks.forEach(function (block) {
+    var id = block.id.replace('enc_block_', '');
+    var typeEl = document.getElementById('enc_ref_type_' + id);
+    var tempEl = document.getElementById('enc_temp_' + id);
+    var precEl = document.getElementById('enc_precision_' + id);
+    var refEl = document.getElementById('enc_ref_num_' + id);
+    var titleEl = block.querySelector('.fblock-title span');
+    var nom = titleEl ? titleEl.textContent.replace(/^\S+\s+/, '').trim() : '';
+    var seuil = tempEl ? tempEl.getAttribute('data-enc-seuil') : '';
+    var customEl = document.getElementById('enc_seuil_custom_' + id);
+    if ((seuil === '' || seuil == null) && customEl && customEl.value !== '') seuil = customEl.value;
+    arr.push({
+      nom: nom,
+      type: (typeEl ? typeEl.value : ''),
+      seuil: ((seuil === '' || seuil == null) ? null : Number(seuil)),
+      precision: (precEl ? (precEl.value || '') : ''),
+      refNum: (refEl ? (refEl.value || '') : '')
+    });
+  });
+  return arr;
+}
+
+function enregistrerMesEnceintes() {
+  var arr = collectEnceintesConfig();
+  if (!arr.length) { if (typeof showToast === 'function') showToast('Ajoutez au moins une enceinte avant d\'enregistrer.', 'warn', 3000); return; }
+  saveEnceintesConfig(arr);
+  _majMesEnceintesHint();
+  if (typeof showToast === 'function') showToast('✓ Vos ' + arr.length + ' enceinte(s) sont mémorisées — elles reviendront à chaque session, sur tous vos appareils.', 'ok', 4000);
+}
+
+function reinitMesEnceintes() {
+  if (!confirm('Effacer votre configuration d\'enceintes enregistrée et revenir aux enceintes par défaut ?')) return;
+  saveEnceintesConfig([]);
+  if (typeof buildEnceintesPreconfigees === 'function') { try { buildEnceintesPreconfigees(); } catch (e) {} }
+  if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 80);
+  _majMesEnceintesHint();
+  if (typeof showToast === 'function') showToast('Configuration réinitialisée.', 'ok', 2500);
+}
+
+// ── Synchronisation cloud (réutilise controles_haccp, module __enceintes_config__) ──
+function scheduleEncCfgPush() {
+  if (_pushEncCfgTimer) clearTimeout(_pushEncCfgTimer);
+  _pushEncCfgTimer = setTimeout(function () { _pushEncCfgTimer = null; pushEncCfgCloud(); }, 800);
+}
+
+function pushEncCfgCloud() {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return;
+    var arr = getEnceintesConfig();
+    var maj = getEncCfgMaj(); if (!maj) { maj = Date.now(); setEncCfgMaj(maj); }
+    var payload = {
+      code_client: String(ETAB_ID), module: ENCEINTES_CFG_MODULE,
+      contenu: { enceintes: arr, maj: maj }, signature: null, photos: [],
+      date_controle: new Date().toISOString()
+    };
+    fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payload)
+    }).then(function (r) { if (!r.ok) console.warn('[Enceintes] envoi cloud ' + r.status); else console.info('[Enceintes] ✓ config synchronisée (' + arr.length + ')'); })
+      .catch(function (e) { console.warn('[Enceintes] envoi err', e && e.message); });
+  } catch (e) { console.warn('[Enceintes] envoi ex', e && e.message); }
+}
+
+function pullEncCfgCloud() {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return;
+    var url = SUPABASE_URL + '/rest/v1/controles_haccp'
+      + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+      + '&module=eq.' + encodeURIComponent(ENCEINTES_CFG_MODULE)
+      + '&select=contenu,date_controle&order=date_controle.desc&limit=1';
+    fetch(url, { method: 'GET', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rows) {
+        if (!Array.isArray(rows) || !rows.length) { if (getEnceintesConfig().length) scheduleEncCfgPush(); return; }
+        var contenu = rows[0].contenu;
+        if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch (e) { contenu = null; } }
+        if (!contenu || !Array.isArray(contenu.enceintes)) return;
+        var cloudMaj = Number(contenu.maj) || new Date(rows[0].date_controle).getTime() || 0;
+        var localMaj = getEncCfgMaj();
+        if (cloudMaj > localMaj) {
+          _saveEncCfgRaw(contenu.enceintes); setEncCfgMaj(cloudMaj);
+          var p = document.querySelector('.page.active');
+          if (p && p.id === 'page-temperatures' && typeof buildEnceintesPreconfigees === 'function') {
+            try { buildEnceintesPreconfigees(); if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 80); } catch (e) {}
+          }
+          _majMesEnceintesHint();
+          console.info('[Enceintes] ✓ config récupérée du cloud (' + contenu.enceintes.length + ')');
+        } else if (localMaj > cloudMaj && getEnceintesConfig().length) { scheduleEncCfgPush(); }
+      }).catch(function (e) { console.warn('[Enceintes] récup err', e && e.message); });
+  } catch (e) { console.warn('[Enceintes] récup ex', e && e.message); }
 }
