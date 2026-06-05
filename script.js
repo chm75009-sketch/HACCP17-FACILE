@@ -7620,6 +7620,11 @@ function showPage(id, noReset) {
   if (typeof marquerChampsFacultatifsAuto === 'function') {
     setTimeout(marquerChampsFacultatifsAuto, 100);
   }
+  // Saisie vocale des relevés de température (PC/Android en direct, iPhone via micro clavier)
+  if (id === 'page-temperatures') {
+    if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 250);
+    if (typeof hvVoiceObserve === 'function') setTimeout(hvVoiceObserve, 300);
+  }
   // Coffre-fort : rafraîchir la liste des documents à l'ouverture du module
   if (id === 'page-pack-ddpp' && typeof renderInspDocs === 'function') {
     setTimeout(renderInspDocs, 50);
@@ -19848,3 +19853,109 @@ function ouvrirMesRapports() {
   setInterval(majEnteteModule, 30000);
   window._majEnteteModule = majEnteteModule;
 })();
+
+// ══════════════════════════════════════════════════════════════════
+// SAISIE VOCALE DES RELEVÉS DE TEMPÉRATURE (HACCP17)
+// La saisie manuelle reste inchangée : on AJOUTE seulement un bouton 🎤
+// à côté de chaque champ de température.
+//  • PC / Android : reconnaissance vocale en direct (Web Speech API).
+//  • iPhone / iPad : l'API n'existe pas → on guide vers le micro du clavier.
+// ══════════════════════════════════════════════════════════════════
+function hvVoiceSupported() {
+  return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+}
+
+// Convertit ce qui est dit en nombre : « moins 18 », « 4 degrés », « 6 virgule 5 ».
+function hvParseNumber(text) {
+  if (text == null) return null;
+  var t = ('' + text).toLowerCase().trim();
+  var neg = /(^|\s)(moins|negatif|négatif|moin)\b/.test(t) || /^\s*-/.test(t);
+  t = t.replace(/virgule/g, '.').replace(/,/g, '.');
+  var m = t.match(/-?\d+(\.\d+)?/);
+  if (!m) return null;
+  var n = parseFloat(m[0]);
+  if (isNaN(n)) return null;
+  if (neg && n > 0) n = -n;
+  return n;
+}
+
+function hvFillInput(input, value) {
+  input.value = value;
+  // Déclencher la logique existante (conformité auto, etc.)
+  try { input.dispatchEvent(new Event('input', { bubbles: true })); }
+  catch (e) { if (typeof input.oninput === 'function') { try { input.oninput(); } catch (_) {} } }
+}
+
+function hvStartVoice(input, micBtn) {
+  if (!hvVoiceSupported()) {
+    // iPhone/iPad : pas d'API de reconnaissance → micro du clavier
+    try { input.focus(); } catch (e) {}
+    if (typeof showToast === 'function') showToast('Sur iPhone/iPad : touchez le 🎤 du clavier pour dicter le chiffre.', 'info', 4500);
+    return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec;
+  try { rec = new SR(); } catch (e) { return; }
+  rec.lang = 'fr-FR';
+  rec.interimResults = false;
+  rec.maxAlternatives = 3;
+  var prevTxt = micBtn.textContent;
+  micBtn.textContent = '🔴';
+  micBtn.style.background = '#fee2e2';
+  rec.onresult = function (e) {
+    var said = '';
+    try { for (var i = 0; i < e.results.length; i++) { said += e.results[i][0].transcript; } } catch (er) {}
+    var n = hvParseNumber(said);
+    if (n !== null) {
+      hvFillInput(input, n);
+      if (typeof showToast === 'function') showToast('🎤 ' + n + ' °C', 'ok', 1500);
+    } else if (typeof showToast === 'function') {
+      showToast('Chiffre non reconnu : « ' + said + ' »', 'warn', 2800);
+    }
+  };
+  rec.onerror = function (ev) {
+    if (typeof showToast === 'function') showToast('Micro indisponible (' + (ev && ev.error || '') + ')', 'warn', 2500);
+  };
+  rec.onend = function () { micBtn.textContent = prevTxt; micBtn.style.background = '#eef2ff'; };
+  try { rec.start(); } catch (e) { micBtn.textContent = prevTxt; micBtn.style.background = '#eef2ff'; }
+}
+
+function hvAttachMic(input) {
+  if (!input || input.getAttribute('data-hvmic')) return;
+  input.setAttribute('data-hvmic', '1');
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = '🎤';
+  b.className = 'hv-mic-btn';
+  b.setAttribute('aria-label', 'Dicter la température');
+  b.title = 'Dicter la température à la voix';
+  b.style.cssText = 'margin-left:6px;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;border-radius:9px;width:40px;height:40px;font-size:17px;line-height:1;cursor:pointer;flex-shrink:0;vertical-align:middle';
+  b.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); hvStartVoice(input, b); };
+  var wrap = (input.closest ? input.closest('.tinput-wrap') : null);
+  if (wrap && wrap.parentNode) { wrap.parentNode.insertBefore(b, wrap.nextSibling); }
+  else if (input.parentNode) { input.parentNode.insertBefore(b, input.nextSibling); }
+}
+
+// Ajoute le micro à tous les champs de température de la page Températures.
+function hvVoiceInit() {
+  var page = document.getElementById('page-temperatures');
+  if (!page) return;
+  var sel = '.tinput-wrap input[type="number"], input[type="number"][id^="temp_"], input[type="number"][id^="enc_temp_"], input[type="number"][id^="tcat_temp_"], input[type="number"][id^="plat_temp_"]';
+  var inputs;
+  try { inputs = page.querySelectorAll(sel); } catch (e) { inputs = page.querySelectorAll('input[type="number"]'); }
+  for (var i = 0; i < inputs.length; i++) { hvAttachMic(inputs[i]); }
+}
+
+// Réagit aux enceintes ajoutées dynamiquement (une seule fois).
+var _hvObserver = null;
+function hvVoiceObserve() {
+  if (_hvObserver) return;
+  var page = document.getElementById('page-temperatures');
+  if (!page || typeof MutationObserver === 'undefined') return;
+  var t = null;
+  _hvObserver = new MutationObserver(function () {
+    if (t) clearTimeout(t);
+    t = setTimeout(hvVoiceInit, 200);
+  });
+  try { _hvObserver.observe(page, { childList: true, subtree: true }); } catch (e) {}
+}
