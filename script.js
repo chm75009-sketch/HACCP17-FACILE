@@ -20102,8 +20102,15 @@ var ENCEINTES_CFG_MODULE = '__enceintes_config__';
 var _pushEncCfgTimer = null;
 
 function getEnceintesConfig() {
-  try { var a = JSON.parse(lsGet(ENCEINTES_CFG_KEY) || '[]'); return Array.isArray(a) ? a : []; }
-  catch (e) { return []; }
+  try {
+    var a = JSON.parse(lsGet(ENCEINTES_CFG_KEY) || '[]');
+    if (!Array.isArray(a)) return [];
+    // Auto-réparation : nettoie les demi-caractères hérités (moitiés d'emoji
+    // coupées par d'anciennes versions) et réécrit le stockage si nécessaire.
+    var clean = _sanitizeEnceintes(a);
+    try { if (JSON.stringify(clean) !== JSON.stringify(a)) lsSet(ENCEINTES_CFG_KEY, JSON.stringify(clean)); } catch (e) {}
+    return clean;
+  } catch (e) { return []; }
 }
 // Nettoie une chaîne des « demi-caractères » (surrogates UTF-16 non appariés —
 // ex. une moitié d'emoji 🌡️ coupée en deux) et des caractères de contrôle.
@@ -20153,7 +20160,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b36';
+  h.textContent = txt + ' · maj b37';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20210,7 +20217,7 @@ function enregistrerMesEnceintes() {
 // et réponse brute du serveur, et surtout une éventuelle REDIRECTION (qui
 // viderait le corps et provoquerait « Empty or invalid json »).
 function diagSyncEnceintes(saveRes) {
-  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b36)', ''];
+  var L = ['DIAGNOSTIC SYNCHRO ENCEINTES (b37)', ''];
   var etab = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : '(non connecté)';
   L.push('Compte : ' + etab);
   if (saveRes) L.push('Échec enregistrement : ' + (saveRes.status || '?') + ' ' + String(saveRes.body || saveRes.msg || '').slice(0, 120));
