@@ -13504,6 +13504,7 @@ async function chargerControlesCloudCache() {
       + '&limit=1000';
     var resp = await fetch(url, {
       method: 'GET',
+      cache: 'no-store',
       headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
     });
     if (!resp.ok) return null;
@@ -14348,6 +14349,7 @@ async function pullEquipeCloud() {
       + '&limit=1';
     var resp = await fetch(url, {
       method: 'GET',
+      cache: 'no-store',
       headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
     });
     if (!resp.ok) {
@@ -20202,7 +20204,7 @@ function pullEncCfgCloud() {
       + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
       + '&module=eq.' + encodeURIComponent(ENCEINTES_CFG_MODULE)
       + '&select=contenu,date_controle&order=date_controle.desc&limit=1';
-    fetch(url, { method: 'GET', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
+    fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (rows) {
         if (!Array.isArray(rows) || !rows.length) { if (getEnceintesConfig().length) scheduleEncCfgPush(); return; }
