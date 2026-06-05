@@ -19888,22 +19888,43 @@ function hvFillInput(input, value) {
   catch (e) { if (typeof input.oninput === 'function') { try { input.oninput(); } catch (_) {} } }
 }
 
+var _hvActiveRec = null, _hvActiveBtn = null;
+function _hvResetBtn(btn) { if (btn) { btn.textContent = '🎤'; btn.style.background = '#eef2ff'; } }
+function _hvStopActive() {
+  if (_hvActiveRec) { try { _hvActiveRec.onend = null; _hvActiveRec.abort(); } catch (e) {} }
+  _hvResetBtn(_hvActiveBtn);
+  _hvActiveRec = null; _hvActiveBtn = null;
+}
+
 function hvStartVoice(input, micBtn) {
   if (!hvVoiceSupported()) {
     // iPhone/iPad : pas d'API de reconnaissance → micro du clavier
     try { input.focus(); } catch (e) {}
-    if (typeof showToast === 'function') showToast('Sur iPhone/iPad : touchez le 🎤 du clavier pour dicter le chiffre.', 'info', 4500);
+    if (typeof showToast === 'function') showToast('Sur iPhone/iPad : touchez le 🎤 du clavier (en bas) pour dicter le chiffre.', 'info', 4500);
     return;
   }
+  // Déjà en écoute → un nouvel appui ARRÊTE (évite le blocage en rouge).
+  if (_hvActiveRec) { _hvStopActive(); return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var rec;
   try { rec = new SR(); } catch (e) { return; }
   rec.lang = 'fr-FR';
   rec.interimResults = false;
   rec.maxAlternatives = 3;
-  var prevTxt = micBtn.textContent;
+  try { rec.continuous = false; } catch (e) {}
+  _hvActiveRec = rec; _hvActiveBtn = micBtn;
   micBtn.textContent = '🔴';
   micBtn.style.background = '#fee2e2';
+  var finished = false;
+  var watchdog = null;
+  var cleanup = function () {
+    if (finished) return; finished = true;
+    if (watchdog) clearTimeout(watchdog);
+    _hvResetBtn(micBtn);
+    if (_hvActiveRec === rec) { _hvActiveRec = null; _hvActiveBtn = null; }
+  };
+  // Sécurité : si rien ne se passe en 12 s, on débloque le bouton tout seul.
+  watchdog = setTimeout(function () { try { rec.stop(); } catch (e) {} try { rec.abort(); } catch (e) {} cleanup(); }, 12000);
   rec.onresult = function (e) {
     var said = '';
     try { for (var i = 0; i < e.results.length; i++) { said += e.results[i][0].transcript; } } catch (er) {}
@@ -19919,20 +19940,24 @@ function hvStartVoice(input, micBtn) {
     var err = (ev && ev.error) || '';
     var msg;
     if (err === 'not-allowed' || err === 'service-not-allowed') {
-      msg = '🎤 Micro bloqué : autorisez le microphone pour ce site (icône 🔒 / 🎤 dans la barre d\'adresse), puis réessayez.';
+      msg = '🎤 Micro non autorisé : autorisez le microphone pour l\'app dans les réglages, puis réessayez. (Sur iPhone, utilisez le 🎤 du clavier.)';
     } else if (err === 'network') {
-      msg = '🎤 Reconnaissance en ligne injoignable. Sur PC : cliquez dans la case puis faites « touche Windows + H » pour dicter. (Sinon : Google Chrome + Internet.)';
+      msg = '🎤 Reconnaissance en ligne injoignable. Sur PC : cliquez dans la case puis « touche Windows + H ».';
     } else if (err === 'no-speech') {
-      msg = '🎤 Rien entendu — réessayez en parlant près du micro.';
+      msg = '🎤 Rien entendu — réappuyez et parlez près du micro.';
     } else if (err === 'audio-capture') {
-      msg = '🎤 Aucun micro détecté sur cet appareil.';
+      msg = '🎤 Aucun micro détecté.';
+    } else if (err === 'aborted') {
+      msg = '';
     } else {
       msg = 'Micro indisponible (' + err + ').';
     }
-    if (typeof showToast === 'function') showToast(msg, 'warn', 6000);
+    if (msg && typeof showToast === 'function') showToast(msg, 'warn', 6000);
+    cleanup();
   };
-  rec.onend = function () { micBtn.textContent = prevTxt; micBtn.style.background = '#eef2ff'; };
-  try { rec.start(); } catch (e) { micBtn.textContent = prevTxt; micBtn.style.background = '#eef2ff'; }
+  rec.onend = function () { cleanup(); };
+  try { rec.start(); }
+  catch (e) { cleanup(); }
 }
 
 function hvAttachMic(input) {
