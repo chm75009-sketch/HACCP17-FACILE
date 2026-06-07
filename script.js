@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v78';
+var APP_BUILD = 'v79';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -17441,70 +17441,87 @@ function imprimerPlatTemoin() {
 // ══ FIN PLAT TÉMOIN ══
 
 
-// ══ NAVIGATION RETOUR — NE PAS MODIFIER ══
-window.addEventListener('popstate', function(e) {
-  var activePage = document.querySelector('.page.active');
-  var activeId = activePage ? activePage.id : 'page-guide';
-  // SÉCURITÉ — si l'utilisateur n'est PAS connecté (ex. après déconnexion), le
-  // bouton « retour » du navigateur ne doit JAMAIS réafficher une page connectée.
-  // On le ramène systématiquement sur l'écran de connexion. (Sans ce garde-fou,
-  // l'ancien code basculait sur page-guide, qui est une page connectée.)
-  var deconnecte = (typeof lsGet === 'function') && lsGet('haccp_deconnecte') === '1';
-  var estConnecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !deconnecte;
-  if (!estConnecte || activeId === 'page-login') {
-    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-    var login = document.getElementById('page-login');
-    if (login) {
-      login.classList.add('active');
-      var saL = document.getElementById('scrollArea'); if (saL) saL.scrollTop = 0;
-      window.scrollTo(0, 0);
-    }
-    return;
-  }
-  if (activeId === 'page-guide' || activeId === 'page-home' || activeId === 'page-onboarding') {
-    return; // Déjà sur une page racine
-  }
-  // Retour vers page-guide
-  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-  var guide = document.getElementById('page-guide');
-  if (guide) {
-    guide.classList.add('active');
-    document.getElementById('scrollArea').scrollTop = 0;
-    window.scrollTo(0,0);
-  }
-});
+// ══ NAVIGATION RETOUR & SÉCURITÉ DE SESSION — NE PAS MODIFIER ══
+// Règle : l'écran de connexion / présentation = état DÉCONNECTÉ. Dès qu'on y
+// revient (bouton retour du navigateur, geste, onglet restauré…), la session est
+// RÉELLEMENT fermée → aucune navigation « avant/arrière » ne peut réafficher les
+// données d'un compte. Et si on est déjà déconnecté, aucune page connectée ne
+// peut rester visible.
 
-// SÉCURITÉ — restauration depuis le cache navigateur (bfcache) ou simple
-// réaffichage de l'onglet : si l'utilisateur n'est PAS connecté, ne jamais
-// laisser une page connectée visible (cas du « retour » qui réaffiche un
-// instantané mis en cache du tableau de bord après déconnexion).
-function _forcerLoginSiDeconnecte() {
+function _navAfficherPage(id) {
+  var el = document.getElementById(id) || document.getElementById('page-login');
+  if (!el) return;
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  el.classList.add('active');
+  var sa = document.getElementById('scrollArea'); if (sa) sa.scrollTop = 0;
+  try { window.scrollTo(0, 0); } catch(e) {}
+}
+
+// Déconnexion SILENCIEUSE (sans confirmation) : déclenchée quand on revient à
+// l'écran de connexion via la navigation du navigateur. Ferme la session, pose le
+// marqueur, purge l'état local sensible et vide le mot de passe.
+function _deconnexionSilencieuse() {
   try {
-    // Marqueur lu EN DIRECT dans le stockage (non figé par l'instantané bfcache
-    // iOS) : posé à la déconnexion, retiré à la connexion. S'il est présent, on
-    // force le login même si la variable ETAB_ID a été restaurée à « connecté ».
+    ETAB_ID = null; SB_READY = false; CLIENT_MODE = false;
+    try { lsSet('haccp_deconnecte', '1'); } catch(e) {}
+    try { if (window._supabase && window._supabase.auth) window._supabase.auth.signOut(); } catch(e) {}
+    _SB_ACCESS_TOKEN = null; _SB_AUTH_ETAB = null;
+    lsRemove('haccp_etab'); lsRemove('haccp_etab_id'); lsRemove('haccp_etab_data');
+    lsRemove('haccp_mode'); lsRemove('haccp_trial_pwd');
+    try { lsRemove(EQUIPE_KEY); lsRemove(EQUIPE_MAJ_KEY); } catch(e) {}
+    sessionClear();
+    var lp = document.getElementById('login_pwd'); if (lp) lp.value = '';
+    var le = document.getElementById('login_error'); if (le) le.style.display = 'none';
+  } catch(e) {}
+}
+
+function _idPageActive() {
+  var a = document.querySelector('.page.active');
+  return a ? a.id : '';
+}
+
+// Cœur de la sécurité de navigation. targetId = page visée (issue de l'historique
+// ou de la page active). Renvoie true si une décision de sécurité a été prise.
+function _securiserNavigation(targetId) {
+  try {
     var deconnecte = (typeof lsGet === 'function') && lsGet('haccp_deconnecte') === '1';
     var estConnecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !deconnecte;
-    if (estConnecte) return;
-    var activePage = document.querySelector('.page.active');
-    var activeId = activePage ? activePage.id : '';
-    // Seules ces pages sont autorisées hors connexion.
-    if (activeId === 'page-login' || activeId === 'page-presentation' || activeId === 'page-admin') return;
-    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-    var login = document.getElementById('page-login');
-    if (login) {
-      login.classList.add('active');
-      var sa = document.getElementById('scrollArea'); if (sa) sa.scrollTop = 0;
-      window.scrollTo(0, 0);
+    var estLoginOuPresentation = (targetId === 'page-login' || targetId === 'page-presentation');
+    // 1) Connecté ET on arrive sur le login/présentation → on FERME vraiment la
+    //    session (sinon « ré-avancer » réafficherait les données du compte).
+    if (estConnecte && estLoginOuPresentation) {
+      _deconnexionSilencieuse();
+      _navAfficherPage('page-login');
+      return true;
     }
-  } catch (_e) {}
+    // 2) Pas connecté → aucune page connectée ne doit être visible.
+    if (!estConnecte) {
+      var pub = (targetId === 'page-login' || targetId === 'page-presentation' || targetId === 'page-admin');
+      _navAfficherPage(pub ? targetId : 'page-login');
+      return true;
+    }
+  } catch(e) {}
+  return false; // connecté + page interne → navigation normale
 }
-window.addEventListener('pageshow', function(e) { _forcerLoginSiDeconnecte(); });
-window.addEventListener('focus', function() { _forcerLoginSiDeconnecte(); });
-document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible') _forcerLoginSiDeconnecte();
+
+window.addEventListener('popstate', function(e) {
+  // Cible RÉELLE de l'entrée d'historique (posée par showPage via pushState).
+  var targetId = (e && e.state && e.state.page) ? e.state.page : _idPageActive();
+  if (_securiserNavigation(targetId)) return;
+  // Connecté + navigation interne : rester sur les pages racines, sinon revenir
+  // au tableau de bord (comportement historique conservé).
+  if (targetId === 'page-guide' || targetId === 'page-home' || targetId === 'page-onboarding') return;
+  _navAfficherPage('page-guide');
 });
-// ══ FIN NAVIGATION RETOUR ══
+
+// bfcache / réaffichage d'onglet / focus : on revalide l'affichage courant.
+function _revaliderAffichage() { _securiserNavigation(_idPageActive()); }
+window.addEventListener('pageshow', function(e) { _revaliderAffichage(); });
+window.addEventListener('focus', function() { _revaliderAffichage(); });
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') _revaliderAffichage();
+});
+// ══ FIN NAVIGATION RETOUR & SÉCURITÉ DE SESSION ══
 
 
 // ══ MODULES RESTAURATION COLLECTIVE — NE PAS MODIFIER ══
