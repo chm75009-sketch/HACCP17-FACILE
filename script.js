@@ -508,8 +508,14 @@ async function sbLogin(codeAcces, pwd) {
     var result = await sbLoginTentative(code, pwd);
     if (result.ok) { MODE_LOCAL = false; return result; }
     if (result.retry) {
-      console.info('Supabase inaccessible');
-      return { ok: false, msg: 'Code non reconnu. Vérifiez votre code d\'accès.' };
+      console.info('Supabase inaccessible — tentative de connexion hors-ligne');
+      // DATA-5 : réseau indisponible → autoriser l'entrée si une empreinte locale
+      // valide (< 7 jours) correspond. Sinon message clair selon le cas.
+      var off = await _tryOfflineLogin(code, pwd);
+      if (off.ok) { MODE_LOCAL = false; return off; }
+      if (off.subExpired) return { ok: false, msg: 'Abonnement expiré. Contactez HACCP Pro.' };
+      if (off.expired) return { ok: false, msg: 'Connexion hors-ligne expirée (plus de 7 jours). Reconnectez-vous avec du réseau au moins une fois.' };
+      return { ok: false, msg: 'Pas de réseau et aucune connexion récente sur cet appareil. Connectez-vous une fois avec du réseau.' };
     }
     return result;
   } catch(e) {
@@ -534,6 +540,53 @@ function sbLoginLocal(code, pwd) {
   MODE_LOCAL = true;
   console.info('Mode local activé pour :', etab.nom);
   return { ok: true, data: { id: 'local-' + code, nom: etab.nom, secteur: etab.secteur, actif: true }, local: true };
+}
+
+// ── DATA-5 — CONNEXION HORS-LIGNE (jusqu'à 7 jours) ──
+// Un client déjà connecté récemment doit pouvoir rouvrir l'app SANS réseau (cuisine
+// en zone blanche, réveil de veille). On ne stocke JAMAIS le mot de passe en clair :
+// seulement une empreinte SHA-256 de (code::mot de passe), comparée hors-ligne.
+var OFFLINE_CRED_KEY = 'haccp_offline_cred_v1';
+var OFFLINE_CRED_MAX_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours
+async function _sha256Hex(str) {
+  try {
+    if (!(window.crypto && window.crypto.subtle)) return null;
+    var buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(str)));
+    return Array.prototype.map.call(new Uint8Array(buf), function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+  } catch(e) { return null; }
+}
+async function _saveOfflineCred(code, pwd, d) {
+  try {
+    var h = await _sha256Hex(String(code).toUpperCase() + '::' + String(pwd));
+    if (!h) return; // contexte non sécurisé : on s'abstient plutôt que stocker en clair
+    lsSet(OFFLINE_CRED_KEY, JSON.stringify({
+      code: String(code).toUpperCase(),
+      h: h,
+      at: Date.now(),
+      etab: {
+        id: d.id, nom: d.nom, secteur: d.secteur, siret: d.siret,
+        adresse: d.adresse, date_expiration: d.date_expiration, code_acces: d.code_acces
+      }
+    }));
+  } catch(e) {}
+}
+async function _tryOfflineLogin(code, pwd) {
+  try {
+    var raw = lsGet(OFFLINE_CRED_KEY);
+    if (!raw) return { ok: false };
+    var c = JSON.parse(raw);
+    if (!c || String(c.code) !== String(code).toUpperCase()) return { ok: false };
+    if (Date.now() - (c.at || 0) > OFFLINE_CRED_MAX_MS) return { ok: false, expired: true };
+    var h = await _sha256Hex(String(code).toUpperCase() + '::' + String(pwd));
+    if (!h || h !== c.h) return { ok: false };
+    // Respecter l'expiration d'abonnement même hors-ligne.
+    if (c.etab && c.etab.date_expiration) {
+      var exp = new Date(c.etab.date_expiration); exp.setHours(23, 59, 59, 999);
+      if (exp < new Date()) return { ok: false, subExpired: true };
+    }
+    console.info('[HACCP] Connexion hors-ligne acceptée (empreinte locale valide)');
+    return { ok: true, data: c.etab, offline: true };
+  } catch(e) { return { ok: false }; }
 }
 
 async function sbSauvegarderModule(module, donnees, signePar) {
@@ -1631,6 +1684,9 @@ async function connexion() {
   var d = result.data;
   // V105 — Mémoriser le code d'accès pour la prochaine session (pas le mot de passe)
   try { lsSet('haccp_last_code', code); } catch(e) {}
+  // DATA-5 — empreinte hors-ligne (7 j) : permet de rouvrir l'app sans réseau.
+  // Pas de mot de passe en clair (uniquement un hash). Ignoré si connexion locale.
+  try { if (!result.local && !result.offline) _saveOfflineCred(code, pwd, d); } catch(e) {}
   // Essais (EU3J-/ESSAI-) : on garde le client connecté pendant toute la durée.
   // On mémorise aussi le mot de passe auto-généré (qu'il ne connaît pas) pour
   // pouvoir le reconnecter automatiquement au redémarrage. Les clients payants
@@ -20695,7 +20751,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b44';
+  h.textContent = txt + ' · maj b45';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.

@@ -18,7 +18,7 @@
 | DATA-2 | Alerte si IndexedDB indispo (photo perdue silencieuse) | ✅ |
 | DATA-3 / CONC-1 | Photo rattachée par id explicite (pas heuristique) | 🟡 |
 | DATA-4 | Photo orpheline après kill/délai > 2 h | 🟡 |
-| DATA-5 | Login hors-ligne (session valide) | ❌ |
+| DATA-5 | Login hors-ligne (session valide) | ✅ |
 | DATA-6 | Flag `cloudOk` durable par contrôle | ✅ |
 | CONC-2 | Ajout de photo atomique (multi-appareils) | ❌ |
 | PDF-1 | Pagination/lazy des photos (crash iPhone) | ❌ |
@@ -98,7 +98,7 @@
 ---
 
 ## Ordre d'exécution retenu
-1. **Lot 0 — anti-perte (frontend)** : DATA-5, DATA-6, DATA-11 (DATA-1/2 déjà ✅)
+1. **Lot 0 — anti-perte (frontend)** : ✅ TERMINÉ (DATA-1,2,5,6,7,11)
 2. **Lot 1 — intégrité preuves** : DATA-3/4, CONC-2, PDF-2(✅), BIZ logique(✅)
 3. **Lot 2 — build & charge** : SW-2/3/4/5/7, CONC-4/5/6/8, DATA-7→13
 4. **Lot 3 — backend + RGPD** : SEC-1→4, M1/M2, charte RGPD complète
