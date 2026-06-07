@@ -55,7 +55,7 @@
 | SW-4 | `?v=` empreinte de build sur assets | ❌ |
 | SW-5 | `CACHE` SW généré en CI | ❌ |
 | SW-6 | DataCloneError iOS (généraliser REST) | ❌ |
-| SW-7 | Numéros de version désynchronisés | ❌ |
+| SW-7 | Numéros de version désynchronisés | ✅ |
 | SW-8 | Double init Supabase (2 clés) | ✅ |
 | BIZ-4 | Garde température aberrante enceintes | ✅ |
 | BIZ-5 | Synchro Équipe (demi-caractères) | ✅ |

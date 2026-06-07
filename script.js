@@ -1,4 +1,9 @@
 
+// SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
+// cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
+// des numéros de version désynchronisés affichés dans l'app.
+var APP_BUILD = 'v56';
+
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
 // Sur certains anciens Safari iOS, seul console.log est défini.
@@ -20968,7 +20973,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b55';
+  h.textContent = txt + ' · maj ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?');
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
