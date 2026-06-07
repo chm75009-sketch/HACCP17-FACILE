@@ -13713,6 +13713,9 @@ var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
       timestamp: new Date().toISOString(),
       data: data,
     };
+    // DATA-12 — horodatage ISO de validation, persisté dans les données (sert de
+    // date_controle fiable à l'envoi cloud, y compris après une remontée hors-ligne).
+    try { if (data && !data.savedAt) data.savedAt = entry.timestamp; } catch(eSaved) {}
     var stored = [];
     try { stored = JSON.parse(lsGet(key) || '[]'); } catch(e) {}
     stored.unshift(entry); // plus récent en premier
@@ -13934,19 +13937,29 @@ async function chargerControlesCloudCache() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return null;
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return null;
-    var url = SUPABASE_URL + '/rest/v1/controles_haccp'
-      + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
-      + '&select=module,date_controle,signature,contenu,photos'
-      + '&order=date_controle.desc'
-      + '&limit=1000';
-    var resp = await fetch(url, {
-      method: 'GET',
-      cache: 'no-store',
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
-    });
-    if (!resp.ok) return null;
-    var rows = await resp.json();
-    if (!Array.isArray(rows)) return null;
+    // PDF-3 — pagination : on ne tronque plus à 1000. On récupère TOUS les contrôles
+    // par pages successives (sinon les plus anciens disparaissent des rapports/Pack
+    // pour les établissements actifs depuis longtemps).
+    var PAGE = 1000, MAX_PAGES = 50; // plafond de sécurité (50 000 contrôles)
+    var rows = [];
+    for (var _pg = 0; _pg < MAX_PAGES; _pg++) {
+      var url = SUPABASE_URL + '/rest/v1/controles_haccp'
+        + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+        + '&select=module,date_controle,signature,contenu,photos'
+        + '&order=date_controle.desc'
+        + '&limit=' + PAGE
+        + '&offset=' + (_pg * PAGE);
+      var resp = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
+      });
+      if (!resp.ok) { if (_pg === 0) return null; else break; }
+      var page = await resp.json();
+      if (!Array.isArray(page)) { if (_pg === 0) return null; else break; }
+      rows = rows.concat(page);
+      if (page.length < PAGE) break; // dernière page atteinte
+    }
     var cache = {};
     var histo = {};
     var seen = {};
@@ -13958,6 +13971,11 @@ async function chargerControlesCloudCache() {
       var contenu = r.contenu;
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
+      // DATA-12 — robustesse : si date_controle n'est pas une date ISO valide
+      // (lignes écrites avant le correctif), retomber sur savedAt puis maintenant.
+      if (!ts || isNaN(new Date(ts).getTime())) {
+        ts = (contenu && contenu.savedAt && !isNaN(new Date(contenu.savedAt).getTime())) ? contenu.savedAt : new Date().toISOString();
+      }
       var pid = (contenu && contenu.pageId) ? contenu.pageId : null;
       // Clé anti-doublon : même module + même heure de contrôle d'origine = même contrôle
       var cle = (pid || r.module || '') + '|' + ((contenu && contenu.timestamp) ? contenu.timestamp : ts) + '|' + ((contenu && (contenu.signe || contenu.signataire)) || '');
@@ -13996,6 +14014,11 @@ async function chargerHistoriqueControlesCloud() {
       var contenu = r.contenu;
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
+      // DATA-12 — robustesse : si date_controle n'est pas une date ISO valide
+      // (lignes écrites avant le correctif), retomber sur savedAt puis maintenant.
+      if (!ts || isNaN(new Date(ts).getTime())) {
+        ts = (contenu && contenu.savedAt && !isNaN(new Date(contenu.savedAt).getTime())) ? contenu.savedAt : new Date().toISOString();
+      }
       window._histoCloudRows[ts] = { module: r.module, contenu: contenu, photos: r.photos };
       if (typeof _secteurActifMatch === 'function' && !_secteurActifMatch(contenu || {})) return; // isolation secteur
       var d = new Date(ts);
@@ -19653,10 +19676,17 @@ if (!ETAB_ID) {
   if (contenuPropre.photo)  delete contenuPropre.photo;
   // Colonnes garanties (lues ailleurs par l'app) + colonnes OPTIONNELLES
   // (nc_detectee/nc_details) qui peuvent ne pas exister dans le schéma.
-  // DATA-12 — horodatage = heure réelle de VALIDATION du contrôle (présente dans
-  // donnees.timestamp), pas l'heure d'upload. Sinon un contrôle saisi hors-ligne
-  // et remonté plus tard porte une date fausse et l'ordre réel est perdu.
-  var _dateControle = (donnees && donnees.timestamp) ? String(donnees.timestamp) : new Date().toISOString();
+  // DATA-12 — horodatage = heure réelle de VALIDATION du contrôle, pas l'heure
+  // d'upload (sinon un contrôle saisi hors-ligne et remonté plus tard porte une
+  // date fausse). IMPORTANT : date_controle doit être une date ISO valide.
+  // donnees.timestamp est une chaîne française (getNowStr) NON parsable → on
+  // utilise donnees.savedAt (ISO posé à la sauvegarde), sinon on retombe sur now.
+  var _dateControle = new Date().toISOString();
+  if (donnees && donnees.savedAt && !isNaN(new Date(donnees.savedAt).getTime())) {
+    _dateControle = new Date(donnees.savedAt).toISOString();
+  } else if (donnees && donnees.timestamp && !isNaN(new Date(donnees.timestamp).getTime())) {
+    _dateControle = new Date(donnees.timestamp).toISOString();
+  }
   var controleBase = {
     code_client:   String(ETAB_ID),
     module:        String(nomModule),
@@ -19832,6 +19862,8 @@ async function synchroniserControlesManquants() {
         // de course). On ne rattrape que ceux de plus de 30 s.
         if (entryTs) { var age = Date.now() - new Date(entryTs).getTime(); if (!isNaN(age) && age < 30000) continue; }
         manquants++;
+        // DATA-12 — garantir une date ISO valide même pour les contrôles legacy.
+        try { if (data && !data.savedAt && entryTs) data.savedAt = entryTs; } catch(eSv) {}
         var moduleNom = (data && data.module) || pid.replace('page-','');
         var res = await enregistrerControleHACCP(moduleNom, data);
         if (res && res.ok) { seen[sig] = true; envoyes++; if (entry && !entry.cloudOk) { entry.cloudOk = true; dirty = true; } }
@@ -19923,6 +19955,8 @@ window.synchroniserControlesManquants = synchroniserControlesManquants;
             if (window._pushedSigs[sigW]) return;
             window._pushedSigs[sigW] = true; // réservation anti-doublon le temps de l'envoi
             var _tsW = entry.timestamp;
+            // DATA-12 — garantir une date ISO valide (date_controle) même legacy.
+            try { if (donnees && !donnees.savedAt && entry.timestamp) donnees.savedAt = entry.timestamp; } catch(eSv2) {}
             // DATA-11 : libérer la signature si l'envoi échoue (réessai ultérieur).
             // DATA-6 : marquer cloudOk en cas de succès.
             Promise.resolve(enregistrerControleHACCP(moduleNom, donnees)).then(function(res){
@@ -20894,7 +20928,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b52';
+  h.textContent = txt + ' · maj b53';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.

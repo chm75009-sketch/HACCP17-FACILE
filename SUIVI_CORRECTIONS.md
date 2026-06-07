@@ -47,8 +47,8 @@
 | DATA-11 | `_pushedSigs` posé avant confirmation | ✅ |
 | DATA-12 | `date_controle` = heure upload, pas saisie | ✅ |
 | DATA-13 | Badge « N non synchronisés » persistant | ✅ |
-| PDF-3 | `limit=1000` masque contrôles anciens | ❌ |
-| PDF-4 | Bornes de dates UTC vs locale | ❌ |
+| PDF-3 | `limit=1000` masque contrôles anciens | ✅ |
+| PDF-4 | Bornes de dates UTC vs locale | ✅ |
 | PDF-5 | Fusion local/cloud par « plus récent » | ❌ |
 | PDF-6 | try/catch par module dans le Pack | ✅ |
 | PDF-7 | Signataire absent des sections conformes | ❌ |
