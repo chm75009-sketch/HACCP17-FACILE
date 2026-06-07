@@ -462,7 +462,11 @@ async function sbLoginTentative(codeAcces, pwd) {
     return { ok: false, msg: 'Cet établissement est désactivé. Contactez HACCP Pro.' };
   }
   if (etab.date_expiration) {
-    var exp = new Date(etab.date_expiration);
+    // Expiration INCLUSIVE jusqu'à la fin de journée locale (cohérent avec le
+    // compte à rebours tickEssaiCountdown et avec le message « jusqu'au … inclus »).
+    // Sans cela, une date seule (AAAA-MM-JJ) expire à minuit UTC → blocage dès
+    // 1h-2h du matin le jour J en France.
+    var exp = new Date(etab.date_expiration); exp.setHours(23, 59, 59, 999);
     if (exp < new Date()) {
       return { ok: false, msg: 'Votre abonnement a expiré le ' + exp.toLocaleDateString('fr-FR') + '. Contactez HACCP Pro pour le renouveler.' };
     }
@@ -3795,7 +3799,7 @@ function ajouterCategorie() {
         '</div>' +
       '</div>' +
       '<div class="frow"><div class="flabel">Conformité</div><div class="status-group" id="tcat_status_' + id + '"><button class="status-btn active-ok" onclick="setTcatStatus(' + id + ', \'ok\')">✅ Conforme</button><button class="status-btn" onclick="setTcatStatus(' + id + ', \'bad\')">✗ Non conforme</button></div></div>' +
-      '<div class="frow"><div class="flabel">Seuil</div><input type="text" id="tcat_seuil_' + id + '" readonly style="background:#f3f4f6;cursor:not-allowed"/></div>' +
+      '<div class="frow"><div class="flabel">Seuil</div><input type="text" id="tcat_seuilfield_' + id + '" readonly style="background:#f3f4f6;cursor:not-allowed"/></div>' +
       '<div class="frow"><div class="flabel">Valeur relevée</div><input type="text" id="tcat_val_' + id + '" readonly style="background:#f3f4f6;cursor:not-allowed"/></div>' +
       '<div class="nc-auto" id="tcat_nc_' + id + '" style="display:none">⚡ NC automatique — T° hors seuil</div>' +
       '<div id="tcat_nc_action_' + id + '" style="display:none" class="nc-action">' +
@@ -3928,7 +3932,7 @@ function checkTempCat(id) {
   var catSel = document.getElementById('tcat_sel_' + id);
   var tempEl = document.getElementById('tcat_temp_' + id);
   var statusGrp = document.getElementById('tcat_status_' + id);
-  var seuilEl = document.getElementById('tcat_seuil_' + id);
+  var seuilEl = document.getElementById('tcat_seuilfield_' + id);
   var valEl = document.getElementById('tcat_val_' + id);
   var ncEl = document.getElementById('tcat_nc_' + id);
   var ncAction = document.getElementById('tcat_nc_action_' + id);
@@ -8355,7 +8359,7 @@ function onSeuilCustomChange(id) {
   var dispEl = document.getElementById('enc_seuil_display_' + id);
   if (!customEl || !customEl.value) return;
   var seuil = parseFloat(customEl.value);
-  if (dispEl) dispEl.textContent = '+' + seuil + '°C';
+  if (dispEl) dispEl.textContent = (seuil < 0 ? '' : '+') + seuil + '°C';
   checkTempEnceinte(id, seuil);
 }
 
@@ -8373,18 +8377,22 @@ function checkTempEnceinte(id, seuil) {
   var ncEl   = document.getElementById('enc_nc_' + id);
   if (!tempEl || tempEl.value === '') {
     if (confEl) { confEl.className='conformite-badge pending'; confEl.textContent='Saisissez la température'; }
-    if (ncEl) ncEl.style.display = 'none'; hideNCAction(ncEl.id);
+    if (ncEl) { ncEl.style.display = 'none'; hideNCAction(ncEl.id); }
     return;
   }
+  // Garde « valeur aberrante » — vaut pour TOUTES les enceintes (seuil réglementaire
+  // ET seuil opérateur). Évite qu'un +250°C ou un -99 (faute de frappe) passe en
+  // contrôle conforme/NC sans alerte.
+  var _tv = parseFloat(tempEl.value);
+  if (!isNaN(_tv) && (_tv < -40 || _tv > 200)) { if (typeof showToast === 'function') showToast('Température implausible — vérifiez la valeur saisie', 'warn', 3000); return; }
   if (seuil === null) {
     // Tenter de lire le seuil custom saisi par l'opérateur
     var customEl = document.getElementById('enc_seuil_custom_' + id);
     if (customEl && customEl.value) {
       seuil = parseFloat(customEl.value);
-  if (!isNaN(parseFloat(tempEl ? tempEl.value : ''))) { var _tv = parseFloat(tempEl.value); if (_tv < -40 || _tv > 200) { showToast('Température implausible', 'warn', 2000); return; } }
       // Mettre à jour l'affichage du seuil
       var seuilDisp = document.getElementById('enc_seuil_display_' + id);
-      if (seuilDisp) seuilDisp.textContent = '+' + seuil + '°C';
+      if (seuilDisp) seuilDisp.textContent = (seuil < 0 ? '' : '+') + seuil + '°C';
     } else {
       if (confEl) { confEl.className='conformite-badge pending'; confEl.textContent='Saisissez le seuil ci-dessus'; }
       return;
