@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v71';
+var APP_BUILD = 'v72';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1782,13 +1782,21 @@ async function connexion() {
   ETAB.siret = d.siret || '';
   ETAB.adresse = d.adresse || '';
   ETAB.secteur = d.secteur || 'resto';
-  // Restaurer le dernier secteur choisi (compte multi-secteurs / test) pour qu'il
-  // ne revienne PAS au secteur enregistré du compte. Sans ça, SECTEUR_ACTIF se
-  // désynchronisait du titre affiché → contrôles mal étiquetés (ex. un contrôle
-  // « Boulangerie » enregistré secteur=resto).
+  // Restaurer le dernier secteur choisi UNIQUEMENT pour les comptes multi-secteurs
+  // (test/démo). Pour un client VERROUILLÉ (multi_secteur != true), on impose
+  // TOUJOURS le secteur enregistré en base — sinon un ancien choix mémorisé sur
+  // l'appareil (ex. 'resto') écraserait le vrai métier du client (ex. 'bp').
   try {
-    var _savedSect = lsGet('haccp_secteur_actif_' + ETAB_ID);
-    if (_savedSect) { SECTEUR_ACTIF = _savedSect; ETAB.secteur = _savedSect; }
+    if (d && d.multi_secteur === true) {
+      var _savedSect = lsGet('haccp_secteur_actif_' + ETAB_ID);
+      if (_savedSect) { SECTEUR_ACTIF = _savedSect; ETAB.secteur = _savedSect; }
+    } else {
+      // Client verrouillé : le secteur de la base fait foi. On purge un éventuel
+      // secteur mémorisé erroné pour cet établissement.
+      SECTEUR_ACTIF = d.secteur || 'resto';
+      ETAB.secteur = d.secteur || 'resto';
+      try { lsSet('haccp_secteur_actif_' + ETAB_ID, ETAB.secteur); } catch(ePurge) {}
+    }
   } catch(eSect) {}
   ETAB.date_expiration = d.date_expiration || '';
   try { lsSet('haccp_date_expiration', d.date_expiration || ''); } catch(e) {}
