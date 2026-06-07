@@ -21,24 +21,42 @@
   if ('serviceWorker' in navigator) {
     (function () {
       var hadController = !!navigator.serviceWorker.controller;
-      var refreshing = false;
-      // Quand le nouveau SW prend le contrôle -> recharge une seule fois
+      // Quand le nouveau SW prend le contrôle : on NE recharge PAS automatiquement
+      // (pour ne jamais interrompre une saisie en cours). On propose la mise à jour
+      // via la bannière → l'utilisateur recharge quand il veut, en 1 appui.
       navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (refreshing) return;
-        // 1ère prise de contrôle (toute première installation) : ne pas recharger
-        if (!hadController) { hadController = true; return; }
-        // MIN-15 — garde-fou anti-boucle : si un reload auto a déjà eu lieu il y a
-        // moins de 20 s (ex. shell servi cassé en 200), ne pas recharger en boucle.
-        try {
-          var _last = parseInt(sessionStorage.getItem('haccp_sw_reload_at') || '0', 10);
-          if (Date.now() - _last < 20000) { console.warn('[SW] reload auto ignoré (anti-boucle)'); return; }
-          sessionStorage.setItem('haccp_sw_reload_at', String(Date.now()));
-        } catch (e) {}
-        refreshing = true;
-        window.location.reload();
+        if (!hadController) { hadController = true; return; } // 1ère installation : rien
+        try { if (typeof afficherBanniereMaj === 'function') afficherBanniereMaj(); } catch (e) {}
       });
+      // Bannière « nouvelle version prête » : feedback clair + mise à jour en 1 appui
+      // (au lieu d'attendre le rechargement auto à l'aveugle / de fermer-rouvrir).
+      var _majBannerShown = false;
+      function afficherBanniereMaj() {
+        if (_majBannerShown || document.getElementById('swUpdateBanner')) return;
+        _majBannerShown = true;
+        var b = document.createElement('div');
+        b.id = 'swUpdateBanner';
+        b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:100000;background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;padding:calc(11px + env(safe-area-inset-top,0px)) 14px 11px;display:flex;align-items:center;justify-content:center;gap:12px;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.35)';
+        b.innerHTML = '🔄 Nouvelle version prête <button id="swUpdateBtn" style="background:#fff;color:#0f766e;border:none;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;font-family:inherit;font-size:13px">Mettre à jour</button>';
+        document.body.appendChild(b);
+        document.getElementById('swUpdateBtn').onclick = function () {
+          b.innerHTML = '⏳ Mise à jour…';
+          try { sessionStorage.setItem('haccp_sw_reload_at', '0'); } catch (e) {}
+          window.location.reload();
+        };
+      }
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+          // Détecter l'arrivée d'une nouvelle version (nouveau SW installé) → bannière.
+          reg.addEventListener('updatefound', function () {
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', function () {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) afficherBanniereMaj();
+            });
+          });
+          // Si une version est déjà en attente au chargement, proposer aussi la maj.
+          if (reg.waiting && navigator.serviceWorker.controller) afficherBanniereMaj();
           // Vérifier les mises à jour à l'ouverture, au retour au premier plan,
           // et toutes les heures pour les sessions longues (app installée).
           // Hors-ligne : on NE vérifie PAS (sinon le retéléchargement de sw.js
@@ -52,7 +70,7 @@
             } catch (e) {}
           };
           verifier();
-          setInterval(verifier, 60 * 60 * 1000);
+          setInterval(verifier, 60 * 1000); // vérif toutes les minutes (au lieu d'1h) → maj plus réactive
           document.addEventListener('visibilitychange', function () {
             if (document.visibilityState === 'visible') verifier();
           });
