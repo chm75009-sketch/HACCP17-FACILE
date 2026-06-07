@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v58';
+var APP_BUILD = 'v59';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -20705,14 +20705,17 @@ function hvStartVoice(input, micBtn) {
   catch (e) { cleanup(); }
 }
 
-function hvAttachMic(input) {
+function hvAttachMic(input, opts) {
   if (!input || input.getAttribute('data-hvmic')) return;
   input.setAttribute('data-hvmic', '1');
+  var withSign = !(opts && opts.sign === false); // false → micro seul (ex. TPM %)
 
   // Bouton ± — saisie des températures NÉGATIVES (congélateur, surgelé : −18°C).
   // Indispensable car le pavé inputmode="decimal" (clavier iPhone) n'affiche PAS
   // le signe « − ». Un appui bascule le signe de la valeur du champ.
-  var s = document.createElement('button');
+  var s = null;
+  if (withSign) {
+  s = document.createElement('button');
   s.type = 'button';
   s.textContent = '±';
   s.className = 'hv-sign-btn';
@@ -20729,22 +20732,26 @@ function hvAttachMic(input) {
     catch (e) { if (typeof input.oninput === 'function') { try { input.oninput(); } catch (_) {} } }
     try { input.focus(); } catch (e) {}
   };
+  }
 
   var b = document.createElement('button');
   b.type = 'button';
   b.textContent = '🎤';
   b.className = 'hv-mic-btn';
-  b.setAttribute('aria-label', 'Dicter la température');
-  b.title = 'Dicter la température à la voix';
+  b.setAttribute('aria-label', 'Dicter la valeur');
+  b.title = 'Dicter la valeur à la voix';
   b.style.cssText = 'margin-left:6px;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;border-radius:9px;width:40px;height:40px;font-size:17px;line-height:1;cursor:pointer;flex-shrink:0;vertical-align:middle';
   b.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); hvStartVoice(input, b); };
 
-  // Insertion : [champ] [±] [🎤]
+  // Insertion : [champ] [±] [🎤]  (ou [champ] [🎤] si pas de ±)
   var wrap = (input.closest ? input.closest('.tinput-wrap') : null);
   var parent = null, next = null;
   if (wrap && wrap.parentNode) { parent = wrap.parentNode; next = wrap.nextSibling; }
   else if (input.parentNode) { parent = input.parentNode; next = input.nextSibling; }
-  if (parent) { parent.insertBefore(s, next); parent.insertBefore(b, s.nextSibling); }
+  if (parent) {
+    if (s) { parent.insertBefore(s, next); parent.insertBefore(b, s.nextSibling); }
+    else { parent.insertBefore(b, next); }
+  }
 }
 
 // Ajoute le micro à tous les champs de température de la page Températures.
@@ -20795,6 +20802,12 @@ function hvVoiceInit() {
   for (var i = 0; i < inputs.length; i++) {
     try { if (hvIsTempInput(inputs[i])) hvAttachMic(inputs[i]); } catch (e) {}
   }
+  // Champs de mesure non-température utiles à dicter aussi : TPM % des huiles de
+  // friture (toujours positif → micro seul, sans le bouton ±).
+  try {
+    var tpmInputs = document.querySelectorAll('input[id^="fr_tpm_"]');
+    for (var t = 0; t < tpmInputs.length; t++) { hvAttachMic(tpmInputs[t], { sign: false }); }
+  } catch (e) {}
 }
 
 // Observe tout le document : les champs température créés dynamiquement (à
