@@ -8528,6 +8528,48 @@ async function validerTemperatures() {
     return;
   }
   reqEl.style.display='none';
+
+  // ── Anti-contrôle-vide ──
+  // Une enceinte est « relevée » si elle a une température.
+  //  • aucune enceinte relevée → contrôle vide → REFUSÉ (on dit pourquoi)
+  //  • certaines vides → on prévient ; si validation quand même, elles ne sont
+  //    PAS enregistrées (et on dit lesquelles)
+  var _vides = [], _pleines = 0;
+  document.querySelectorAll('[id^="enc_block_"]').forEach(function(block){
+    var id = block.id.replace('enc_block_','');
+    var t = document.getElementById('enc_temp_' + id);
+    var ok = t && String(t.value).trim() !== '' && !isNaN(parseFloat(t.value));
+    if (ok) { _pleines++; }
+    else {
+      var lab = block.querySelector('.fblock-title span') ? block.querySelector('.fblock-title span').textContent.trim() : ('Enceinte ' + id);
+      _vides.push(lab);
+    }
+  });
+  if (_pleines === 0) {
+    if (typeof showToast === 'function') showToast('Contrôle vide : aucune température relevée. Relevez au moins une enceinte avant de valider.', 'err', 6000);
+    return;
+  }
+  if (_vides.length > 0) {
+    showConfirm('🌡️', 'Relevés incomplets',
+      'Sans température : ' + _vides.join(', ') + '.\n\nComplétez-les, ou validez quand même — ces enceintes ne seront PAS enregistrées dans le contrôle.',
+      'Valider sans elles', '', function(ok){ if (ok) _finaliserTemperatures(prenom, nom, true); });
+    return;
+  }
+  _finaliserTemperatures(prenom, nom, false);
+}
+
+async function _finaliserTemperatures(prenom, nom, retirerVides) {
+  // Retire du DOM les enceintes sans température → non enregistrées (PDF/local/cloud)
+  if (retirerVides) {
+    var nbRetirees = 0;
+    Array.prototype.slice.call(document.querySelectorAll('[id^="enc_block_"]')).forEach(function(block){
+      var id = block.id.replace('enc_block_','');
+      var t = document.getElementById('enc_temp_' + id);
+      var ok = t && String(t.value).trim() !== '' && !isNaN(parseFloat(t.value));
+      if (!ok) { nbRetirees++; block.remove(); }
+    });
+    if (nbRetirees && typeof showToast === 'function') showToast(nbRetirees + ' enceinte(s) sans relevé non enregistrée(s).', 'warn', 5000);
+  }
   // V113 — D : Sauvegarde Supabase AVANT PDF (awaited, après check signature)
   if (SB_READY && ETAB_ID) {
     try {
@@ -10061,6 +10103,53 @@ async function validerHuiles() {
   var reqEl = document.getElementById('huile_sig_required');
   if (!hasSigHuile || !prenom || !nom) { reqEl.style.display = 'flex'; reqEl.scrollIntoView({behavior:'smooth', block:'center'}); return; }
   reqEl.style.display = 'none';
+
+  // ── Anti-contrôle-vide ──
+  // Une friteuse est « renseignée » si elle a une température OU un TPM.
+  //  • aucune friteuse renseignée → contrôle vide → REFUSÉ (on dit pourquoi)
+  //  • certaines vides → on prévient ; si l'opérateur valide quand même, les
+  //    friteuses sans mesure ne sont PAS enregistrées (et on lui dit lesquelles)
+  var _vides = [], _pleines = 0;
+  document.querySelectorAll('[id^="friteuse_"]').forEach(function(block){
+    var id = block.id.replace('friteuse_','');
+    var t = document.getElementById('fr_temp_' + id);
+    var p = document.getElementById('fr_tpm_' + id);
+    var tv = t && String(t.value).trim() !== '' && !isNaN(parseFloat(t.value));
+    var pv = p && String(p.value).trim() !== '' && !isNaN(parseFloat(p.value));
+    if (tv || pv) { _pleines++; }
+    else {
+      var nomEl = document.getElementById('fr_nom_' + id);
+      _vides.push('Friteuse N°' + id + ((nomEl && nomEl.value) ? ' (' + nomEl.value + ')' : ''));
+    }
+  });
+  if (_pleines === 0) {
+    if (typeof showToast === 'function') showToast('Contrôle vide : aucune mesure saisie. Renseignez au moins une friteuse (température ou TPM) avant de valider.', 'err', 6000);
+    return;
+  }
+  if (_vides.length > 0) {
+    showConfirm('🫙', 'Mesures incomplètes',
+      'Sans mesure : ' + _vides.join(', ') + '.\n\nComplétez-les, ou validez quand même — ces friteuses ne seront PAS enregistrées dans le contrôle.',
+      'Valider sans elles', '', function(ok){ if (ok) _finaliserHuiles(prenom, nom, true); });
+    return;
+  }
+  _finaliserHuiles(prenom, nom, false);
+}
+
+async function _finaliserHuiles(prenom, nom, retirerVides) {
+  // Retire du DOM les friteuses sans mesure → elles ne seront enregistrées nulle
+  // part (PDF, localStorage, cloud lisent le DOM après ce nettoyage).
+  if (retirerVides) {
+    var nbRetirees = 0;
+    Array.prototype.slice.call(document.querySelectorAll('[id^="friteuse_"]')).forEach(function(block){
+      var id = block.id.replace('friteuse_','');
+      var t = document.getElementById('fr_temp_' + id);
+      var p = document.getElementById('fr_tpm_' + id);
+      var tv = t && String(t.value).trim() !== '' && !isNaN(parseFloat(t.value));
+      var pv = p && String(p.value).trim() !== '' && !isNaN(parseFloat(p.value));
+      if (!tv && !pv) { nbRetirees++; block.remove(); }
+    });
+    if (nbRetirees && typeof showToast === 'function') showToast(nbRetirees + ' friteuse(s) sans mesure non enregistrée(s).', 'warn', 5000);
+  }
   // V113 — D : Sauvegarde Supabase AVANT PDF (awaited)
   if (SB_READY && ETAB_ID) {
     try {
