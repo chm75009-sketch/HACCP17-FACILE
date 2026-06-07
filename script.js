@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v79';
+var APP_BUILD = 'v80';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -17506,7 +17506,19 @@ function _securiserNavigation(targetId) {
 
 window.addEventListener('popstate', function(e) {
   // Cible RÉELLE de l'entrée d'historique (posée par showPage via pushState).
-  var targetId = (e && e.state && e.state.page) ? e.state.page : _idPageActive();
+  var targetId = (e && e.state && e.state.page) ? e.state.page : null;
+  // CAS CRITIQUE — entrée d'historique INITIALE (state null), c.-à-d. l'état
+  // d'AVANT que l'app n'ait commencé à naviguer. Sans ce traitement, on retombait
+  // sur la page active du moment (souvent une page CONNECTÉE) et on la gardait →
+  // le compte restait visible (mot de passe encore pré-rempli). Ici, revenir si
+  // loin = revenir à l'état DÉCONNECTÉ : on ferme la session et on montre le login.
+  if (!targetId) {
+    if ((typeof ETAB_ID !== 'undefined' && ETAB_ID) && !(lsGet('haccp_deconnecte') === '1')) {
+      _deconnexionSilencieuse();
+    }
+    _navAfficherPage('page-login');
+    return;
+  }
   if (_securiserNavigation(targetId)) return;
   // Connecté + navigation interne : rester sur les pages racines, sinon revenir
   // au tableau de bord (comportement historique conservé).
