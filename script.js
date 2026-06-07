@@ -351,20 +351,8 @@ async function lierPhotoAuControle(photo) {
     var arr = await resp.json();
     console.info('[HACCP Sync] 🔍 Réponse Supabase : ' + arr.length + ' contrôle(s) trouvé(s)');
     if (!arr || arr.length === 0) {
-      // ── Diagnostic : test sans filtre module/date pour voir si on lit quoi que ce soit ──
-      if ((photo.linkTries || 0) <= 2) {
-        try {
-          var urlDiag = SUPABASE_URL + '/rest/v1/controles_haccp?select=id,code_client,module,date_controle&limit=5';
-          var diagResp = await fetch(urlDiag, {
-            headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
-          });
-          var diagArr = await diagResp.json();
-          console.info('[HACCP Sync] 🔬 Diagnostic SANS filtre : ' + (Array.isArray(diagArr) ? diagArr.length : '?') + ' contrôle(s) lisible(s) au total');
-          if (Array.isArray(diagArr) && diagArr.length > 0) {
-            console.info('[HACCP Sync] 🔬 Exemple : code_client="' + diagArr[0].code_client + '" module="' + diagArr[0].module + '" date="' + diagArr[0].date_controle + '"');
-          }
-        } catch(eDiag) { console.warn('[HACCP Sync] Erreur diagnostic:', eDiag); }
-      }
+      // CONC-5 — diagnostic cross-tenant retiré (lisait des contrôles sans filtre
+      // client). Pas de contrôle correspondant trouvé → on retentera plus tard.
       return;
     }
 
@@ -19647,6 +19635,11 @@ if (!ETAB_ID) {
     console.info('[HACCP Cloud] Mode local — contrôle non envoyé au cloud');
     return { ok: false, msg: 'Mode local' };
   }
+  // CONC-6 — le mode test partage l'identifiant 'local-test' ; ne JAMAIS pousser
+  // ses contrôles au cloud (sinon pollution croisée entre tous les essais).
+  if (String(ETAB_ID) === 'local-test') {
+    return { ok: false, msg: 'Mode test (non envoyé au cloud)' };
+  }
 
 
 // Préparation des données (on retire les photos pour éviter de dépasser les limites de taille)
@@ -19655,13 +19648,17 @@ if (!ETAB_ID) {
   if (contenuPropre.photo)  delete contenuPropre.photo;
   // Colonnes garanties (lues ailleurs par l'app) + colonnes OPTIONNELLES
   // (nc_detectee/nc_details) qui peuvent ne pas exister dans le schéma.
+  // DATA-12 — horodatage = heure réelle de VALIDATION du contrôle (présente dans
+  // donnees.timestamp), pas l'heure d'upload. Sinon un contrôle saisi hors-ligne
+  // et remonté plus tard porte une date fausse et l'ordre réel est perdu.
+  var _dateControle = (donnees && donnees.timestamp) ? String(donnees.timestamp) : new Date().toISOString();
   var controleBase = {
     code_client:   String(ETAB_ID),
     module:        String(nomModule),
     contenu:       contenuPropre,
     signature:     (donnees && donnees.signature) ? String(donnees.signature) : null,
     photos:        [],
-    date_controle: new Date().toISOString()
+    date_controle: _dateControle
   };
   var controleFull = Object.assign({}, controleBase, {
     nc_detectee: !!(donnees && donnees.nc_detectee),
@@ -19735,6 +19732,7 @@ if (!ETAB_ID) {
 function _compterNonSync() {
   try {
     if (typeof localStorage === 'undefined' || typeof ETAB_ID === 'undefined' || !ETAB_ID) return 0;
+    if (String(ETAB_ID) === 'local-test') return 0; // CONC-6 — pas de cloud en mode test
     var etabKey = '_' + String(ETAB_ID);
     var n = 0;
     for (var i = 0; i < localStorage.length; i++) {
@@ -20891,7 +20889,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b48';
+  h.textContent = txt + ' · maj b49';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -20936,8 +20934,8 @@ function enregistrerMesEnceintes() {
     } else {
       var why = (res && (res.body || res.msg)) ? (' — ' + String(res.body || res.msg).slice(0, 110)) : '';
       if (typeof showToast === 'function') showToast('Enregistrées sur cet appareil, mais synchro cloud échouée' + why + '.', 'warn', 7000);
-      // Échec : on lance un diagnostic visible (fenêtre) pour identifier la cause.
-      try { diagSyncEnceintes(res); } catch (e) {}
+      // CONC-5 — ne plus écrire de lignes « __diag__ » en base à chaque échec.
+      // (La fonction diagSyncEnceintes reste disponible pour un diagnostic manuel.)
     }
   });
 }

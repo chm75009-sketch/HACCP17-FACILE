@@ -36,8 +36,8 @@
 |---|---|---|
 | CONC-3 | Backoff + jitter liaison photo | ✅ |
 | CONC-4 | Réconciliation allégée (champs + fenêtre 7j) | ❌ |
-| CONC-5 | Lignes `__diag__` hors prod | 🟡 |
-| CONC-6 | `local-test` hors prod / ETAB_ID non réassignable | 🟡 |
+| CONC-5 | Lignes `__diag__` hors prod | ✅ |
+| CONC-6 | `local-test` hors prod / ETAB_ID non réassignable | ✅ |
 | CONC-7 | UUID nom fichier photo (anti-écrasement) | ✅ |
 | CONC-8 | Onglet leader + pause `document.hidden` | ❌ |
 | DATA-7 | Cap 200/module évince contrôle non synchro | ✅ |
@@ -45,7 +45,7 @@
 | DATA-9 | Doublons cloud (pas d'unicité serveur) | ❌ |
 | DATA-10 | `seen` pollué par entrées locales | ❌ |
 | DATA-11 | `_pushedSigs` posé avant confirmation | ✅ |
-| DATA-12 | `date_controle` = heure upload, pas saisie | ❌ |
+| DATA-12 | `date_controle` = heure upload, pas saisie | ✅ |
 | DATA-13 | Badge « N non synchronisés » persistant | ✅ |
 | PDF-3 | `limit=1000` masque contrôles anciens | ❌ |
 | PDF-4 | Bornes de dates UTC vs locale | ❌ |
