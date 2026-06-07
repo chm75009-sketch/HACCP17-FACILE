@@ -69,19 +69,19 @@
 | Code | Point | Statut |
 |---|---|---|
 | MIN-1 | Helpers seuils dupliqués ×4 + code mort | ❌ |
-| MIN-2 | Borne haute `23:59:59` sans `.999` | ❌ |
+| MIN-2 | Borne haute `23:59:59` sans `.999` | ✅ |
 | MIN-3 | Photos modules non mappés non injectées | ❌ |
 | MIN-4 | Injection photos sur setTimeout fixes | ❌ |
 | MIN-5 | `_secteurActifMatch` laisse passer legacy | ❌ |
 | MIN-6 | Affichage `+-20°C` seuil négatif | ❌ |
 | MIN-7 | Voix : négatif dicté sans « moins » | ❌ |
-| MIN-8 | `hideNCAction` hors garde `if(ncEl)` | ❌ |
+| MIN-8 | `hideNCAction` hors garde `if(ncEl)` | ✅ |
 | MIN-9 | Pull enceintes sans re-sanitisation | ❌ |
 | MIN-10 | Session essai 16j vs 3j réel | ❌ |
-| MIN-11 | `ETAB_ID`/`MODE_LOCAL` déclarés en double | ❌ |
+| MIN-11 | `ETAB_ID`/`MODE_LOCAL` déclarés en double | ✅ |
 | MIN-12 | Table `enregistrements` écrite jamais relue | ❌ |
 | MIN-13 | Pas de pull périodique PC→iPhone | ❌ |
-| MIN-14 | `navigator.storage.persist()` jamais appelé | ❌ |
+| MIN-14 | `navigator.storage.persist()` jamais appelé | ✅ |
 | MIN-15 | Boucle de reload si shell HTML cassé en 200 | ❌ |
 
 ## 📋 RGPD / charte (livrable à produire)

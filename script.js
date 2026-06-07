@@ -37,9 +37,9 @@ try {
   MODE_LOCAL = true;
 }
 
-var ETAB_ID = null;
-var SB_READY = false;
-var MODE_LOCAL = false; // true si Supabase inaccessible
+// MIN-11 — (déclarations ETAB_ID/SB_READY/MODE_LOCAL déjà faites plus haut ;
+// les redéclarer ici remettait MODE_LOCAL=false et écrasait le repli mode local
+// positionné par le catch d'init Supabase ci-dessus → supprimé.)
 // V80 — Mode CLIENT : si activé, masque les secteurs autres que celui de l'utilisateur connecté
 // (réglementaire : un client ne doit pas pouvoir voir/sélectionner un secteur autre que le sien)
 var CLIENT_MODE = false;
@@ -95,6 +95,20 @@ async function apresLaCapturePhoto(base64, controleId, source) {
 }
 // ══════════════════════════════════════════════════════════════
 
+// MIN-14 — Demander un stockage PERSISTANT (réduit le risque d'éviction iOS/Safari
+// des contrôles et de la file photos lorsque l'espace se fait rare). Sans effet
+// sur les navigateurs qui ne le supportent pas.
+(function _demanderStockagePersistant(){
+  try {
+    if (navigator.storage && navigator.storage.persist && navigator.storage.persisted) {
+      navigator.storage.persisted().then(function(deja){
+        if (!deja) { navigator.storage.persist().then(function(ok){
+          console.info('[HACCP] Stockage persistant : ' + (ok ? 'accordé' : 'refusé par le navigateur'));
+        }).catch(function(){}); }
+      }).catch(function(){});
+    }
+  } catch(e) {}
+})();
 
 // ══════════════════════════════════════════════════════════════
 // ── SYNCHRONISEUR PHOTOS — Livraison 2A ──
@@ -8556,11 +8570,13 @@ function checkTempEnceinte(id, seuil) {
   }
   var temp = parseFloat(tempEl.value);
   if (temp <= seuil) {
-    confEl.className='conformite-badge ok'; confEl.textContent='✓ Conforme';
-    ncEl.style.display='none'; hideNCAction(ncEl.id); tempEl.style.borderColor='';
+    if (confEl) { confEl.className='conformite-badge ok'; confEl.textContent='✓ Conforme'; }
+    if (ncEl) { ncEl.style.display='none'; hideNCAction(ncEl.id); } // MIN-8 — garde anti-TypeError
+    tempEl.style.borderColor='';
   } else {
-    confEl.className='conformite-badge bad'; confEl.textContent='✗ Non conforme — +' + (temp-seuil).toFixed(1) + '°C au-dessus du seuil';
-    ncEl.style.display='flex'; showNCAction(ncEl.id); tempEl.style.borderColor='var(--red)';
+    if (confEl) { confEl.className='conformite-badge bad'; confEl.textContent='✗ Non conforme — +' + (temp-seuil).toFixed(1) + '°C au-dessus du seuil'; }
+    if (ncEl) { ncEl.style.display='flex'; showNCAction(ncEl.id); }
+    tempEl.style.borderColor='var(--red)';
   }
 }
 
@@ -13830,9 +13846,9 @@ function getDonneesPeriode(pageId, dateDebut, dateFin) {
     // Bornes en heure LOCALE (et non UTC) : "YYYY-MM-DD" sans Z est interprété
     // en local, ce qui évite d'exclure un contrôle fait en début/fin de journée.
     var from = new Date(String(dateDebut) + 'T00:00:00');
-    var to = new Date(String(dateFin) + 'T23:59:59');
+    var to = new Date(String(dateFin) + 'T23:59:59.999'); // MIN-2 — inclure la dernière fraction de seconde
     if (isNaN(from.getTime())) from = new Date(dateDebut);
-    if (isNaN(to.getTime())) { to = new Date(dateFin); to.setHours(23,59,59); }
+    if (isNaN(to.getTime())) { to = new Date(dateFin); to.setHours(23,59,59,999); }
     // Isolation par secteur actif (Pack DDPP + tableau de bord inclus). Possible
     // de façon fiable maintenant que SECTEUR_ACTIF est persisté et que chaque
     // contrôle porte le bon data.secteur (désynchro corrigée). Un Pack boulangerie
@@ -20811,7 +20827,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b46';
+  h.textContent = txt + ' · maj b47';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
