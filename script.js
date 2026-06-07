@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v67';
+var APP_BUILD = 'v68';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -610,7 +610,8 @@ async function _saveOfflineCred(code, pwd, d) {
       at: Date.now(),
       etab: {
         id: d.id, nom: d.nom, secteur: d.secteur, siret: d.siret,
-        adresse: d.adresse, date_expiration: d.date_expiration, code_acces: d.code_acces
+        adresse: d.adresse, date_expiration: d.date_expiration, code_acces: d.code_acces,
+        multi_secteur: d.multi_secteur === true // SEC — préserver le droit multi-secteur hors-ligne
       }
     }));
   } catch(e) {}
@@ -1826,15 +1827,17 @@ async function connexion() {
   document.getElementById('onb_back_btn').style.display = 'none';
   document.getElementById('onb_step1').style.display = 'block';
   document.getElementById('onb_step2').style.display = 'none';
-  // V80 — CLIENT_MODE désactivé par défaut pour permettre à l'admin/testeur
-  // de voir tous les secteurs (msg #80 : "parfois je veux changer").
-  // V101 — Réactivé automatiquement pour les vrais clients commerciaux (codes HACCP-XXXXX-YYYY)
-  var codeUpper = (d.code_acces || '').toUpperCase();
-  if (codeUpper.indexOf('HACCP-') === 0) {
-    CLIENT_MODE = true;
-    console.log('[V101] CLIENT_MODE activé pour code commercial:', codeUpper);
-  } else {
+  // SEC — Verrouillage par secteur d'activité. Règle PRO : tout établissement est
+  // ENFERMÉ dans son secteur par défaut (essai OU payant) → un client ne peut pas
+  // basculer vers un secteur qui n'est pas le sien. Exception : les comptes
+  // explicitement marqués `multi_secteur` (comptes de test/démo internes) peuvent
+  // naviguer dans tous les secteurs.
+  if (d && d.multi_secteur === true) {
     CLIENT_MODE = false;
+    console.log('[SEC] Compte multi-secteur (test) — tous les secteurs accessibles');
+  } else {
+    CLIENT_MODE = true;
+    console.log('[SEC] Client verrouillé sur son secteur :', d && d.secteur);
   }
   // V101 — Appliquer le grisage immédiatement après l'affichage du choix secteur
   setTimeout(appliquerClientMode, 50);
