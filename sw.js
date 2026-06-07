@@ -9,7 +9,7 @@
  *    en arriere-plan : chargement instantane, mise a jour discrete.
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptes.
  */
-const CACHE = 'haccp-pro-v56';
+const CACHE = 'haccp-pro-v57';
 const CORE = [
   './',
   './index.html',
@@ -30,6 +30,12 @@ const CORE = [
   './slides/slide-7.webp',
   './slides/slide-8.webp'
 ];
+
+// SW-3 — CDN critiques mis en cache pour que l'app fonctionne VRAIMENT hors-ligne
+// (sinon, au premier lancement hors-ligne avant que le cache soit « chaud », un
+// script externe manquant pouvait laisser une page noire). Stratégie : cache
+// d'abord, revalidation en arrière-plan. Versions figées côté index.html (SW-2).
+const CDN_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -85,17 +91,45 @@ function shellStrategy(req) {
       return res;
     }).catch(() => null);
     if (cached) return cached;                 // rapide + maj silencieuse en fond
-    // Pas encore en cache : on attend le reseau, repli ultime sur la page d'accueil.
-    return network.then((res) => res || caches.match('./index.html'));
+    // Pas encore en cache : on attend le reseau, repli ultime BLINDÉ sur la page
+    // d'accueil (ignoreSearch pour tolerer un start_url avec query/hash) → plus
+    // jamais de page noire hors-ligne si la coquille est en cache.
+    return network.then((res) => res
+      || caches.match('./index.html', { ignoreSearch: true })
+           .then((r) => r || caches.match('./', { ignoreSearch: true })));
+  });
+}
+
+// SW-3 — CDN critiques : cache d'abord + revalidation. Sert la version en cache
+// instantanement (et hors-ligne), met a jour en fond quand il y a du reseau.
+function cdnStrategy(req) {
+  return caches.match(req).then((cached) => {
+    const network = fetch(req).then((res) => {
+      if (res && (res.ok || res.type === 'opaque')) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      }
+      return res;
+    }).catch(() => null);
+    return cached || network;
   });
 }
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  // Ne gérer que les GET de notre propre origine ; laisser passer les CDN.
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  if (req.method !== 'GET') return;
 
-  const path = new URL(req.url).pathname;
+  const url = new URL(req.url);
+  // SW-3 — CDN critiques (Supabase, Dexie, Chart.js, polices…) : on les met en
+  // cache pour un fonctionnement hors-ligne complet (au lieu de les ignorer).
+  if (url.origin !== self.location.origin) {
+    if (CDN_HOSTS.indexOf(url.hostname) !== -1) {
+      event.respondWith(cdnStrategy(req));
+    }
+    return; // autres origines (ex. Supabase REST) : laisser passer normalement
+  }
+
+  const path = url.pathname;
   // SW-1 : l'app est servie sur un sous-chemin (ex. /HACCP17-FACILE/), donc
   // `path === '/'` ne matchait jamais. On matche aussi la racine réelle (scope).
   let scopePath = '/';

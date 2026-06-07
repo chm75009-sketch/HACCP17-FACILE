@@ -24,8 +24,8 @@
 | PDF-1 | Pagination/lazy des photos (crash iPhone) | ❌ |
 | PDF-2 | Échappement HTML des champs libres | ✅ |
 | SW-1 | PWA bloquée sur sous-chemin | ✅ |
-| SW-2 | Dexie `@latest` à figer + cacher | ❌ |
-| SW-3 | CDN critiques cachés (offline) | ❌ |
+| SW-2 | Dexie `@latest` à figer + cacher | ✅ |
+| SW-3 | CDN critiques cachés (offline) | ✅ |
 | BIZ-1 | Seuil cellule refroidissement cohérent | ✅ |
 | BIZ-2 | Expiration abonnement UTC→Paris | ✅ |
 | BIZ-3 | Contrôles vides validés conformes | ✅ |
