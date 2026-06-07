@@ -12015,6 +12015,10 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
 }
 
 function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
+  // PDF-2 : échappement HTML des champs libres saisis par l'utilisateur (fournisseur,
+  // observations, n° lot, noms…). Sans ça, un « < » fait disparaître la suite de la
+  // ligne dans le rapport imprimé (et ouvrirait une XSS via jsonb).
+  function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   // ═══ SEUILS RÉGLEMENTAIRES — V115 ═══
   function _seuilTemp(enc) {
     return seuilEnceinteDepuisLabel(String(enc.type||'') + ' ' + String(enc.precision||'')) || '—';
@@ -12216,7 +12220,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         filled.forEach(function(enc, ei) {
           var bc = enc.isNC ? '#dc2626' : '#0891b2';
           html += '<div style="margin:8px;border:1.5px solid ' + bc + ';border-radius:8px;overflow:hidden">';
-          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Enceinte N' + (ei+1) + (enc.precision?' — '+enc.precision:'') + (enc.refNum?' ('+enc.refNum+')':'') + (enc._sessDate?' · 📅 '+enc._sessDate:'') + '</div>';
+          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Enceinte N' + (ei+1) + (enc.precision?' — '+esc(enc.precision):'') + (enc.refNum?' ('+esc(enc.refNum)+')':'') + (enc._sessDate?' · 📅 '+enc._sessDate:'') + '</div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Type</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + enc.type + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">T° relevée</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (enc.temp?enc.temp+'°C':'—') + ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + _seuilTemp(enc) + ')</span></td></tr>';
@@ -12242,7 +12246,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         filledP.forEach(function(plat, pi) {
           var bc2 = (plat.isNC||plat.isRemiseNC) ? '#dc2626' : '#1e1b4b';
           html += '<div style="margin:8px;border:1.5px solid ' + bc2 + ';border-radius:8px;overflow:hidden">';
-          html += '<div style="background:' + bc2 + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Plat N' + (pi+1) + ' — ' + plat.nom + (plat._sessDate?' · 📅 '+plat._sessDate:'') + '</div>';
+          html += '<div style="background:' + bc2 + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Plat N' + (pi+1) + ' — ' + esc(plat.nom) + (plat._sessDate?' · 📅 '+plat._sessDate:'') + '</div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           if (plat.mode && plat.mode !== '-- Mode de cuisson --') html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Mode</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + plat.mode + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">Produit</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + plat.type + '</td></tr>';
@@ -13109,15 +13113,15 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         var dSess = '';
         try { dSess = new Date(sess.timestamp).toLocaleString('fr-FR'); } catch(e) { dSess = sess.timestamp || ''; }
         html += '<div style="background:#1e1b4b;color:white;padding:6px 10px;font-weight:700;font-size:11px;margin-top:' + (sIdx === 0 ? '0' : '12px') + '">📅 Réception du ' + dSess;
-        if (rec.fournisseur) html += ' — ' + rec.fournisseur;
-        if (rec.bl) html += ' (BL : ' + rec.bl + ')';
+        if (rec.fournisseur) html += ' — ' + esc(rec.fournisseur);
+        if (rec.bl) html += ' (BL : ' + esc(rec.bl) + ')';
         html += '</div>';
 
         // Hygiène véhicule
         if (rec.vehicule && rec.vehicule.hygiene && rec.vehicule.hygiene !== 'Non renseigné') {
           var hygCol = rec.vehicule.hygiene === 'Conforme' ? '#16a34a' : '#dc2626';
           html += '<div style="padding:4px 12px;font-size:10px;background:#f9fafb"><strong>Hygiène véhicule :</strong> <span style="color:' + hygCol + ';font-weight:700">' + rec.vehicule.hygiene + '</span>';
-          if (rec.vehicule.hygieneAction) html += ' — Action : <span style="color:#dc2626">' + rec.vehicule.hygieneAction + '</span>';
+          if (rec.vehicule.hygieneAction) html += ' — Action : <span style="color:#dc2626">' + esc(rec.vehicule.hygieneAction) + '</span>';
           html += '</div>';
         }
 
@@ -13132,9 +13136,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           var produitsDuCompart = produitsRec.filter(function(p) { return p.compartId === comp.cid; });
           var bcCmp = comp.nc ? '#dc2626' : '#f97316';
           html += '<div style="margin:6px 8px;border:1.5px solid ' + bcCmp + ';border-radius:8px;overflow:hidden">';
-          html += '<div style="background:' + bcCmp + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">📦 Compartiment ' + (ci+1) + ' — ' + (comp.type||'—') + (comp.tsonde ? ' | T° sonde : ' + comp.tsonde + '°C' : '') + '</div>';
+          html += '<div style="background:' + bcCmp + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">📦 Compartiment ' + (ci+1) + ' — ' + esc(comp.type||'—') + (comp.tsonde ? ' | T° sonde : ' + esc(comp.tsonde) + '°C' : '') + '</div>';
           if (comp.nc && comp.action) {
-            html += '<div style="background:#fffbeb;border-bottom:1px solid #fde68a;padding:4px 10px;font-size:10px;color:#78350f">⚠️ <strong>NC compartiment</strong> — Action : ' + comp.action + '</div>';
+            html += '<div style="background:#fffbeb;border-bottom:1px solid #fde68a;padding:4px 10px;font-size:10px;color:#78350f">⚠️ <strong>NC compartiment</strong> — Action : ' + esc(comp.action) + '</div>';
           }
           if (produitsDuCompart.length === 0) {
             html += '<div style="padding:6px 10px;font-size:10px;color:#6b7280;font-style:italic">Aucun produit enregistré</div>';
@@ -13144,19 +13148,19 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
               var bcP = pConfNC ? '#dc2626' : '#16a34a';
               // V116 Livraison 4-B — data-produit-num pour permettre l'injection des photos par produit
               html += '<div data-produit-num="' + (p.num != null ? p.num : '') + '" style="margin:5px 8px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">';
-              html += '<div style="background:#f9fafb;padding:3px 8px;font-weight:700;font-size:10px;color:#374151">Produit N°' + (pi+1) + ' — ' + (p.type||'—') + '</div>';
+              html += '<div style="background:#f9fafb;padding:3px 8px;font-weight:700;font-size:10px;color:#374151">Produit N°' + (pi+1) + ' — ' + esc(p.type||'—') + '</div>';
               html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
-              html += '<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;width:35%;font-weight:600">N° lot</td><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">' + (p.lot||'—') + '</td></tr>';
-              html += '<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;font-weight:600">DLC / DLUO</td><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">' + (p.dlc||'—') + '</td></tr>';
+              html += '<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;width:35%;font-weight:600">N° lot</td><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">' + esc(p.lot||'—') + '</td></tr>';
+              html += '<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;font-weight:600">DLC / DLUO</td><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">' + esc(p.dlc||'—') + '</td></tr>';
               html += '<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;font-weight:600">T° relevée</td><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">' + (p.temp !== '—' ? p.temp + '°C' : '—') + ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + _seuilProduit(p.type) + ')</span></td></tr>';
               html += '<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;font-weight:600">Conformité</td><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;color:' + bcP + ';font-weight:700">' + (p.conformite||'—') + '</td></tr>';
-              html += '<tr><td style="padding:3px 8px;font-weight:600">Emballage</td><td style="padding:3px 8px">' + (p.emballage||'—') + '</td></tr>';
+              html += '<tr><td style="padding:3px 8px;font-weight:600">Emballage</td><td style="padding:3px 8px">' + esc(p.emballage||'—') + '</td></tr>';
               html += '</table>';
               if (p.nc && p.actionCorrective) {
-                html += '<div style="background:#fffbeb;border-top:1px solid #fde68a;padding:3px 8px;font-size:9.5px;color:#78350f">🛠️ Action : ' + p.actionCorrective + '</div>';
+                html += '<div style="background:#fffbeb;border-top:1px solid #fde68a;padding:3px 8px;font-size:9.5px;color:#78350f">🛠️ Action : ' + esc(p.actionCorrective) + '</div>';
               }
               if (p.actionEmballage) {
-                html += '<div style="background:#fff8f8;border-top:1px solid #fecaca;padding:3px 8px;font-size:9.5px;color:#991b1b">📦 Emballage : ' + p.actionEmballage + '</div>';
+                html += '<div style="background:#fff8f8;border-top:1px solid #fecaca;padding:3px 8px;font-size:9.5px;color:#991b1b">📦 Emballage : ' + esc(p.actionEmballage) + '</div>';
               }
               html += '</div>';
             });
@@ -13219,7 +13223,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       if (sessData.champs && sessData.champs.length > 0) {
         html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
         sessData.champs.forEach(function(f) {
-          html += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">' + (f.label||'') + '</td><td style="padding:5px 10px;border-bottom:1px solid #e5e7eb">' + (f.valeur||'') + '</td></tr>';
+          html += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">' + esc(f.label||'') + '</td><td style="padding:5px 10px;border-bottom:1px solid #e5e7eb">' + esc(f.valeur||'') + '</td></tr>';
         });
         html += '</table>';
       }
@@ -13275,7 +13279,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           var resultCell;
           if (s.nc) {
             var _c = s.constat || 'Non conforme';
-            resultCell = '<span style="font-weight:800">❌ ' + _c + '</span>';
+            resultCell = '<span style="font-weight:800">❌ ' + esc(_c) + '</span>';
           } else if (s.statut === 'Conforme') {
             resultCell = '✅ Conforme';
           } else if (s.statut === 'N/A') {
@@ -13283,7 +13287,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           } else {
             resultCell = '—';
           }
-          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + (s.label||'') + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;color:' + statutCol + ';font-weight:600;font-size:10px">' + resultCell + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:9.5px">' + actionTxt + '</td></tr>';
+          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">' + esc(s.label||'') + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;color:' + statutCol + ';font-weight:600;font-size:10px">' + resultCell + '</td><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:9.5px">' + actionTxt + '</td></tr>';
         });
         html += '</table>';
       }
@@ -13291,7 +13295,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       // Observations
       if (sessData.observations && sessData.observations.length > 0) {
         sessData.observations.forEach(function(o) {
-          html += '<div style="padding:6px 10px;font-size:10px;background:#f9fafb;border-top:1px solid #e5e7eb"><strong>' + (o.label||'Observations') + ' :</strong> ' + (o.valeur||'') + '</div>';
+          html += '<div style="padding:6px 10px;font-size:10px;background:#f9fafb;border-top:1px solid #e5e7eb"><strong>' + esc(o.label||'Observations') + ' :</strong> ' + esc(o.valeur||'') + '</div>';
         });
       }
 
