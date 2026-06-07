@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v77';
+var APP_BUILD = 'v78';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -21213,14 +21213,50 @@ function getEncCfgMaj() { try { var v = lsGet(ENCEINTES_CFG_MAJ_KEY); return v ?
 function setEncCfgMaj(t) { try { lsSet(ENCEINTES_CFG_MAJ_KEY, String(t || Date.now())); } catch (e) {} }
 function saveEnceintesConfig(a) { _saveEncCfgRaw(a); setEncCfgMaj(Date.now()); scheduleEncCfgPush(); }
 
+// Mise à jour FORCÉE et FIABLE de l'application, déclenchée par l'utilisateur
+// (le numéro de version est tappable). On purge les caches du service worker puis
+// on recharge depuis le réseau → on récupère à coup sûr la toute dernière version,
+// sans dépendre de la bannière (imprévisible). Hors-ligne : simple rechargement.
+function forcerMajApp() {
+  if (!confirm('Mettre à jour l\'application vers la dernière version ?\n\nVos données sont conservées.')) return;
+  try {
+    if (navigator.onLine !== false && 'caches' in window) {
+      if (typeof showToast === 'function') showToast('⏳ Mise à jour en cours…', 'info', 4000);
+      caches.keys()
+        .then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); })
+        .then(function(){
+          // Forcer aussi le service worker à se réinstaller proprement au reload.
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            return navigator.serviceWorker.getRegistrations()
+              .then(function(regs){ return Promise.all(regs.map(function(r){ return r.update().catch(function(){}); })); })
+              .catch(function(){});
+          }
+        })
+        .then(function(){ setTimeout(function(){ window.location.reload(); }, 300); })
+        .catch(function(){ window.location.reload(); });
+    } else {
+      window.location.reload();
+    }
+  } catch(e) { window.location.reload(); }
+}
+
 function _majMesEnceintesHint() {
   var h = document.getElementById('mesEnceintesHint'); if (!h) return;
   var n = getEnceintesConfig().length;
   var txt = n
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
-  // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?');
+  var build = (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?');
+  // Repère de version + bouton de mise à jour FIABLE (tappable). L'utilisateur
+  // contrôle la mise à jour au lieu d'attendre une bannière imprévisible.
+  h.innerHTML = txt + ' · <span id="majBtnInline" role="button" tabindex="0" '
+    + 'style="cursor:pointer;color:#14b8a6;font-weight:800;text-decoration:underline;white-space:nowrap">'
+    + '🔄 maj ' + build + ' — mettre à jour</span>';
+  var mb = document.getElementById('majBtnInline');
+  if (mb) {
+    mb.onclick = forcerMajApp;
+    mb.onkeydown = function(ev){ if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); forcerMajApp(); } };
+  }
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
