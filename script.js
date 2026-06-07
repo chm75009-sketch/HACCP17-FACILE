@@ -20939,11 +20939,33 @@ function _pullMemoListe(key, cloudModule, sigKey, champ, onReady) {
 
 // ── « Mes fournisseurs » (Réception) ──
 var FOURN_KEY = 'haccp_fournisseurs', FOURN_SIG = 'haccp_fournisseurs_cloudsig', FOURN_MODULE = '__fournisseurs_memo__';
-function syncFournisseursDatalist() {
-  if (typeof _setDatalist !== 'function') return;
-  _setDatalist('fournisseursList', _getMemoListe(FOURN_KEY));
+// Remplit le champ fournisseur quand on tape sur un bouton mémorisé.
+function choisirFournisseur(v) {
   var el = document.getElementById('r_fournisseur');
-  if (el) { try { el.setAttribute('list', 'fournisseursList'); } catch (e) {} }
+  if (!el) return;
+  el.value = v;
+  try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+}
+// Affiche les fournisseurs mémorisés en boutons visibles sous le champ (fiable
+// sur iPhone, contrairement à l'autocomplétion <datalist>) + garde le datalist.
+function syncFournisseursDatalist() {
+  var liste = _getMemoListe(FOURN_KEY);
+  if (typeof _setDatalist === 'function') {
+    _setDatalist('fournisseursList', liste);
+    var el = document.getElementById('r_fournisseur');
+    if (el) { try { el.setAttribute('list', 'fournisseursList'); } catch (e) {} }
+  }
+  var box = document.getElementById('fournisseursChips');
+  if (!box) return;
+  if (!liste.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'flex';
+  box.innerHTML = '<span style="font-size:11px;color:#64748b;font-weight:700;width:100%;margin-bottom:2px">Vos fournisseurs — appuyez pour remplir :</span>'
+    + liste.slice(0, 12).map(function (v) {
+        var safe = (typeof _baroEsc === 'function') ? _baroEsc(v) : String(v).replace(/"/g, '&quot;');
+        return '<button type="button" onclick="choisirFournisseur(\'' + String(v).replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" '
+          + 'style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;cursor:pointer;font-family:Outfit,sans-serif">'
+          + safe + '</button>';
+      }).join('');
 }
 function memoFournisseur(v) { _ajouterMemoValeur(FOURN_KEY, FOURN_MODULE, 'fournisseurs', v, 60); syncFournisseursDatalist(); }
 function pullFournisseurs() { _pullMemoListe(FOURN_KEY, FOURN_MODULE, FOURN_SIG, 'fournisseurs', syncFournisseursDatalist); }
