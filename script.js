@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v80';
+var APP_BUILD = 'v81';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1085,6 +1085,37 @@ function lsRemove(key) {
   try { localStorage.removeItem(key); } catch(e) {}
 }
 
+// ── MOUCHARD DE NAVIGATION (diagnostic temporaire) ──────────────────────────
+// Trace persistante (localStorage → survit aux rechargements) + boîte visible à
+// l'écran, pour diagnostiquer le retour arrière. À RETIRER une fois résolu.
+function _trace(m) {
+  try {
+    var arr = JSON.parse(lsGet('haccp_navtrace') || '[]');
+    var d = new Date();
+    var hh = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2)+'.'+('00'+d.getMilliseconds()).slice(-3);
+    arr.push(hh + '  ' + m);
+    if (arr.length > 16) arr = arr.slice(-16);
+    lsSet('haccp_navtrace', JSON.stringify(arr));
+    _renderTrace(arr);
+  } catch(e) {}
+}
+function _renderTrace(arr) {
+  try {
+    var box = document.getElementById('navDebugBox');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'navDebugBox';
+      box.style.cssText = 'position:fixed;left:0;bottom:0;z-index:2147483647;max-width:100vw;max-height:42vh;overflow:auto;background:rgba(0,0,0,.88);color:#3f3;font:10px/1.35 monospace;padding:6px 8px;white-space:pre-wrap;border-top:2px solid #3f3;-webkit-user-select:text;user-select:text';
+      box.title = 'Toucher pour effacer la trace';
+      box.onclick = function(){ try{ lsRemove('haccp_navtrace'); box.textContent='NAV TRACE (vidé)'; }catch(e){} };
+      (document.body || document.documentElement).appendChild(box);
+    }
+    arr = arr || JSON.parse(lsGet('haccp_navtrace') || '[]');
+    box.textContent = 'NAV TRACE — touche pour vider\n' + arr.join('\n');
+  } catch(e) {}
+}
+try { document.addEventListener('DOMContentLoaded', function(){ _renderTrace(); }); } catch(e) {}
+
 // V80 — Helpers de gestion du stockage (limite Safari ~5 Mo)
 function estimerTailleStockage() {
   // Retourne {bytes, mo, pct, total_mo} — estimation du localStorage utilisé par HACCP Pro
@@ -1807,6 +1838,7 @@ async function connexion() {
     lsSet('haccp_etab', JSON.stringify(ETAB));
     lsSet('haccp_etab_id', ETAB_ID);
     lsRemove('haccp_deconnecte'); // connexion réussie → on lève le marqueur de déconnexion
+    try { _trace('connexion OK etab=' + ETAB_ID); } catch(e){}
     // Session 24h
     sessionWrite(JSON.stringify({
       etabId: ETAB_ID,
@@ -3374,6 +3406,7 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
 
 // ── DÉMARRAGE ──
 (function initApp() {
+  try { _trace('initApp — session=' + (!!sessionRead()) + ' marker=' + lsGet('haccp_deconnecte') + ' trialPwd=' + (!!lsGet('haccp_trial_pwd'))); } catch(e){}
   // V89 — Au démarrage, afficher la page de présentation (commerciale).
   // Le bouton "Se connecter" mène vers page-login.
   // Si une session existe, on saute la présentation et on va au login (avec champs pré-remplis).
@@ -3405,6 +3438,7 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
         var trialPwd = lsGet('haccp_trial_pwd');
         var estEssaiAuto = (lastCodeAuto.indexOf('EU3J-') === 0 || lastCodeAuto.indexOf('ESSAI-') === 0);
         if (estEssaiAuto && trialPwd) {
+          try { _trace('initApp -> RECONNEXION AUTO essai (' + lastCodeAuto + ')'); } catch(e){}
           showPage('page-login');
           setTimeout(function(){
             var ce = document.getElementById('login_code');
@@ -3716,6 +3750,7 @@ function changerDeCompte() {
 }
 
 function deconnecterConfirme() {
+  try { _trace('deconnecterConfirme (bouton)'); } catch(e){}
   ETAB_ID = null; SB_READY = false;
   CLIENT_MODE = false;
   // Marqueur de déconnexion (lu en direct → résiste à l'instantané bfcache iOS au
@@ -17461,6 +17496,7 @@ function _navAfficherPage(id) {
 // l'écran de connexion via la navigation du navigateur. Ferme la session, pose le
 // marqueur, purge l'état local sensible et vide le mot de passe.
 function _deconnexionSilencieuse() {
+  try { _trace('_deconnexionSilencieuse'); } catch(e){}
   try {
     ETAB_ID = null; SB_READY = false; CLIENT_MODE = false;
     try { lsSet('haccp_deconnecte', '1'); } catch(e) {}
@@ -17505,6 +17541,7 @@ function _securiserNavigation(targetId) {
 }
 
 window.addEventListener('popstate', function(e) {
+  try { _trace('popstate state=' + JSON.stringify(e && e.state) + ' active=' + _idPageActive() + ' ETAB=' + (typeof ETAB_ID!=='undefined'?ETAB_ID:'?')); } catch(_t){}
   // Cible RÉELLE de l'entrée d'historique (posée par showPage via pushState).
   var targetId = (e && e.state && e.state.page) ? e.state.page : null;
   // CAS CRITIQUE — entrée d'historique INITIALE (state null), c.-à-d. l'état
@@ -17528,7 +17565,8 @@ window.addEventListener('popstate', function(e) {
 
 // bfcache / réaffichage d'onglet / focus : on revalide l'affichage courant.
 function _revaliderAffichage() { _securiserNavigation(_idPageActive()); }
-window.addEventListener('pageshow', function(e) { _revaliderAffichage(); });
+window.addEventListener('pageshow', function(e) { try { _trace('pageshow persisted=' + (e && e.persisted) + ' active=' + _idPageActive()); } catch(_t){} _revaliderAffichage(); });
+window.addEventListener('pagehide', function(e) { try { _trace('pagehide persisted=' + (e && e.persisted) + ' (page quittée/rechargée)'); } catch(_t){} });
 window.addEventListener('focus', function() { _revaliderAffichage(); });
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') _revaliderAffichage();
