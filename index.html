@@ -3397,7 +3397,9 @@
             </div>
             <div style="font-size:10px;color:#a16207;margin-top:4px">Brouillons, photos, historique. Limite ~5 Mo (Safari iPhone).</div>
           </div>
-          <button class="btn-s" style="color:#92400e;border-color:#fde68a;background:#fef3c7;width:100%;margin-bottom:8px" onclick="nettoyerBrouillons(); rafraichirIndicateurStockage()">🧹 Nettoyer tous les brouillons</button>
+          <button class="btn-p" style="background:linear-gradient(135deg,#b45309,#d97706);width:100%;margin-bottom:8px" onclick="libererEspaceLocal()">🧹 Libérer de l'espace (vider le cache des anciens contrôles)</button>
+          <div style="font-size:10px;color:#a16207;margin:-2px 0 10px;line-height:1.4">✅ Sans risque : vos contrôles restent dans le cloud (Mes Rapports / Pack DDPP). On ne vide que le cache local.</div>
+          <button class="btn-s" style="color:#92400e;border-color:#fde68a;background:#fef3c7;width:100%;margin-bottom:8px" onclick="nettoyerBrouillons(); rafraichirIndicateurStockage()">🧽 Nettoyer uniquement les brouillons</button>
           <button class="btn-s" style="color:#1e40af;border-color:#dbeafe;background:#eff6ff;width:100%" onclick="rafraichirIndicateurStockage()">🔄 Rafraîchir l'indicateur</button>
         </div>
         <div class="fblock" style="border:1px solid #fee2e2;background:#fff5f5">

@@ -968,7 +968,7 @@ function lsSet(key, value) {
       // Toujours plein APRÈS avoir vidé tous les caches régénérables : on n'efface
       // pas les contrôles. On alerte clairement l'utilisateur.
       console.warn('localStorage quota dépassé — contrôles préservés, données du moment non mises en cache');
-      if (typeof showToast === 'function') showToast('⚠️ Stockage plein. Vos contrôles sont conservés. Générez un Pack DDPP puis videz les anciens pour libérer de l\'espace.', 'err', 7000);
+      if (typeof showToast === 'function') showToast('⚠️ Stockage plein (vos contrôles sont saufs, ils sont dans le cloud). Allez dans Réglages → « Libérer de l\'espace » pour vider le cache.', 'err', 7000);
       return false;
     } catch(e3) {
       console.warn('localStorage quota dépassé — données non sauvegardées');
@@ -1017,6 +1017,43 @@ function nettoyerBrouillons() {
     if (typeof showToast === 'function') showToast('Erreur lors du nettoyage', 'err', 3000);
   }
   return nb;
+}
+
+// Libère l'espace SANS rien perdre : les contrôles sont déjà dans le cloud
+// (controles_haccp, lus par « Mes Rapports » / Pack DDPP). On ne vide donc que
+// le CACHE LOCAL : on garde les contrôles récents de chaque module (pré-remplissage
+// + hors-ligne) et on supprime les plus anciens, les brouillons, l'historique
+// local (recalculable) et les caches de documents (régénérables).
+function libererEspaceLocal() {
+  if (!confirm('Libérer de l\'espace sur cet appareil ?\n\n'
+    + '• On garde les contrôles récents + tout reste dans le cloud (Mes Rapports / Pack DDPP).\n'
+    + '• On supprime seulement le CACHE des anciens contrôles, les brouillons et l\'historique local.\n\n'
+    + '✅ Aucun contrôle n\'est perdu.\n\n'
+    + 'Conseil : générez d\'abord un Pack DDPP si vous voulez une sauvegarde PDF.')) return;
+  var avant = estimerTailleStockage().mo;
+  var GARDER = 30; // contrôles récents conservés localement, par module
+  try {
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k) keys.push(k); }
+    keys.forEach(function (k) {
+      try {
+        if (k.indexOf('haccp_module_data_') === 0) {
+          var arr = JSON.parse(localStorage.getItem(k) || '[]');
+          if (Array.isArray(arr) && arr.length > GARDER) localStorage.setItem(k, JSON.stringify(arr.slice(0, GARDER)));
+        } else if (k.indexOf('haccp_brouillon_') === 0
+                || k === 'haccp_historique'
+                || k === 'haccp_am_doc_rapport'
+                || k.indexOf('haccp_nuis_docs_') === 0
+                || k.indexOf('haccp_insp_') === 0) {
+          localStorage.removeItem(k);
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
+  var apres = estimerTailleStockage().mo;
+  var libere = Math.max(0, avant - apres);
+  rafraichirIndicateurStockage();
+  if (typeof showToast === 'function') showToast('✅ ' + libere.toFixed(2) + ' Mo libérés. Vos contrôles restent dans le cloud.', 'ok', 5000);
 }
 
 // V80 — Rafraîchit l'indicateur visuel de stockage dans Réglages
@@ -20610,7 +20647,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b40';
+  h.textContent = txt + ' · maj b41';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
