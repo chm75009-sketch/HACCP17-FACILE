@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v62';
+var APP_BUILD = 'v63';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -19924,11 +19924,41 @@ async function synchroniserControlesManquants() {
 }
 window.synchroniserControlesManquants = synchroniserControlesManquants;
 
+// CONC-8 — élection d'un onglet « leader » pour ne pas multiplier les synchros
+// PÉRIODIQUES quand plusieurs onglets/fenêtres de l'app sont ouverts. Sans danger :
+// le localStorage est PARTAGÉ entre onglets (le leader voit tous les contrôles en
+// attente), l'envoi immédiat à la sauvegarde reste actif dans CHAQUE onglet
+// (anti-perte), et la dédup par uid empêche tout doublon. On n'allège QUE les boucles.
+var _TAB_ID = Math.random().toString(36).slice(2) + '-' + Date.now();
+var _SYNC_LEADER_KEY = 'haccp_sync_leader';
+var _isSyncLeader = true;
+(function _leaderHeartbeat(){
+  if (typeof window === 'undefined') return;
+  function beat(){
+    try {
+      var now = Date.now(), cur = null;
+      try { cur = JSON.parse(lsGet(_SYNC_LEADER_KEY) || 'null'); } catch(e){}
+      // On (re)prend le leadership si vacant, périmé (>12 s), ou déjà à nous.
+      if (!cur || !cur.ts || (now - cur.ts) > 12000 || cur.id === _TAB_ID) {
+        lsSet(_SYNC_LEADER_KEY, JSON.stringify({ id: _TAB_ID, ts: now }));
+        _isSyncLeader = true;
+      } else {
+        _isSyncLeader = false;
+      }
+    } catch(e) { _isSyncLeader = true; } // en cas de doute → on agit (sécurité données)
+  }
+  beat();
+  setInterval(beat, 5000);
+})();
+
 // Déclenche la réconciliation peu après le chargement, puis régulièrement.
 (function(){
   if (typeof window === 'undefined') return;
+  // Premier passage non gardé : un onglet fraîchement ouvert flushe ses éventuels
+  // contrôles en attente même s'il n'est pas (encore) leader.
   setTimeout(function(){ try { synchroniserControlesManquants(); } catch(e){} }, 6000);
-  setInterval(function(){ try { synchroniserControlesManquants(); } catch(e){} }, 60000);
+  // Boucle périodique : seul le leader la fait tourner (évite N onglets × lectures cloud).
+  setInterval(function(){ if (!_isSyncLeader) return; try { synchroniserControlesManquants(); } catch(e){} }, 60000);
 
   // MIN-13 — pull périodique du cloud (PC → iPhone). La réconciliation (CONC-4)
   // ne recharge plus le cloud quand tout est synchronisé ; un contrôle fait sur

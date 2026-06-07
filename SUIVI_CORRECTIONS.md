@@ -39,7 +39,7 @@
 | CONC-5 | Lignes `__diag__` hors prod | ✅ |
 | CONC-6 | `local-test` hors prod / ETAB_ID non réassignable | ✅ |
 | CONC-7 | UUID nom fichier photo (anti-écrasement) | ✅ |
-| CONC-8 | Onglet leader + pause `document.hidden` | ❌ |
+| CONC-8 | Onglet leader + pause `document.hidden` | ✅ |
 | DATA-7 | Cap 200/module évince contrôle non synchro | ✅ |
 | DATA-8 | Faux doublon à la minute → perte | ✅ |
 | DATA-9 | Doublons cloud (pas d'unicité serveur) | ❌ |
