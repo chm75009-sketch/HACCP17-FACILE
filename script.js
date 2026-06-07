@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v73';
+var APP_BUILD = 'v74';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -584,7 +584,10 @@ function sbLoginLocal(code, pwd) {
   }
   MODE_LOCAL = true;
   console.info('Mode local activé pour :', etab.nom);
-  return { ok: true, data: { id: 'local-' + code, nom: etab.nom, secteur: etab.secteur, actif: true }, local: true };
+  // Les comptes LOCAUX (CODES_LOCAUX, ex. RTH75) sont des comptes de test/démo :
+  // ils restent MULTI-SECTEUR (multi_secteur:true) pour pouvoir tester tous les
+  // secteurs — sinon la règle de verrouillage par défaut les enfermerait.
+  return { ok: true, data: { id: 'local-' + code, nom: etab.nom, secteur: etab.secteur, actif: true, multi_secteur: true }, local: true };
 }
 
 // ── DATA-5 — CONNEXION HORS-LIGNE (jusqu'à 7 jours) ──
