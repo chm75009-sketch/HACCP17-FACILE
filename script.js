@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v88';
+var APP_BUILD = 'v89';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -15010,6 +15010,13 @@ async function pushEquipeCloud() {
     // comptes de test, contrairement au reste de l'application.
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return { ok: false, msg: 'Cloud indisponible' };
     var membres = getEquipe();
+    // SÉCURITÉ DONNÉES — ne JAMAIS pousser une équipe VIDE dans le cloud : une purge
+    // locale (ex. après déconnexion) écraserait sinon une équipe valide par [] et la
+    // ferait « disparaître » (la règle « le plus récent gagne » servirait la liste vide).
+    // On ne synchronise donc que des listes NON vides.
+    if (!Array.isArray(membres) || membres.length === 0) {
+      return { ok: false, msg: 'Équipe vide — envoi cloud ignoré (anti-écrasement)' };
+    }
     // BIZ-5 : nettoyer les demi-caractères (moitié d'emoji coupée) des champs saisis
     // avant l'envoi — sinon PostgREST rejette le JSON (PGRST102) et la synchro
     // équipe échoue en silence, comme c'était le cas pour les enceintes.
@@ -21521,6 +21528,11 @@ function pushEncCfgCloud() {
     // Nettoyage des demi-caractères (cause de PGRST102). On purge aussi la copie
     // locale si elle en contenait, pour ne plus jamais renvoyer un contenu invalide.
     var arr = _sanitizeEnceintes(getEnceintesConfig());
+    // SÉCURITÉ DONNÉES — ne jamais pousser une config d'enceintes VIDE (anti-écrasement,
+    // même protection que l'équipe).
+    if (!Array.isArray(arr) || arr.length === 0) {
+      return Promise.resolve({ ok: false, msg: 'Enceintes vides — envoi cloud ignoré (anti-écrasement)' });
+    }
     try { if (JSON.stringify(arr) !== JSON.stringify(getEnceintesConfig())) _saveEncCfgRaw(arr); } catch (e) {}
     var maj = getEncCfgMaj(); if (!maj) { maj = Date.now(); setEncCfgMaj(maj); }
     var payload = {
