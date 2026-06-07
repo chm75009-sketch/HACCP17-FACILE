@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v85';
+var APP_BUILD = 'v86';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -43,6 +43,23 @@ function _codeVersEmailAuth(code){ return String(code || '').trim().toLowerCase(
 // ── SUPABASE CONFIG ──
 const SUPABASE_URL = 'https://kiknaxuzpovvivkjqzss.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpa25heHV6cG92dml2a2pxenNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjQ3OTcsImV4cCI6MjA5MjQ0MDc5N30._LY5my720EJOo-9byuA65zVbUv7PsGeXUK_R2kzkxHA';
+
+// Jeton pour l'en-tête Authorization des requêtes REST de DONNÉES : le jeton
+// utilisateur (Supabase Auth, porteur de l'establishment_id) s'il est disponible,
+// sinon repli sur la clé anon publique. Tant que le RLS n'est pas activé, les deux
+// donnent le même résultat ; une fois le RLS en place, le jeton utilisateur assure
+// le cloisonnement. (L'en-tête `apikey` reste TOUJOURS la clé anon — requis par PostgREST.)
+function _sbBearer() {
+  try {
+    if (typeof _SB_ACCESS_TOKEN !== 'undefined' && _SB_ACCESS_TOKEN) {
+      var p = JSON.parse(atob(_SB_ACCESS_TOKEN.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      // n'utiliser le jeton utilisateur que s'il est encore VALIDE (marge 10 s),
+      // sinon repli immédiat sur la clé anon → jamais de 401 pour cause d'expiration.
+      if (p && p.exp && (p.exp * 1000) > (Date.now() + 10000)) return _SB_ACCESS_TOKEN;
+    }
+  } catch(e) {}
+  return SUPABASE_ANON;
+}
 var sb = null;
 try {
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -202,7 +219,7 @@ async function uploadPhotoVersStorage(photo) {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type':  blob.type || 'image/jpeg',
         // CONC-7 : nom de fichier désormais unique (UUID) → on refuse l'écrasement
         // silencieux d'une autre photo (deux clichés à la même seconde).
@@ -359,7 +376,7 @@ async function lierPhotoAuControle(photo) {
       method: 'GET',
       headers: {
         'apikey':        SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON
+        'Authorization': 'Bearer ' + _sbBearer()
       }
     });
     if (!resp.ok) {
@@ -402,7 +419,7 @@ async function lierPhotoAuControle(photo) {
       method: 'PATCH',
       headers: {
         'apikey':        SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type':  'application/json',
         'Prefer':        'return=minimal'
       },
@@ -467,7 +484,7 @@ async function _restInsert(table, rows, prefer) {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type': 'application/json',
         'Prefer': prefer || 'return=minimal'
       },
@@ -489,7 +506,7 @@ async function sbLoginTentative(codeAcces, pwd) {
       method: 'GET',
       headers: {
         'apikey': SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type': 'application/json',
       }
     });
@@ -689,6 +706,23 @@ async function sbSauvegarderEtab(etabData) {
         try { sb = window._supabase; } catch(eAssign){}
         console.log('[V95] Supabase client initialisé (clé anon unique)');
       }
+      // SEC-1 — garder _SB_ACCESS_TOKEN FRAIS : le SDK rafraîchit le jeton avant
+      // expiration et émet TOKEN_REFRESHED ; on met à jour notre copie utilisée par
+      // _sbBearer(). À la déconnexion (SIGNED_OUT), on l'efface → repli sur la clé anon
+      // (jamais de jeton périmé envoyé). Met aussi à jour l'establishment_id lu du JWT.
+      try {
+        if (window._supabase && window._supabase.auth && window._supabase.auth.onAuthStateChange) {
+          window._supabase.auth.onAuthStateChange(function(_event, session) {
+            try {
+              _SB_ACCESS_TOKEN = session ? session.access_token : null;
+              if (_SB_ACCESS_TOKEN) {
+                var p = JSON.parse(atob(_SB_ACCESS_TOKEN.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+                _SB_AUTH_ETAB = (p.app_metadata && p.app_metadata.establishment_id) || _SB_AUTH_ETAB;
+              }
+            } catch(eTok) {}
+          });
+        }
+      } catch(eAuthListen) {}
       if (window.emailjs && window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY) {
         window.emailjs.init(window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY);
         console.log('[V95] EmailJS initialisé');
@@ -12160,7 +12194,7 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
         + '&order=date_controle.asc';
       var resp = await fetch(url, {
         method: 'GET',
-        headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
+        headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() }
       });
       if (resp.ok) {
         var rows = await resp.json();
@@ -14166,7 +14200,7 @@ async function chargerControlesCloudCache() {
       var resp = await fetch(url, {
         method: 'GET',
         cache: 'no-store',
-        headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
+        headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() }
       });
       if (!resp.ok) { if (_pg === 0) return null; else break; }
       var page = await resp.json();
@@ -15003,7 +15037,7 @@ async function pushEquipeCloud() {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type':  'application/json',
         'Prefer':        'return=minimal'
       },
@@ -15040,7 +15074,7 @@ async function pullEquipeCloud() {
     var resp = await fetch(url, {
       method: 'GET',
       cache: 'no-store',
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() }
     });
     if (!resp.ok) {
       var et = ''; try { et = await resp.text(); } catch(e) {}
@@ -20021,7 +20055,7 @@ if (!ETAB_ID) {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type':  'application/json',
         'Prefer':        'return=minimal'
       },
@@ -21415,7 +21449,7 @@ function diagSyncEnceintes(saveRes) {
   if (saveRes) L.push('Échec enregistrement : ' + (saveRes.status || '?') + ' ' + String(saveRes.body || saveRes.msg || '').slice(0, 120));
   if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') { alert(L.join('\n')); return; }
   var arr = getEnceintesConfig();
-  var H = { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
+  var H = { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
   var endpoint = SUPABASE_URL + '/rest/v1/controles_haccp';
   function essai(label, contenu) {
     var body = JSON.stringify({ code_client: etab, module: '__diag__', contenu: contenu, signature: null, photos: [], date_controle: new Date().toISOString() });
@@ -21484,7 +21518,7 @@ function pushEncCfgCloud() {
     };
     return fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
       method: 'POST',
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify(payload)
     }).then(function (r) {
       if (!r.ok) { return r.text().then(function (t) { console.warn('[Enceintes] envoi cloud ' + r.status + ' ' + t); return { ok: false, status: r.status, body: t, msg: 'Erreur ' + r.status }; }); }
@@ -21502,7 +21536,7 @@ function pullEncCfgCloud() {
       + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
       + '&module=eq.' + encodeURIComponent(ENCEINTES_CFG_MODULE)
       + '&select=contenu,created_at&order=created_at.desc&limit=1';
-    fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
+    fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (rows) {
         var localArr = getEnceintesConfig();
@@ -21563,7 +21597,7 @@ function _listePushCloud(cloudModule, champ, arr) {
     var payload = { code_client: String(ETAB_ID), module: cloudModule, contenu: contenu, signature: null, photos: [], date_controle: new Date().toISOString() };
     return fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
       method: 'POST',
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify(payload)
     }).then(function (r) {
       if (!r.ok) { return r.text().then(function (t) { console.warn('[' + cloudModule + '] envoi ' + r.status + ' ' + t); return { ok: false, status: r.status, body: t, msg: 'Erreur ' + r.status }; }); }
@@ -21579,7 +21613,7 @@ function _listePullCloud(cloudModule, champ, sigKey, onAdopt) {
       + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
       + '&module=eq.' + encodeURIComponent(cloudModule)
       + '&select=contenu,created_at&order=created_at.desc&limit=1';
-    fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
+    fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (rows) {
         if (!Array.isArray(rows) || !rows.length) return;
