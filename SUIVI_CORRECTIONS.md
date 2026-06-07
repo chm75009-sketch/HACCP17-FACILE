@@ -21,7 +21,7 @@
 | DATA-5 | Login hors-ligne (session valide) | ✅ |
 | DATA-6 | Flag `cloudOk` durable par contrôle | ✅ |
 | CONC-2 | Ajout de photo atomique (multi-appareils) | ❌ |
-| PDF-1 | Pagination/lazy des photos (crash iPhone) | ❌ |
+| PDF-1 | Pagination/lazy des photos (crash iPhone) | ✅ |
 | PDF-2 | Échappement HTML des champs libres | ✅ |
 | SW-1 | PWA bloquée sur sous-chemin | ✅ |
 | SW-2 | Dexie `@latest` à figer + cacher | ✅ |

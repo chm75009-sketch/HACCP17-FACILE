@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v59';
+var APP_BUILD = 'v60';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -12016,7 +12016,7 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
         return '<a href="' + u + '" onclick="ouvrirVisionneusePDF(\'' + safeUrl + '\'); return false;" style="display:inline-block;padding:8px 12px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600;cursor:pointer">📄 Voir le rapport PDF</a>';
       }
       return '<a href="' + u + '" target="_blank" rel="noopener" style="display:inline-block">'
-        + '<img src="' + u + '" alt="Photo contrôle" style="max-width:140px;max-height:140px;border:1px solid #e5e7eb;border-radius:6px;object-fit:cover" />'
+        + '<img src="' + u + '" alt="Photo contrôle" loading="lazy" decoding="async" style="max-width:140px;max-height:140px;border:1px solid #e5e7eb;border-radius:6px;object-fit:cover" />'
         + '</a>';
     }
     // V116 Livraison 4-B — Déduit le nom à afficher selon la source détectée dans l'URL
