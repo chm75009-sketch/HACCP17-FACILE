@@ -1476,6 +1476,11 @@
         <button class="btn-add-produit" style="border-color:#b45309;color:#b45309" onclick="ajouterFriteuse()">
           <span style="font-size:20px">+</span> Ajouter friteuse suivante
         </button>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button onclick="enregistrerMesFriteuses()" title="Mémoriser vos friteuses pour les retrouver à chaque session, sur tous vos appareils" style="background:#fff7ed;border:1px solid #fdba74;color:#b45309;font-size:13px;font-weight:800;padding:11px 16px;border-radius:10px;cursor:pointer;font-family:Outfit,sans-serif">💾 Enregistrer mes friteuses</button>
+          <button onclick="reinitMesFriteuses()" title="Repartir d'une friteuse vierge" style="background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;font-size:13px;font-weight:700;padding:11px 14px;border-radius:10px;cursor:pointer;font-family:Outfit,sans-serif">↺ Réinitialiser</button>
+        </div>
+        <div id="mesFriteusesHint" style="font-size:11px;color:#b45309;margin-top:8px;text-align:center"></div>
         <!-- COLLECTE HUILE USAGÉE -->
         <div class="fblock" id="blk_docs_san" rb">
           <div class="fblock-title">♻️ Collecte huile usagée — Obligatoire</div>

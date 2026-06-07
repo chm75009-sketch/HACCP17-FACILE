@@ -7345,7 +7345,11 @@ function openModule(id) {
     document.getElementById('huile_sig_nom').value='';
     document.getElementById('huile_sig_required').style.display='none';
     document.getElementById('huileContainer').innerHTML='';
-    ajouterFriteuse();
+    // « Mes friteuses » : si une config est enregistrée, on recharge les friteuses
+    // pré-remplies (nom + type d'huile) ; sinon une friteuse vierge comme avant.
+    if (!buildFriteusesPreconfigees()) ajouterFriteuse();
+    _majMesFriteusesHint();
+    try { pullFriteusesCloud(); } catch(e) {}
     showPage('page-huiles');
     setTimeout(function(){ initSigHuile(); }, 150);
     return;
@@ -20718,4 +20722,119 @@ function pullEncCfgCloud() {
         console.info('[Enceintes] ✓ config récupérée du cloud (' + cloudArr.length + ')');
       }).catch(function (e) { console.warn('[Enceintes] récup err', e && e.message); });
   } catch (e) { console.warn('[Enceintes] récup ex', e && e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// LISTES ENREGISTRÉES — moteur générique (calqué sur « Mes enceintes »)
+// Permet à chaque module de mémoriser une liste d'équipements/postes par
+// établissement (stockage local + synchro cloud via une ligne dédiée de
+// controles_haccp), pour ne plus la ressaisir à chaque session.
+// Synchro sans comparaison d'horloges : la dernière version cloud gagne.
+// ════════════════════════════════════════════════════════════════════
+function _listePushCloud(cloudModule, champ, arr) {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return Promise.resolve({ ok: false, msg: 'Non connecté' });
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return Promise.resolve({ ok: false, msg: 'Cloud indisponible' });
+    var contenu = {}; contenu[champ] = arr; contenu.maj = Date.now();
+    var payload = { code_client: String(ETAB_ID), module: cloudModule, contenu: contenu, signature: null, photos: [], date_controle: new Date().toISOString() };
+    return fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payload)
+    }).then(function (r) {
+      if (!r.ok) { return r.text().then(function (t) { console.warn('[' + cloudModule + '] envoi ' + r.status + ' ' + t); return { ok: false, status: r.status, body: t, msg: 'Erreur ' + r.status }; }); }
+      return { ok: true, count: (arr || []).length };
+    }).catch(function (e) { return { ok: false, msg: (e && e.message) || 'Erreur réseau' }; });
+  } catch (e) { return Promise.resolve({ ok: false, msg: (e && e.message) || 'Erreur' }); }
+}
+function _listePullCloud(cloudModule, champ, sigKey, onAdopt) {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return;
+    var url = SUPABASE_URL + '/rest/v1/controles_haccp'
+      + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+      + '&module=eq.' + encodeURIComponent(cloudModule)
+      + '&select=contenu,created_at&order=created_at.desc&limit=1';
+    fetch(url, { method: 'GET', cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rows) {
+        if (!Array.isArray(rows) || !rows.length) return;
+        var contenu = rows[0].contenu;
+        if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch (e) { contenu = null; } }
+        if (!contenu || !Array.isArray(contenu[champ])) return;
+        var cloudArr = contenu[champ];
+        var sig = String(rows[0].created_at || '') + '#' + JSON.stringify(cloudArr);
+        var lastSig = ''; try { lastSig = lsGet(sigKey) || ''; } catch (e) {}
+        if (sig === lastSig) return; // version déjà connue
+        try { lsSet(sigKey, sig); } catch (e) {}
+        try { onAdopt(cloudArr); } catch (e) { console.warn('[' + cloudModule + '] adopt err', e && e.message); }
+      }).catch(function (e) { console.warn('[' + cloudModule + '] pull err', e && e.message); });
+  } catch (e) {}
+}
+
+// ── « Mes friteuses » (module Huiles) ──
+var FRITEUSES_CFG_KEY = 'haccp_friteuses_config';
+var FRITEUSES_CFG_SIG_KEY = 'haccp_friteuses_config_cloudsig';
+var FRITEUSES_CFG_MODULE = '__friteuses_config__';
+function getFriteusesConfig() { try { var a = JSON.parse(lsGet(FRITEUSES_CFG_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function _saveFriteusesRaw(a) { try { lsSet(FRITEUSES_CFG_KEY, JSON.stringify(a || [])); } catch (e) {} }
+function _majMesFriteusesHint() {
+  var h = document.getElementById('mesFriteusesHint'); if (!h) return;
+  var n = getFriteusesConfig().length;
+  h.textContent = n ? ('✓ ' + n + ' friteuse(s) enregistrée(s) — rechargées à chaque session.')
+                    : 'Astuce : réglez vos friteuses, puis « Enregistrer mes friteuses » pour les retrouver à chaque fois.';
+}
+function collectFriteusesConfig() {
+  var arr = [];
+  document.querySelectorAll('#huileContainer [id^="friteuse_"]').forEach(function (b) {
+    if (!/^friteuse_\d+$/.test(b.id)) return;
+    var id = b.id.replace('friteuse_', '');
+    var nomEl = document.getElementById('fr_nom_' + id);
+    var huileEl = document.getElementById('fr_huile_' + id);
+    arr.push({ nom: _wellFormedStr((nomEl ? nomEl.value : '') || '').trim(), huile: _wellFormedStr((huileEl ? huileEl.value : '') || '') });
+  });
+  return arr;
+}
+function buildFriteusesPreconfigees() {
+  var cfg = getFriteusesConfig();
+  var container = document.getElementById('huileContainer');
+  if (!container || !cfg.length) return false;
+  container.innerHTML = ''; friteusCount = 0;
+  cfg.forEach(function (f) {
+    ajouterFriteuse();
+    var id = friteusCount;
+    var nomEl = document.getElementById('fr_nom_' + id);
+    var huileEl = document.getElementById('fr_huile_' + id);
+    if (nomEl && f.nom) nomEl.value = f.nom;
+    if (huileEl && f.huile) { try { huileEl.value = f.huile; } catch (e) {} }
+  });
+  _majMesFriteusesHint();
+  return true;
+}
+function enregistrerMesFriteuses() {
+  var arr = collectFriteusesConfig();
+  if (!arr.length) { if (typeof showToast === 'function') showToast('Ajoutez au moins une friteuse avant d\'enregistrer.', 'warn', 3000); return; }
+  _saveFriteusesRaw(arr); _majMesFriteusesHint();
+  if (typeof showToast === 'function') showToast('💾 Enregistrement…', 'info', 1500);
+  _listePushCloud(FRITEUSES_CFG_MODULE, 'friteuses', arr).then(function (res) {
+    if (res && res.ok) { if (typeof showToast === 'function') showToast('✓ Vos ' + arr.length + ' friteuse(s) sont synchronisées sur tous vos appareils.', 'ok', 4000); }
+    else { var why = (res && (res.body || res.msg)) ? (' — ' + String(res.body || res.msg).slice(0, 110)) : ''; if (typeof showToast === 'function') showToast('Enregistrées sur cet appareil, mais synchro cloud échouée' + why + '.', 'warn', 6000); }
+  });
+}
+function reinitMesFriteuses() {
+  if (!confirm('Effacer votre configuration de friteuses enregistrée ?')) return;
+  _saveFriteusesRaw([]);
+  var container = document.getElementById('huileContainer');
+  if (container) { container.innerHTML = ''; friteusCount = 0; ajouterFriteuse(); }
+  _majMesFriteusesHint();
+  if (typeof showToast === 'function') showToast('Configuration réinitialisée.', 'ok', 2500);
+}
+function pullFriteusesCloud() {
+  _listePullCloud(FRITEUSES_CFG_MODULE, 'friteuses', FRITEUSES_CFG_SIG_KEY, function (cloudArr) {
+    _saveFriteusesRaw(cloudArr);
+    var p = document.querySelector('.page.active');
+    if (p && p.id === 'page-huiles') { try { buildFriteusesPreconfigees(); } catch (e) {} }
+    _majMesFriteusesHint();
+    if (typeof showToast === 'function') showToast('✓ Vos ' + cloudArr.length + ' friteuse(s) ont été récupérées.', 'ok', 3000);
+  });
 }
