@@ -12190,6 +12190,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
 
   // Collecter et afficher chaque module
   modules.forEach(function(mod, i) {
+   // PDF-6 : on isole chaque module. Si sa donnée est illisible (jsonb malformé,
+   // forme inattendue), on restaure le HTML d'avant ce module et on insère un
+   // petit encart — au lieu de laisser l'exception casser TOUT le Pack DDPP.
+   var _snapPack = html;
+   try {
     html += '<div style="border:2px solid #1e1b4b;border-radius:10px;margin-bottom:16px;overflow:hidden;page-break-inside:avoid">';
    html += '<div style="background:#1e1b4b;color:white;padding:8px 12px;font-weight:800;font-size:13px">' + mod.titre + '</div>';
     var _sM = _seuilsModule(mod.code);
@@ -13331,6 +13336,11 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
     });
 
     html += '</div>'; return;
+   } catch(_ePackMod) {
+    html = _snapPack;
+    html += '<div style="border:2px solid #f59e0b;border-radius:10px;margin-bottom:16px;padding:10px;background:#fffbeb;color:#92400e;font-size:11px">' + (mod.titre || 'Module') + ' — donnée illisible, module ignoré dans ce Pack.</div>';
+    try { console.warn('[Pack DDPP] Module ignoré:', mod.code, _ePackMod); } catch(_) {}
+   }
   });
 
   html += '<div style="font-size:8pt;color:#9ca3af;text-align:center;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">HACCP Pro — Pack DDPP — À conserver par vos soins 3 ans minimum — Preuve légale en cas de contrôle DDPP</div>';
