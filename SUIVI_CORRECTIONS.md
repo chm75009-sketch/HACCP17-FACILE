@@ -51,7 +51,7 @@
 | PDF-4 | Bornes de dates UTC vs locale | ✅ |
 | PDF-5 | Fusion local/cloud par « plus récent » | ✅ |
 | PDF-6 | try/catch par module dans le Pack | ✅ |
-| PDF-7 | Signataire absent des sections conformes | ❌ |
+| PDF-7 | Signataire absent des sections conformes | ✅ |
 | SW-4 | `?v=` empreinte de build sur assets | ❌ |
 | SW-5 | `CACHE` SW généré en CI | ❌ |
 | SW-6 | DataCloneError iOS (généraliser REST) | ❌ |

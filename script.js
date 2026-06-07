@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v60';
+var APP_BUILD = 'v61';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -13236,6 +13236,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         html += '<div style="background:#1e1b4b;color:white;padding:6px 10px;font-weight:700;font-size:11px;margin-top:' + (sIdx === 0 ? '0' : '12px') + '">📅 Réception du ' + dSess;
         if (rec.fournisseur) html += ' — ' + esc(rec.fournisseur);
         if (rec.bl) html += ' (BL : ' + esc(rec.bl) + ')';
+        // PDF-7 — afficher QUI a réalisé le contrôle, y compris quand il est conforme.
+        var _recSig = (rec.signataire || sess.data.signataire || sess.data.signe || '').toString().trim();
+        if (_recSig) html += '<div style="font-weight:500;font-size:10px;opacity:.9;margin-top:2px">👤 Contrôlé par : ' + esc(_recSig) + '</div>';
         html += '</div>';
 
         // Hygiène véhicule
@@ -13338,7 +13341,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       // Bandeau de session : TOUJOURS afficher la date + heure du contrôle
       // (même pour une session unique) — demande utilisateur : dater chaque
       // module rempli.
-      html += '<div style="background:#1e1b4b;color:white;padding:5px 10px;font-weight:700;font-size:11px;margin-top:' + (sIdx === 0 ? '0' : '10px') + '">📅 ' + (dSess || 'Session') + '</div>';
+      // PDF-7 — afficher aussi QUI a réalisé le contrôle (y compris si conforme).
+      var _sessSig = ((sessData && (sessData.signe || sessData.signataire)) || '').toString().trim();
+      html += '<div style="background:#1e1b4b;color:white;padding:5px 10px;font-weight:700;font-size:11px;margin-top:' + (sIdx === 0 ? '0' : '10px') + '">📅 ' + (dSess || 'Session')
+        + (_sessSig ? '<span style="font-weight:500;font-size:10px;opacity:.9"> · 👤 ' + esc(_sessSig) + '</span>' : '') + '</div>';
 
       // Champs (entête, métadonnées)
       if (sessData.champs && sessData.champs.length > 0) {
