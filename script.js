@@ -70,7 +70,11 @@ try {
 // Si la boîte n'est pas dispo, n'affecte rien (l'app continue comme avant).
 async function apresLaCapturePhoto(base64, controleId, source) {
   if (!photoQueueDB) {
+    // La boîte d'attente (IndexedDB) est indisponible : typiquement navigation
+    // privée iOS. On NE PEUT PAS enregistrer la photo → on prévient clairement
+    // l'utilisateur au lieu d'échouer en silence (sinon il croit la photo prise).
     console.warn('[HACCP Photo] Boîte indisponible — photo non rangée');
+    if (typeof showToast === 'function') showToast('⚠️ Photo non sauvegardée sur cet appareil (stockage indisponible). Évitez la navigation privée et réessayez.', 'err', 7000);
     return;
   }
   if (!base64) return;
@@ -86,6 +90,7 @@ async function apresLaCapturePhoto(base64, controleId, source) {
     console.info('[HACCP Photo] ✓ Photo rangée — id=' + newId + ' source=' + source + ' controleId=' + rec.controleId);
   } catch(e) {
     console.error('[HACCP Photo] Erreur rangement:', e);
+    if (typeof showToast === 'function') showToast('⚠️ Une photo n\'a pas pu être enregistrée. Reprenez-la pour être sûr.', 'err', 6000);
   }
 }
 // ══════════════════════════════════════════════════════════════
@@ -908,27 +913,43 @@ function lsSet(key, value) {
     localStorage.setItem(key, value);
     return true;
   } catch(e) {
-    // Quota dépassé — nettoyer SANS récursion
-    try {
-      // Vider les brouillons + snapshots locaux détaillés (les données validées
-      // restent sauvegardées côté serveur / PDF — ces caches locaux sont non essentiels).
-      var toDelete = [];
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && (k.indexOf('haccp_brouillon_') === 0 || k.indexOf('haccp_module_data_') === 0)) toDelete.push(k);
-      }
-      toDelete.forEach(function(k){ try { localStorage.removeItem(k); } catch(x){} });
-      // Vider l'historique (cache local du baromètre)
-      try { localStorage.removeItem('haccp_historique'); } catch(x){}
-      // Réessayer avec localStorage.setItem direct (pas de récursion)
+    // Quota dépassé — libérer de l'espace SANS récursion et SANS jamais toucher
+    // aux contrôles enregistrés (haccp_module_data_*) : ce sont des preuves
+    // réglementaires qui peuvent ne pas encore être montées au cloud → on ne les
+    // efface JAMAIS ici. On ne supprime que des caches régénérables, par ordre de
+    // priorité, en réessayant après chaque étape (on s'arrête dès que ça repasse).
+    function _retry() {
+      try { localStorage.setItem(key, value); return true; } catch(_){ return false; }
+    }
+    function _purger(predicat) {
       try {
-        localStorage.setItem(key, value);
-        return true;
-      } catch(e2) {
-        console.warn('localStorage quota dépassé — données non sauvegardées');
-        if (typeof showToast === 'function') showToast('⚠️ Stockage plein — données non sauvegardées. Libérez de l\'espace.', 'err', 5000);
-        return false;
-      }
+        var aSupprimer = [];
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && predicat(k)) aSupprimer.push(k);
+        }
+        aSupprimer.forEach(function(k){ try { localStorage.removeItem(k); } catch(x){} });
+      } catch(x){}
+    }
+    try {
+      // Étape 1 : brouillons (jamais essentiels)
+      _purger(function(k){ return k.indexOf('haccp_brouillon_') === 0; });
+      if (_retry()) return true;
+      // Étape 2 : gros documents en cache base64 (PDF/photos rapports — régénérables)
+      _purger(function(k){
+        return k === 'haccp_am_doc_rapport'
+          || k.indexOf('haccp_nuis_docs_') === 0
+          || k.indexOf('haccp_insp_') === 0;
+      });
+      if (_retry()) return true;
+      // Étape 3 : historique local du baromètre (recalculable depuis les contrôles)
+      try { localStorage.removeItem('haccp_historique'); } catch(x){}
+      if (_retry()) return true;
+      // Toujours plein APRÈS avoir vidé tous les caches régénérables : on n'efface
+      // pas les contrôles. On alerte clairement l'utilisateur.
+      console.warn('localStorage quota dépassé — contrôles préservés, données du moment non mises en cache');
+      if (typeof showToast === 'function') showToast('⚠️ Stockage plein. Vos contrôles sont conservés. Générez un Pack DDPP puis videz les anciens pour libérer de l\'espace.', 'err', 7000);
+      return false;
     } catch(e3) {
       console.warn('localStorage quota dépassé — données non sauvegardées');
       if (typeof showToast === 'function') showToast('⚠️ Stockage plein — données non sauvegardées. Libérez de l\'espace.', 'err', 5000);
