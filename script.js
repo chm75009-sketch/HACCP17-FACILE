@@ -650,12 +650,17 @@ async function sbSauvegarderEtab(etabData) {
   window._supabase = null;
   document.addEventListener('DOMContentLoaded', function(){
     try {
-      if (window.supabase && window.HACCP_CONFIG) {
-        window._supabase = window.supabase.createClient(
-          window.HACCP_CONFIG.SUPABASE_URL,
-          window.HACCP_CONFIG.SUPABASE_KEY
-        );
-        console.log('[V95] Supabase client initialisé');
+      // SW-8 — UN SEUL client Supabase. On réutilise l'instance `sb` déjà créée
+      // en tête de fichier (même URL, même clé anon) au lieu d'en initialiser une
+      // seconde avec une clé différente (source de comportement « aléatoire » à
+      // l'init selon l'ordre de chargement). Repli : créer avec la MÊME clé anon.
+      if (typeof sb !== 'undefined' && sb) {
+        window._supabase = sb;
+        console.log('[V95] Supabase client réutilisé (instance unique)');
+      } else if (window.supabase) {
+        window._supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+        try { sb = window._supabase; } catch(eAssign){}
+        console.log('[V95] Supabase client initialisé (clé anon unique)');
       }
       if (window.emailjs && window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY) {
         window.emailjs.init(window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY);
@@ -13763,6 +13768,9 @@ var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
         window._modulesValidatedFlag[pageId] = true;
       }
     } catch(eFlag) {}
+    // DATA-13 — refléter immédiatement l'état « à synchroniser » (se videra dès
+    // que le push cloud confirme cloudOk).
+    try { if (typeof _majBadgeNonSync === 'function') setTimeout(_majBadgeNonSync, 300); } catch(eBadge) {}
   } catch(e) { console.warn('Sauvegarde module erreur:', e.message||e); }
 }
 
@@ -19720,6 +19728,55 @@ if (!ETAB_ID) {
 // signataire et ré-uploade les contrôles manquants (avec nouvelle tentative
 // aux passages suivants tant que le cloud ne les a pas).
 // ════════════════════════════════════════════════════════════════
+// DATA-13 — Compteur + badge PERSISTANT « N contrôle(s) non synchronisé(s) ».
+// S'appuie sur le flag durable cloudOk (DATA-6). Tant qu'un contrôle n'est pas
+// confirmé au cloud, un badge discret reste visible (au lieu d'une alerte unique
+// vite oubliée). Un appui force une nouvelle tentative de synchro.
+function _compterNonSync() {
+  try {
+    if (typeof localStorage === 'undefined' || typeof ETAB_ID === 'undefined' || !ETAB_ID) return 0;
+    var etabKey = '_' + String(ETAB_ID);
+    var n = 0;
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k || k.indexOf('haccp_module_data_page-') !== 0) continue;
+      if (k.indexOf(etabKey) === -1) continue;
+      var arr = [];
+      try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { continue; }
+      if (!Array.isArray(arr)) continue;
+      for (var j = 0; j < arr.length; j++) { if (arr[j] && !arr[j].cloudOk) n++; }
+    }
+    return n;
+  } catch(e) { return 0; }
+}
+function _majBadgeNonSync() {
+  try {
+    if (typeof document === 'undefined') return;
+    var n = _compterNonSync();
+    var el = document.getElementById('badgeNonSync');
+    if (!n) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('button');
+      el.id = 'badgeNonSync';
+      el.type = 'button';
+      el.title = 'Contrôles en sécurité en local, pas encore confirmés au cloud. Appuyez pour réessayer.';
+      el.style.cssText = 'position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:95;background:#f59e0b;color:#1f2937;border:none;border-radius:20px;padding:8px 13px;font-size:12px;font-weight:800;font-family:Outfit,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(245,158,11,0.45);display:inline-flex;align-items:center;gap:6px';
+      el.onclick = function(){
+        el.textContent = '⏳ Synchronisation…';
+        try { if (typeof synchroniserPhotos === 'function') synchroniserPhotos(); } catch(e){}
+        try { if (typeof synchroniserControlesManquants === 'function') synchroniserControlesManquants(); } catch(e){}
+        setTimeout(_majBadgeNonSync, 1500);
+      };
+      document.body.appendChild(el);
+    }
+    el.textContent = '☁️ ' + n + ' à synchroniser';
+  } catch(e) {}
+}
+if (typeof window !== 'undefined') {
+  window._majBadgeNonSync = _majBadgeNonSync;
+  setInterval(function(){ try { _majBadgeNonSync(); } catch(e){} }, 10000);
+}
+
 var _reconcileEnCours = false;
 async function synchroniserControlesManquants() {
   if (_reconcileEnCours) return;
@@ -19753,25 +19810,32 @@ async function synchroniserControlesManquants() {
       var arr = [];
       try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(eP) { continue; }
       if (!Array.isArray(arr)) continue;
+      var dirty = false;
       for (var j = 0; j < arr.length; j++) {
         var entry = arr[j];
         var data = (entry && entry.data) ? entry.data : entry;
         if (!data) continue;
-        // Laisser l'espion 3s gérer les contrôles très récents (évite un doublon
-        // de course). On ne rattrape que ceux de plus de 30 s.
         var entryTs = entry && entry.timestamp;
-        if (entryTs) { var age = Date.now() - new Date(entryTs).getTime(); if (!isNaN(age) && age < 30000) continue; }
         var pid = data.pageId || (entry && entry.pageId) || '';
         var ts  = data.timestamp || entryTs || '';
         if (!pid || !ts) continue;
         var sig = pid + '|' + ts + '|' + (data.signe || data.signataire || '');
-        if (seen[sig]) continue; // déjà dans le cloud
+        if (seen[sig]) {
+          // Déjà présent au cloud → marquer cloudOk (DATA-6/13 : compteur exact).
+          if (entry && !entry.cloudOk) { entry.cloudOk = true; dirty = true; }
+          continue;
+        }
+        // Laisser l'espion 3s gérer les contrôles très récents (évite un doublon
+        // de course). On ne rattrape que ceux de plus de 30 s.
+        if (entryTs) { var age = Date.now() - new Date(entryTs).getTime(); if (!isNaN(age) && age < 30000) continue; }
         manquants++;
         var moduleNom = (data && data.module) || pid.replace('page-','');
         var res = await enregistrerControleHACCP(moduleNom, data);
-        if (res && res.ok) { seen[sig] = true; envoyes++; }
+        if (res && res.ok) { seen[sig] = true; envoyes++; if (entry && !entry.cloudOk) { entry.cloudOk = true; dirty = true; } }
       }
+      if (dirty) { try { lsSet(k, JSON.stringify(arr)); } catch(eW){} }
     }
+    if (typeof _majBadgeNonSync === 'function') { try { _majBadgeNonSync(); } catch(eB){} }
     if (manquants > 0) console.info('[HACCP Réconcil] ' + envoyes + '/' + manquants + ' contrôle(s) manquant(s) renvoyé(s) au cloud');
     // Si des contrôles manquent et qu'AUCUN n'a pu être envoyé → Supabase refuse.
     // On affiche l'erreur réelle (RLS / colonne manquante) une seule fois.
@@ -20827,7 +20891,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b47';
+  h.textContent = txt + ' · maj b48';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.

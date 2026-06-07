@@ -46,7 +46,7 @@
 | DATA-10 | `seen` pollué par entrées locales | ❌ |
 | DATA-11 | `_pushedSigs` posé avant confirmation | ✅ |
 | DATA-12 | `date_controle` = heure upload, pas saisie | ❌ |
-| DATA-13 | Badge « N non synchronisés » persistant | ❌ |
+| DATA-13 | Badge « N non synchronisés » persistant | ✅ |
 | PDF-3 | `limit=1000` masque contrôles anciens | ❌ |
 | PDF-4 | Bornes de dates UTC vs locale | ❌ |
 | PDF-5 | Fusion local/cloud par « plus récent » | ❌ |
@@ -56,7 +56,7 @@
 | SW-5 | `CACHE` SW généré en CI | ❌ |
 | SW-6 | DataCloneError iOS (généraliser REST) | ❌ |
 | SW-7 | Numéros de version désynchronisés | ❌ |
-| SW-8 | Double init Supabase (2 clés) | ❌ |
+| SW-8 | Double init Supabase (2 clés) | ✅ |
 | BIZ-4 | Garde température aberrante enceintes | ✅ |
 | BIZ-5 | Synchro Équipe (demi-caractères) | ✅ |
 | BIZ-6 | Synchro Équipe par horloge (→ created_at) | ❌ |
