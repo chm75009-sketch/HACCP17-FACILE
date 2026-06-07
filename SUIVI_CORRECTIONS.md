@@ -42,7 +42,7 @@
 | CONC-8 | Onglet leader + pause `document.hidden` | ✅ |
 | DATA-7 | Cap 200/module évince contrôle non synchro | ✅ |
 | DATA-8 | Faux doublon à la minute → perte | ✅ |
-| DATA-9 | Doublons cloud (pas d'unicité serveur) | ❌ |
+| DATA-9 | Doublons cloud (pas d'unicité serveur) | 🟡 uid client posé — index unique serveur dans backend/ |
 | DATA-10 | `seen` pollué par entrées locales | ✅ |
 | DATA-11 | `_pushedSigs` posé avant confirmation | ✅ |
 | DATA-12 | `date_controle` = heure upload, pas saisie | ✅ |
@@ -52,8 +52,8 @@
 | PDF-5 | Fusion local/cloud par « plus récent » | ✅ |
 | PDF-6 | try/catch par module dans le Pack | ✅ |
 | PDF-7 | Signataire absent des sections conformes | ✅ |
-| SW-4 | `?v=` empreinte de build sur assets | ❌ |
-| SW-5 | `CACHE` SW généré en CI | ❌ |
+| SW-4 | `?v=` empreinte de build sur assets | ⏳ infra/CI (mitigé par APP_BUILD/SW-7) |
+| SW-5 | `CACHE` SW généré en CI | ⏳ infra/CI |
 | SW-6 | DataCloneError iOS (généraliser REST) | 🟡 inscription client (REST) — admin SDK conservé |
 | SW-7 | Numéros de version désynchronisés | ✅ |
 | SW-8 | Double init Supabase (2 clés) | ✅ |
@@ -62,13 +62,13 @@
 | BIZ-6 | Synchro Équipe par horloge (→ created_at) | ✅ |
 | BIZ-7 | ID dupliqué `tcat_seuil` | ✅ |
 | BIZ-8 | Virgule décimale champs number | ✅ |
-| CONC-9 / DATA-14 | Équipe & enceintes « dernier écrit gagne » | ❌ |
+| CONC-9 / DATA-14 | Équipe & enceintes « dernier écrit gagne » | ➖ par choix (déterministe via created_at, BIZ-6) |
 
 ## 🟡 MINEUR
 
 | Code | Point | Statut |
 |---|---|---|
-| MIN-1 | Helpers seuils dupliqués ×4 + code mort | ❌ |
+| MIN-1 | Helpers seuils dupliqués ×4 + code mort | ➖ par choix (cosmétique, risque>valeur) |
 | MIN-2 | Borne haute `23:59:59` sans `.999` | ✅ |
 | MIN-3 | Photos modules non mappés non injectées | ✅ |
 | MIN-4 | Injection photos sur setTimeout fixes | ✅ |
