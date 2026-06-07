@@ -59,7 +59,7 @@
 | SW-8 | Double init Supabase (2 clés) | ✅ |
 | BIZ-4 | Garde température aberrante enceintes | ✅ |
 | BIZ-5 | Synchro Équipe (demi-caractères) | ✅ |
-| BIZ-6 | Synchro Équipe par horloge (→ created_at) | ❌ |
+| BIZ-6 | Synchro Équipe par horloge (→ created_at) | ✅ |
 | BIZ-7 | ID dupliqué `tcat_seuil` | ✅ |
 | BIZ-8 | Virgule décimale champs number | ✅ |
 | CONC-9 / DATA-14 | Équipe & enceintes « dernier écrit gagne » | ❌ |

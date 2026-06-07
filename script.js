@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v61';
+var APP_BUILD = 'v62';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14740,6 +14740,7 @@ function _baroEsc(s) {
 var EQUIPE_KEY = 'haccp_equipe';
 var EQUIPE_MAJ_KEY = 'haccp_equipe_maj';      // horodatage de la dernière modif locale (pour la fusion cloud)
 var EQUIPE_MODULE = '__equipe_registre__';    // « module » réservé dans controles_haccp pour stocker l'équipe
+var EQUIPE_CLOUD_SIG_KEY = 'haccp_equipe_cloud_sig'; // BIZ-6 — signature (created_at+contenu) de la dernière version cloud vue
 var _equipePhotoTmp = ''; // photo en attente lors de l'ajout
 var _pushEquipeTimer = null;
 
@@ -14834,11 +14835,15 @@ async function pullEquipeCloud() {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return { ok: false, msg: 'Non connecté' };
     // Pas de blocage sur MODE_LOCAL (cohérence avec la synchro des contrôles).
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return { ok: false, msg: 'Cloud indisponible' };
+    // BIZ-6 — on ordonne par created_at (horodatage SERVEUR, autoritaire) et non
+    // par date_controle (horloge client falsifiable). La décision d'adoption se
+    // fait par SIGNATURE (created_at + contenu), sans comparer d'horloges locales
+    // — même approche que la config des enceintes.
     var url = SUPABASE_URL + '/rest/v1/controles_haccp'
       + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
       + '&module=eq.' + encodeURIComponent(EQUIPE_MODULE)
-      + '&select=contenu,date_controle'
-      + '&order=date_controle.desc'
+      + '&select=contenu,created_at'
+      + '&order=created_at.desc'
       + '&limit=1';
     var resp = await fetch(url, {
       method: 'GET',
@@ -14858,21 +14863,25 @@ async function pullEquipeCloud() {
     var contenu = rows[0].contenu;
     if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(e) { contenu = null; } }
     if (!contenu || !Array.isArray(contenu.equipe)) return { ok: true, count: 0, adopted: false };
-    var cloudMaj = Number(contenu.maj) || new Date(rows[0].date_controle).getTime() || 0;
-    var localMaj = getEquipeMaj();
-    if (cloudMaj > localMaj) {
-      // Le cloud est plus récent → on adopte sa version (sans re-déclencher d'envoi).
-      try { lsSet(EQUIPE_KEY, JSON.stringify(contenu.equipe)); } catch(e) {}
-      setEquipeMaj(cloudMaj);
-      if (typeof renderEquipe === 'function')      { try { renderEquipe(); } catch(e) {} }
-      if (typeof syncEquipeDatalist === 'function'){ try { syncEquipeDatalist(); } catch(e) {} }
-      console.info('[HACCP Équipe] ✓ Équipe récupérée depuis le cloud (' + contenu.equipe.length + ' personne(s))');
-      return { ok: true, count: contenu.equipe.length, adopted: true };
-    } else if (localMaj > cloudMaj && getEquipe().length) {
-      // Le local est plus récent → on met le cloud à jour.
-      schedulePushEquipeCloud();
+    var cloudJson = JSON.stringify(contenu.equipe);
+    var sig = String(rows[0].created_at || '') + '#' + cloudJson;
+    var lastSig = ''; try { lastSig = lsGet(EQUIPE_CLOUD_SIG_KEY) || ''; } catch(e) {}
+    var sameAsLocal = (cloudJson === JSON.stringify(getEquipe()));
+    if (sig === lastSig) {
+      // Version cloud déjà connue : si le local a divergé depuis, on (re)pousse.
+      if (!sameAsLocal && getEquipe().length) schedulePushEquipeCloud();
+      return { ok: true, count: contenu.equipe.length, adopted: false };
     }
-    return { ok: true, count: contenu.equipe.length, adopted: false };
+    // Nouvelle version cloud (jamais vue par cet appareil) → on la retient.
+    try { lsSet(EQUIPE_CLOUD_SIG_KEY, sig); } catch(e) {}
+    if (sameAsLocal) return { ok: true, count: contenu.equipe.length, adopted: false }; // souvent : notre propre envoi
+    // Le dernier enregistrement (créé le plus récemment côté serveur) fait foi.
+    try { lsSet(EQUIPE_KEY, JSON.stringify(contenu.equipe)); } catch(e) {}
+    setEquipeMaj(Date.now());
+    if (typeof renderEquipe === 'function')      { try { renderEquipe(); } catch(e) {} }
+    if (typeof syncEquipeDatalist === 'function'){ try { syncEquipeDatalist(); } catch(e) {} }
+    console.info('[HACCP Équipe] ✓ Équipe récupérée depuis le cloud (' + contenu.equipe.length + ' personne(s))');
+    return { ok: true, count: contenu.equipe.length, adopted: true };
   } catch(e) {
     console.warn('[HACCP Équipe] Récupération cloud erreur:', e && e.message);
     return { ok: false, msg: (e && e.message) || 'Erreur réseau' };
