@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v76';
+var APP_BUILD = 'v77';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -17500,6 +17500,7 @@ function _forcerLoginSiDeconnecte() {
   } catch (_e) {}
 }
 window.addEventListener('pageshow', function(e) { _forcerLoginSiDeconnecte(); });
+window.addEventListener('focus', function() { _forcerLoginSiDeconnecte(); });
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') _forcerLoginSiDeconnecte();
 });
