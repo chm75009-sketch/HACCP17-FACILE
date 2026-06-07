@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v84';
+var APP_BUILD = 'v85';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1718,10 +1718,18 @@ window.motDePasseOublie = async function() {
 // connexion existante. Le JWT obtenu servira au cloisonnement RLS une fois activé.
 async function _ouvrirSessionAuth(code, pwd) {
   try {
-    if (!window._supabase || !window._supabase.auth) { console.warn('[Auth] SDK indisponible'); return false; }
+    if (!window._supabase || !window._supabase.auth) {
+      console.warn('[Auth] SDK indisponible');
+      if (typeof showToast === 'function') showToast('🔐 Auth : SDK Supabase non chargé', 'err', 6000);
+      return false;
+    }
     var email = _codeVersEmailAuth(code);
     var res = await window._supabase.auth.signInWithPassword({ email: email, password: pwd });
-    if (res && res.error) { console.warn('[Auth] Échec session pour ' + email + ' : ' + res.error.message); _SB_ACCESS_TOKEN = null; return false; }
+    if (res && res.error) {
+      console.warn('[Auth] Échec session pour ' + email + ' : ' + res.error.message);
+      if (typeof showToast === 'function') showToast('🔐 Auth échec (' + email + ') : ' + res.error.message, 'err', 8000);
+      _SB_ACCESS_TOKEN = null; return false;
+    }
     var sess = res && res.data && res.data.session;
     _SB_ACCESS_TOKEN = sess ? sess.access_token : null;
     // Vérification : lire establishment_id dans le JWT (app_metadata).
@@ -1735,7 +1743,11 @@ async function _ouvrirSessionAuth(code, pwd) {
       else showToast('🔐 Session Auth ouverte, mais establishment_id absent du jeton', 'warn', 5000);
     }
     return true;
-  } catch(e) { console.warn('[Auth] Exception session :', e && e.message); _SB_ACCESS_TOKEN = null; return false; }
+  } catch(e) {
+    console.warn('[Auth] Exception session :', e && e.message);
+    if (typeof showToast === 'function') showToast('🔐 Auth exception : ' + (e && e.message), 'err', 7000);
+    _SB_ACCESS_TOKEN = null; return false;
+  }
 }
 
 async function connexion() {
