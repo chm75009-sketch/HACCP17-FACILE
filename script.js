@@ -8092,7 +8092,7 @@ var TYPES_ENCEINTES = {
     {val:'meuble_bas',              label:'Meuble bas / Desserte réfrigérée',         seuil:4},
     {val:'vitrine_refrigeree',      label:'Vitrine réfrigérée',                       seuil:4},
     {val:'chambre_froide_legumes',  label:'Chambre froide légumes',                   seuil:8},
-    {val:'cellule_refroidissement', label:'Cellule de refroidissement rapide',        seuil:10},
+    {val:'cellule_refroidissement', label:'Cellule de refroidissement rapide',        seuil:3},
     {val:'autre',                   label:'Autre équipement',                         seuil:null},
   ],
   resto:     [{val:'vitrine_vins',label:'Vitrine à vins',seuil:12}],
