@@ -6600,6 +6600,40 @@ async function validerReception() {
     return;
   }
   reqEl.style.display = 'none';
+
+  // ── Anti-contrôle-vide (réception) ──
+  // Une réception peut légitimement contenir des produits SANS température (produits
+  // secs/ambiants) : on n'exclut donc aucun bloc ici. On refuse seulement une
+  // réception TOTALEMENT vide (rien saisi du tout) — autocontrôle fictif.
+  var _recInfo = ((document.getElementById('r_fournisseur') || {value:''}).value.trim()
+               || (document.getElementById('r_bl') || {value:''}).value.trim());
+  var _recProduits = 0;
+  document.querySelectorAll('#page-reception [id^="produit_"]').forEach(function(block){
+    if (!/^produit_\d+$/.test(block.id)) return;
+    var id = block.id.replace('produit_','');
+    var typeEl = document.getElementById('type_' + id);
+    var tempEl = document.getElementById('temp_' + id);
+    var typeOk = typeEl && typeEl.value && typeEl.selectedIndex > 0;
+    var tempOk = tempEl && String(tempEl.value).trim() !== '';
+    var statusOk = !!block.querySelector('.status-btn.active-ok, .status-btn.active-warn, .status-btn.active-bad');
+    if (typeOk || tempOk || statusOk) _recProduits++;
+  });
+  var _recCat = 0;
+  document.querySelectorAll('[id^="tempCat_"]').forEach(function(block){
+    if (!/^tempCat_\d+$/.test(block.id)) return;
+    var id = block.id.replace('tempCat_','');
+    var sel = document.getElementById('tcat_sel_' + id);
+    var t = document.getElementById('tcat_temp_' + id);
+    var ambiant = sel && sel.value === 'amb';
+    var tOk = t && String(t.value).trim() !== '';
+    if (ambiant || tOk) _recCat++;
+  });
+  var _recPhoto = false;
+  try { _recPhoto = !!document.querySelector('#page-reception img.photo-preview[src]:not([src=""])'); } catch(_) {}
+  if (!_recInfo && _recProduits === 0 && _recCat === 0 && !_recPhoto) {
+    if (typeof showToast === 'function') showToast('Contrôle vide : aucune information saisie. Renseignez au moins le fournisseur, un produit ou une température avant de valider.', 'err', 6000);
+    return;
+  }
   // V113 — D : Sauvegarde Supabase AVANT PDF (awaited, après check signature)
   if (SB_READY && ETAB_ID) {
     try {
@@ -9572,6 +9606,51 @@ function validerCuisson() {
   var reqEl = document.getElementById('cuis_sig_required');
   if (!hasSigCuis || !prenom || !nom) { reqEl.style.display='flex'; reqEl.scrollIntoView({behavior:'smooth',block:'center'}); return; }
   reqEl.style.display = 'none';
+
+  // ── Anti-contrôle-vide ──
+  // Un plat est « renseigné » s'il a une T° à cœur OU une T° de remise.
+  var _vides = [], _pleines = 0;
+  document.querySelectorAll('[id^="plat_"]').forEach(function(block){
+    if (!/^plat_\d+$/.test(block.id)) return; // ignorer les sous-champs (plat_temp_, plat_nom_, …)
+    var id = block.id.replace('plat_','');
+    var tc = document.getElementById('plat_temp_' + id);
+    var rf = document.getElementById('remise_tf_' + id);
+    var tcv = tc && String(tc.value).trim() !== '' && !isNaN(parseFloat(tc.value));
+    var rfv = rf && String(rf.value).trim() !== '' && !isNaN(parseFloat(rf.value));
+    if (tcv || rfv) { _pleines++; }
+    else {
+      var nomEl = document.getElementById('plat_nom_' + id);
+      _vides.push((nomEl && nomEl.value) ? nomEl.value : ('Plat N°' + id));
+    }
+  });
+  if (_pleines === 0) {
+    if (typeof showToast === 'function') showToast('Contrôle vide : aucune température saisie. Renseignez au moins un plat (T° à cœur ou remise) avant de valider.', 'err', 6000);
+    return;
+  }
+  if (_vides.length > 0) {
+    showConfirm('🍳', 'Mesures incomplètes',
+      'Sans température : ' + _vides.join(', ') + '.\n\nComplétez-les, ou validez quand même — ces plats ne seront PAS enregistrés dans le contrôle.',
+      'Valider sans eux', '', function(ok){ if (ok) _finaliserCuisson(); });
+    return;
+  }
+  _finaliserCuisson();
+}
+
+function _finaliserCuisson(retirerVides) {
+  if (retirerVides !== false) {
+    // Par défaut on retire les plats sans mesure (sauf appel explicite avec false).
+    var nbRetires = 0;
+    Array.prototype.slice.call(document.querySelectorAll('[id^="plat_"]')).forEach(function(block){
+      if (!/^plat_\d+$/.test(block.id)) return;
+      var id = block.id.replace('plat_','');
+      var tc = document.getElementById('plat_temp_' + id);
+      var rf = document.getElementById('remise_tf_' + id);
+      var tcv = tc && String(tc.value).trim() !== '' && !isNaN(parseFloat(tc.value));
+      var rfv = rf && String(rf.value).trim() !== '' && !isNaN(parseFloat(rf.value));
+      if (!tcv && !rfv) { nbRetires++; block.remove(); }
+    });
+    if (nbRetires && typeof showToast === 'function') showToast(nbRetires + ' plat(s) sans température non enregistré(s).', 'warn', 5000);
+  }
   document.getElementById('modalCuisPdf').classList.add('visible');
   sauvegarderHistorique('Cuisson & Remise T', document.getElementById('cuis_sig_prenom') ? document.getElementById('cuis_sig_prenom').value : '');
   sauvegarderDonnesModule('page-cuisson');
@@ -9804,6 +9883,49 @@ async function validerRefroi() {
   var reqEl = document.getElementById('refroi_sig_required');
   if (!hasSigRefroi||!prenom||!nom) { reqEl.style.display='flex'; reqEl.scrollIntoView({behavior:'smooth',block:'center'}); return; }
   reqEl.style.display='none';
+
+  // ── Anti-contrôle-vide ──
+  // Une préparation est « renseignée » si elle a une T° de départ OU après 2h.
+  var _vides = [], _pleines = 0;
+  document.querySelectorAll('[id^="refroi_"]').forEach(function(block){
+    if (!/^refroi_\d+$/.test(block.id)) return; // ignorer les sous-champs (refroi_t0_, refroi_type_, …)
+    var id = block.id.replace('refroi_','');
+    var a = document.getElementById('refroi_t0_' + id);
+    var b = document.getElementById('refroi_t2_' + id);
+    var av = a && String(a.value).trim() !== '' && !isNaN(parseFloat(a.value));
+    var bv = b && String(b.value).trim() !== '' && !isNaN(parseFloat(b.value));
+    if (av || bv) { _pleines++; }
+    else {
+      var typeEl = document.getElementById('refroi_type_' + id);
+      _vides.push((typeEl && typeEl.value) ? typeEl.value : ('Préparation N°' + id));
+    }
+  });
+  if (_pleines === 0) {
+    if (typeof showToast === 'function') showToast('Contrôle vide : aucune température saisie. Renseignez au moins une préparation (T° départ ou après 2h) avant de valider.', 'err', 6000);
+    return;
+  }
+  if (_vides.length > 0) {
+    showConfirm('❄️', 'Mesures incomplètes',
+      'Sans température : ' + _vides.join(', ') + '.\n\nComplétez-les, ou validez quand même — ces préparations ne seront PAS enregistrées dans le contrôle.',
+      'Valider sans elles', '', function(ok){ if (ok) _finaliserRefroi(prenom, nom); });
+    return;
+  }
+  _finaliserRefroi(prenom, nom);
+}
+
+async function _finaliserRefroi(prenom, nom) {
+  // Retire les préparations sans température → non enregistrées (PDF/local/cloud)
+  var nbRetires = 0;
+  Array.prototype.slice.call(document.querySelectorAll('[id^="refroi_"]')).forEach(function(block){
+    if (!/^refroi_\d+$/.test(block.id)) return;
+    var id = block.id.replace('refroi_','');
+    var a = document.getElementById('refroi_t0_' + id);
+    var b = document.getElementById('refroi_t2_' + id);
+    var av = a && String(a.value).trim() !== '' && !isNaN(parseFloat(a.value));
+    var bv = b && String(b.value).trim() !== '' && !isNaN(parseFloat(b.value));
+    if (!av && !bv) { nbRetires++; block.remove(); }
+  });
+  if (nbRetires && typeof showToast === 'function') showToast(nbRetires + ' préparation(s) sans température non enregistrée(s).', 'warn', 5000);
   // V113 — D : Sauvegarde Supabase AVANT PDF (awaited, après check signature)
   if (SB_READY && ETAB_ID) {
     try {
