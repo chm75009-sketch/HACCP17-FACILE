@@ -299,7 +299,11 @@ async function synchroniserPhotos() {
 // V116 — patterns raccourcis pour éviter les soucis d'accents (ex: "Réception" ne contient pas "eception")
 function deduireModule(source) {
   if (!source) return null;
-  if (source === 'etiquette_reception' || source === 'bon_livraison' || source === 'etiquette_tracabilite') return '*ception*';
+  if (source === 'etiquette_reception' || source === 'bon_livraison') return '*ception*';
+  // MIN-3 — la traçabilité est stockée sous « Traçabilité produits reçus » (pas
+  // « Réception ») : la photo d'étiquette de traçabilité doit cibler ce module,
+  // sinon elle n'était jamais rattachée au bon contrôle.
+  if (source === 'etiquette_tracabilite') return '*abilit*';
   if (source === 'document') return '*ocument*';
   if (source.indexOf('nuisibles') === 0) return '*uisible*';
   if (source === 'analyses_micro_rapport') return '*icrobio*';
@@ -20890,7 +20894,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b51';
+  h.textContent = txt + ' · maj b52';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -21052,7 +21056,9 @@ function pullEncCfgCloud() {
         var contenu = rows[0].contenu;
         if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch (e) { contenu = null; } }
         if (!contenu || !Array.isArray(contenu.enceintes)) return;
-        var cloudArr = contenu.enceintes;
+        // MIN-9 — re-nettoyer la config venue du cloud avant de l'adopter/afficher
+        // (ne jamais faire confiance aux données distantes : champs bien formés).
+        var cloudArr = _sanitizeEnceintes(contenu.enceintes);
 
         // Détection de changement SANS horloge : on retient la signature de la
         // dernière version cloud qu'on a déjà vue. Si la version actuelle est
