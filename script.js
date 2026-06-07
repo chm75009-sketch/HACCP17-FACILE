@@ -20548,6 +20548,43 @@ function _activerVirguleDecimale(root) {
   else initVirgule();
 })();
 
+// ── Confort mobile : remonter le champ au-dessus du clavier ──────────
+// Sur téléphone, le clavier qui s'ouvre masque souvent le champ qu'on saisit
+// (et les boutons ± / 🎤 juste à côté). Dès qu'un champ reçoit le focus, si
+// celui-ci est dans la moitié basse de l'écran (zone couverte par le clavier),
+// on recentre la page pour le faire remonter. Comportement global = tous modules.
+(function(){
+  if (typeof document === 'undefined') return;
+  var _focusScrollTimer = null;
+  function _estChampSaisie(el){
+    if (!el || el.nodeType !== 1) return false;
+    var tag = el.tagName;
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (tag === 'INPUT'){
+      var t = (el.getAttribute('type') || 'text').toLowerCase();
+      return ['button','submit','checkbox','radio','range','color','file','image','reset','hidden'].indexOf(t) === -1;
+    }
+    return false;
+  }
+  document.addEventListener('focusin', function(e){
+    var el = e.target;
+    if (!_estChampSaisie(el)) return;
+    if (_focusScrollTimer) clearTimeout(_focusScrollTimer);
+    // Laisser le clavier s'ouvrir (~300 ms sur iOS) avant de mesurer puis recentrer.
+    _focusScrollTimer = setTimeout(function(){
+      _focusScrollTimer = null;
+      try {
+        var r = el.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+        // Le clavier couvre ~la moitié basse : si le champ y est, on le remonte.
+        if (vh && r.bottom > vh * 0.50) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      } catch(_) { try { el.scrollIntoView(); } catch(__){} }
+    }, 320);
+  });
+})();
+
 function _sanitizeEnceintes(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(function (e) {
