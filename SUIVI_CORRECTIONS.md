@@ -43,13 +43,13 @@
 | DATA-7 | Cap 200/module évince contrôle non synchro | ✅ |
 | DATA-8 | Faux doublon à la minute → perte | ✅ |
 | DATA-9 | Doublons cloud (pas d'unicité serveur) | ❌ |
-| DATA-10 | `seen` pollué par entrées locales | ❌ |
+| DATA-10 | `seen` pollué par entrées locales | ✅ |
 | DATA-11 | `_pushedSigs` posé avant confirmation | ✅ |
 | DATA-12 | `date_controle` = heure upload, pas saisie | ✅ |
 | DATA-13 | Badge « N non synchronisés » persistant | ✅ |
 | PDF-3 | `limit=1000` masque contrôles anciens | ✅ |
 | PDF-4 | Bornes de dates UTC vs locale | ✅ |
-| PDF-5 | Fusion local/cloud par « plus récent » | ❌ |
+| PDF-5 | Fusion local/cloud par « plus récent » | ✅ |
 | PDF-6 | try/catch par module dans le Pack | ✅ |
 | PDF-7 | Signataire absent des sections conformes | ❌ |
 | SW-4 | `?v=` empreinte de build sur assets | ❌ |

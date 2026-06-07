@@ -13841,9 +13841,20 @@ function getDonneesPeriode(pageId, dateDebut, dateFin) {
     try {
       var cloud = (typeof window !== 'undefined' && window._cloudCache && window._cloudCache[pageId]) ? window._cloudCache[pageId] : null;
       if (cloud && cloud.length) {
-        var newestCloud = 0;
-        cloud.forEach(function(c){ var t = new Date(c.timestamp).getTime(); if (t > newestCloud) newestCloud = t; });
-        var extras = stored.filter(function(e){ return new Date(e.timestamp).getTime() > newestCloud; });
+        // PDF-5 / DATA-10 — fusion par SIGNATURE et non par « plus récent ».
+        // L'ancien seuil newestCloud faisait disparaître du rapport tout contrôle
+        // local plus ancien que le dernier contrôle cloud, même s'il n'était PAS
+        // dans le cloud. On garde donc tout le cloud + tout local réellement absent.
+        var _sigC = {};
+        cloud.forEach(function(c){
+          var cc = c.data || {};
+          _sigC[(cc.pageId || pageId) + '|' + (cc.timestamp || c.timestamp || '') + '|' + (cc.signe || cc.signataire || '') + '|' + (cc.uid || '')] = true;
+        });
+        var extras = stored.filter(function(e){
+          var ed = e.data || {};
+          var sg = (ed.pageId || pageId) + '|' + (ed.timestamp || e.timestamp || '') + '|' + (ed.signe || ed.signataire || '') + '|' + (ed.uid || '');
+          return !_sigC[sg];
+        });
         stored = cloud.concat(extras);
       }
     } catch(eCloud) {}
@@ -20928,7 +20939,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b53';
+  h.textContent = txt + ' · maj b54';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
