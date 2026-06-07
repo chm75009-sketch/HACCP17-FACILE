@@ -14559,6 +14559,17 @@ async function pushEquipeCloud() {
     // comptes de test, contrairement au reste de l'application.
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return { ok: false, msg: 'Cloud indisponible' };
     var membres = getEquipe();
+    // BIZ-5 : nettoyer les demi-caractères (moitié d'emoji coupée) des champs saisis
+    // avant l'envoi — sinon PostgREST rejette le JSON (PGRST102) et la synchro
+    // équipe échoue en silence, comme c'était le cas pour les enceintes.
+    var membresClean = membres.map(function(m){
+      if (!m || typeof m !== 'object') return m;
+      var c = {};
+      for (var k in m) { if (Object.prototype.hasOwnProperty.call(m, k)) {
+        c[k] = (typeof m[k] === 'string' && k !== 'photo') ? _wellFormedStr(m[k]) : m[k];
+      }}
+      return c;
+    });
     // Équipe créée avant l'arrivée de la synchro (pas d'horodatage) : on en fixe un
     // maintenant, pour qu'elle serve de référence cohérente côté cloud et local.
     var maj = getEquipeMaj();
@@ -14566,7 +14577,7 @@ async function pushEquipeCloud() {
     var payload = {
       code_client:   String(ETAB_ID),
       module:        EQUIPE_MODULE,
-      contenu:       { equipe: membres, maj: maj },
+      contenu:       { equipe: membresClean, maj: maj },
       signature:     null,
       photos:        [],
       date_controle: new Date().toISOString()

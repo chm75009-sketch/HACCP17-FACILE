@@ -92,9 +92,14 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
   const path = new URL(req.url).pathname;
+  // SW-1 : l'app est servie sur un sous-chemin (ex. /HACCP17-FACILE/), donc
+  // `path === '/'` ne matchait jamais. On matche aussi la racine réelle (scope).
+  let scopePath = '/';
+  try { scopePath = new URL(self.registration.scope).pathname; } catch (e) {}
   // Coquille de l'app : navigation (ouverture/rechargement) + fichiers de code.
   const isShell = req.mode === 'navigate'
     || path === '/'
+    || path === scopePath
     || /\/(index\.html|script\.js|style\.css|patch_photo_bl\.js)$/.test(path);
 
   if (isShell) {
