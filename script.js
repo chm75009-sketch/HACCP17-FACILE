@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v65';
+var APP_BUILD = 'v66';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -29,6 +29,15 @@ var CODES_LOCAUX = {};var CODES_LOCAUX = {
 var ETAB_ID = null;
 var SB_READY = false;
 var MODE_LOCAL = false;
+// SEC — jeton de session Supabase Auth (JWT utilisateur). Tant que le RLS n'est pas
+// activé, c'est ADDITIF : l'app continue de marcher avec la clé anon. Une fois posé,
+// il identifie l'établissement côté serveur (cloisonnement).
+var _SB_ACCESS_TOKEN = null;
+var _SB_AUTH_ETAB = null; // establishment_id lu dans le JWT (vérification)
+// Domaine e-mail technique : on traduit le CODE d'accès en e-mail pour Supabase Auth
+// (l'utilisateur continue de se connecter avec son code, l'e-mail est interne).
+var SB_AUTH_EMAIL_DOMAIN = '@haccp-pro.app';
+function _codeVersEmailAuth(code){ return String(code || '').trim().toLowerCase() + SB_AUTH_EMAIL_DOMAIN; }
 
 
 // ── SUPABASE CONFIG ──
@@ -1687,6 +1696,31 @@ window.motDePasseOublie = async function() {
 };
 
 // ── CONNEXION ──
+// SEC — ouvre une session Supabase Auth (JWT) EN PARALLÈLE de la connexion par code.
+// Additif : si ça échoue (compte Auth pas encore créé, etc.), on ne bloque PAS la
+// connexion existante. Le JWT obtenu servira au cloisonnement RLS une fois activé.
+async function _ouvrirSessionAuth(code, pwd) {
+  try {
+    if (!window._supabase || !window._supabase.auth) { console.warn('[Auth] SDK indisponible'); return false; }
+    var email = _codeVersEmailAuth(code);
+    var res = await window._supabase.auth.signInWithPassword({ email: email, password: pwd });
+    if (res && res.error) { console.warn('[Auth] Échec session pour ' + email + ' : ' + res.error.message); _SB_ACCESS_TOKEN = null; return false; }
+    var sess = res && res.data && res.data.session;
+    _SB_ACCESS_TOKEN = sess ? sess.access_token : null;
+    // Vérification : lire establishment_id dans le JWT (app_metadata).
+    try {
+      var payload = JSON.parse(atob(_SB_ACCESS_TOKEN.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      _SB_AUTH_ETAB = (payload.app_metadata && payload.app_metadata.establishment_id) || null;
+    } catch(eJwt) { _SB_AUTH_ETAB = null; }
+    console.info('[Auth] ✓ Session sécurisée ouverte. establishment_id (JWT) = ' + (_SB_AUTH_ETAB || '(absent)'));
+    if (typeof showToast === 'function') {
+      if (_SB_AUTH_ETAB) showToast('🔐 Session sécurisée active (cloisonnement prêt)', 'ok', 3500);
+      else showToast('🔐 Session Auth ouverte, mais establishment_id absent du jeton', 'warn', 5000);
+    }
+    return true;
+  } catch(e) { console.warn('[Auth] Exception session :', e && e.message); _SB_ACCESS_TOKEN = null; return false; }
+}
+
 async function connexion() {
   var code = (document.getElementById('login_code').value || '').trim().toUpperCase();
   var pwd = (document.getElementById('login_pwd').value || '').trim();
@@ -1739,6 +1773,9 @@ async function connexion() {
     }
   } catch(e) {}
   ETAB_ID = d.id;
+  // SEC — ouvrir la session Auth en parallèle (additif, non bloquant). Permettra
+  // le cloisonnement RLS une fois activé. N'échoue jamais la connexion existante.
+  try { if (!result.local && !result.offline) _ouvrirSessionAuth(code, pwd); } catch(eAuth) {}
   SECTEUR_ACTIF = d.secteur || 'resto';
   ETAB.nom = d.nom || '';
   ETAB.siret = d.siret || '';
