@@ -20369,7 +20369,12 @@ var _HV_TEMP_ID = /^(temp_|enc_temp_|tcat_temp_|plat_temp_|remise_t0_|remise_tf_
 function hvIsTempInput(input) {
   if (!input) return false;
   var type = (input.getAttribute && input.getAttribute('type')) || input.type;
-  if (type !== 'number') return false;
+  var mode = (input.getAttribute && input.getAttribute('inputmode')) || '';
+  // BIZ-8 convertit les champs de mesure en type="text" inputmode="decimal"
+  // (pour accepter la virgule au clavier FR). Le micro doit donc reconnaître
+  // CES DEUX formes ; le filtrage « température » (unité °C / libellé / id)
+  // ci-dessous se charge ensuite d'écarter les quantités, %, durées, etc.
+  if (type !== 'number' && !(mode === 'decimal')) return false;
   if (input.getAttribute && input.getAttribute('data-hv-skip') === '1') return false; // exclusion manuelle éventuelle
   var id = input.id || '';
   if (_HV_TEMP_ID.test(id)) return true;
@@ -20394,7 +20399,10 @@ function hvIsTempInput(input) {
 // document (tous modules, tous secteurs), de façon idempotente.
 function hvVoiceInit() {
   var inputs;
-  try { inputs = document.querySelectorAll('input[type="number"]'); } catch (e) { return; }
+  // BIZ-8 a transformé les champs de mesure en type="text" inputmode="decimal" :
+  // on scanne donc les DEUX formes, sinon les champs T° convertis ne sont jamais
+  // trouvés et le micro 🎤 ne s'attache plus (régression corrigée).
+  try { inputs = document.querySelectorAll('input[type="number"], input[inputmode="decimal"]'); } catch (e) { return; }
   for (var i = 0; i < inputs.length; i++) {
     try { if (hvIsTempInput(inputs[i])) hvAttachMic(inputs[i]); } catch (e) {}
   }
