@@ -20610,7 +20610,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b39';
+  h.textContent = txt + ' · maj b40';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.

@@ -9,7 +9,7 @@
  *    en arriere-plan : chargement instantane, mise a jour discrete.
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptes.
  */
-const CACHE = 'haccp-pro-v39';
+const CACHE = 'haccp-pro-v40';
 const CORE = [
   './',
   './index.html',
@@ -65,24 +65,28 @@ function revalidate(req) {
   });
 }
 
-// RESEAU D'ABORD pour la coquille : on tente le reseau (delai court), on met le
-// cache a jour au passage, et on retombe sur le cache si le reseau manque/traine.
-function networkFirst(req, timeoutMs) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  return fetch(req, { signal: ctrl.signal }).then((res) => {
-    clearTimeout(t);
-    if (res && res.ok) {
-      const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+// COQUILLE DE L'APP (index.html, script.js…) : CACHE D'ABORD + revalidation en
+// arriere-plan SANS DELAI (« stale-while-revalidate »).
+//  • Pourquoi : script.js fait ~1,2 Mo. L'ancienne strategie « reseau d'abord »
+//    avec abandon a 2,5 s ne finissait JAMAIS le telechargement sur mobile, donc
+//    le cache n'etait jamais mis a jour et l'appareil restait sur un vieux build.
+//  • Maintenant : on sert le cache tout de suite (instantane, marche hors-ligne),
+//    et on telecharge la nouvelle version EN ENTIER en arriere-plan (aucun
+//    timeout, aucun abandon) pour la prochaine ouverture. La livraison immediate
+//    d'une grosse mise a jour reste assuree par le bump de version (CACHE), dont
+//    l'event `install` recharge tout le CORE puis declenche un reload (cf. page).
+function shellStrategy(req) {
+  return caches.match(req).then((cached) => {
+    const network = fetch(req).then((res) => {
+      if (res && res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      }
       return res;
-    }
-    // Reponse invalide (404/500…) -> on prefere le cache s'il existe.
-    return caches.match(req).then((c) => c || res);
-  }).catch(() => {
-    clearTimeout(t);
-    // Hors-ligne ou trop lent -> cache, avec repli ultime sur la page d'accueil.
-    return caches.match(req).then((c) => c || caches.match('./index.html'));
+    }).catch(() => null);
+    if (cached) return cached;                 // rapide + maj silencieuse en fond
+    // Pas encore en cache : on attend le reseau, repli ultime sur la page d'accueil.
+    return network.then((res) => res || caches.match('./index.html'));
   });
 }
 
@@ -103,9 +107,8 @@ self.addEventListener('fetch', (event) => {
     || /\/(index\.html|script\.js|style\.css|patch_photo_bl\.js)$/.test(path);
 
   if (isShell) {
-    // Reseau d'abord (delai court) -> la derniere version arrive des qu'il y a
-    // du reseau ; repli cache pour rester utilisable hors-ligne / au reveil.
-    event.respondWith(networkFirst(req, 2500));
+    // Cache d'abord + mise a jour complete en arriere-plan (voir shellStrategy).
+    event.respondWith(shellStrategy(req));
     return;
   }
 
