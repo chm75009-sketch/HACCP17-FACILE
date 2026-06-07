@@ -20345,6 +20345,28 @@ function hvStartVoice(input, micBtn) {
 function hvAttachMic(input) {
   if (!input || input.getAttribute('data-hvmic')) return;
   input.setAttribute('data-hvmic', '1');
+
+  // Bouton ± — saisie des températures NÉGATIVES (congélateur, surgelé : −18°C).
+  // Indispensable car le pavé inputmode="decimal" (clavier iPhone) n'affiche PAS
+  // le signe « − ». Un appui bascule le signe de la valeur du champ.
+  var s = document.createElement('button');
+  s.type = 'button';
+  s.textContent = '±';
+  s.className = 'hv-sign-btn';
+  s.setAttribute('aria-label', 'Basculer température négative / positive');
+  s.title = 'Température négative / positive (±)';
+  s.style.cssText = 'margin-left:6px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:9px;width:40px;height:40px;font-size:18px;font-weight:800;line-height:1;cursor:pointer;flex-shrink:0;vertical-align:middle';
+  s.onclick = function (ev) {
+    ev.preventDefault(); ev.stopPropagation();
+    var v = (input.value || '').trim();
+    if (v === '' || v === '-' || v === '−') input.value = '-';            // amorce un négatif
+    else if (v.charAt(0) === '-' || v.charAt(0) === '−') input.value = v.replace(/^[-−]\s*/, ''); // repasse en positif
+    else input.value = '-' + v;                                          // passe en négatif
+    try { input.dispatchEvent(new Event('input', { bubbles: true })); }
+    catch (e) { if (typeof input.oninput === 'function') { try { input.oninput(); } catch (_) {} } }
+    try { input.focus(); } catch (e) {}
+  };
+
   var b = document.createElement('button');
   b.type = 'button';
   b.textContent = '🎤';
@@ -20353,9 +20375,13 @@ function hvAttachMic(input) {
   b.title = 'Dicter la température à la voix';
   b.style.cssText = 'margin-left:6px;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;border-radius:9px;width:40px;height:40px;font-size:17px;line-height:1;cursor:pointer;flex-shrink:0;vertical-align:middle';
   b.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); hvStartVoice(input, b); };
+
+  // Insertion : [champ] [±] [🎤]
   var wrap = (input.closest ? input.closest('.tinput-wrap') : null);
-  if (wrap && wrap.parentNode) { wrap.parentNode.insertBefore(b, wrap.nextSibling); }
-  else if (input.parentNode) { input.parentNode.insertBefore(b, input.nextSibling); }
+  var parent = null, next = null;
+  if (wrap && wrap.parentNode) { parent = wrap.parentNode; next = wrap.nextSibling; }
+  else if (input.parentNode) { parent = input.parentNode; next = input.nextSibling; }
+  if (parent) { parent.insertBefore(s, next); parent.insertBefore(b, s.nextSibling); }
 }
 
 // Ajoute le micro à tous les champs de température de la page Températures.
