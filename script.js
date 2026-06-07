@@ -13646,7 +13646,20 @@ var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
     var stored = [];
     try { stored = JSON.parse(lsGet(key) || '[]'); } catch(e) {}
     stored.unshift(entry); // plus récent en premier
-    if (stored.length > 200) stored = stored.slice(0, 200); // V86 — 200 entrées max (7 jours de tests)
+    // V86 / DATA-7 — plafond 200 entrées, mais on n'évince JAMAIS en priorité un
+    // contrôle non encore confirmé au cloud (cloudOk). On retire d'abord les plus
+    // anciens DÉJÀ synchronisés ; les non-synchronisés sont préservés tant que
+    // possible (anti-perte hors-ligne).
+    if (stored.length > 200) {
+      var _nonSync = stored.filter(function(e){ return e && !e.cloudOk; });
+      if (_nonSync.length >= 200) {
+        stored = stored.slice(0, 200);
+      } else {
+        var _sync = stored.filter(function(e){ return e && e.cloudOk; });
+        stored = _nonSync.concat(_sync).slice(0, 200);
+        stored.sort(function(a, b){ return String((b && b.timestamp) || '').localeCompare(String((a && a.timestamp) || '')); });
+      }
+    }
     lsSet(key, JSON.stringify(stored));
     // ENVOI CLOUD IMMÉDIAT vers controles_haccp (la table lue par les rapports).
     // On ne dépend plus du seul « espion » 3s, dont l'instantané de démarrage
@@ -13658,9 +13671,15 @@ var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
         window._pushedSigs = window._pushedSigs || {};
         var _sigPush = pageId + '|' + ((data && data.timestamp) || entry.timestamp || '') + '|' + ((data && (data.signe || data.signataire)) || '');
         if (!window._pushedSigs[_sigPush]) {
-          window._pushedSigs[_sigPush] = true;
+          window._pushedSigs[_sigPush] = true; // réservation anti-doublon le temps de l'envoi
           var _modNom = (data && data.module) || pageId.replace('page-', '');
-          enregistrerControleHACCP(_modNom, data);
+          var _tsEntry = entry.timestamp;
+          // DATA-11 : ne confirmer la signature qu'en cas de succès ; sinon la libérer
+          // pour que l'espion / la réconciliation réessaient. DATA-6 : marquer cloudOk.
+          Promise.resolve(enregistrerControleHACCP(_modNom, data)).then(function(res){
+            if (res && res.ok) { try { _marquerCloudOk(key, _tsEntry); } catch(e0){} }
+            else { try { delete window._pushedSigs[_sigPush]; } catch(e1){} }
+          }).catch(function(){ try { delete window._pushedSigs[_sigPush]; } catch(e2){} });
         }
       }
     } catch(ePush) { console.warn('push cloud immédiat:', ePush && ePush.message); }
@@ -13673,6 +13692,22 @@ var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
       }
     } catch(eFlag) {}
   } catch(e) { console.warn('Sauvegarde module erreur:', e.message||e); }
+}
+
+// DATA-6 — marque DURABLEMENT (localStorage) qu'un contrôle est confirmé au cloud.
+// Sert de verrou anti-purge (lsSet/DATA-1) et anti-éviction (cap 200/DATA-7), et
+// évite les ré-envois inutiles après un rechargement (où window._pushedSigs,
+// purement en mémoire, est perdu).
+function _marquerCloudOk(key, timestamp) {
+  try {
+    var arr = JSON.parse(lsGet(key) || '[]');
+    if (!Array.isArray(arr)) return;
+    var modif = false;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] && arr[i].timestamp === timestamp && !arr[i].cloudOk) { arr[i].cloudOk = true; modif = true; break; }
+    }
+    if (modif) lsSet(key, JSON.stringify(arr));
+  } catch(e) {}
 }
 
 function getDernieresDonnees(pageId) {
@@ -19747,8 +19782,14 @@ window.synchroniserControlesManquants = synchroniserControlesManquants;
             window._pushedSigs = window._pushedSigs || {};
             var sigW = ((donnees && donnees.pageId) || ('page-' + moduleCourt)) + '|' + ((donnees && donnees.timestamp) || entry.timestamp || '') + '|' + ((donnees && (donnees.signe || donnees.signataire)) || '');
             if (window._pushedSigs[sigW]) return;
-            window._pushedSigs[sigW] = true;
-            enregistrerControleHACCP(moduleNom, donnees);
+            window._pushedSigs[sigW] = true; // réservation anti-doublon le temps de l'envoi
+            var _tsW = entry.timestamp;
+            // DATA-11 : libérer la signature si l'envoi échoue (réessai ultérieur).
+            // DATA-6 : marquer cloudOk en cas de succès.
+            Promise.resolve(enregistrerControleHACCP(moduleNom, donnees)).then(function(res){
+              if (res && res.ok) { try { _marquerCloudOk(k, _tsW); } catch(e0){} }
+              else { try { delete window._pushedSigs[sigW]; } catch(e1){} }
+            }).catch(function(){ try { delete window._pushedSigs[sigW]; } catch(e2){} });
           });
           console.info('[HACCP Espion v3] ✓ ' + nouveaux.length + ' contrôle(s) "' + moduleCourt + '" envoyé(s) au cloud');
         } catch(e) { /* ignore */ }
@@ -20654,7 +20695,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b43';
+  h.textContent = txt + ' · maj b44';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.

@@ -19,7 +19,7 @@
 | DATA-3 / CONC-1 | Photo rattachée par id explicite (pas heuristique) | 🟡 |
 | DATA-4 | Photo orpheline après kill/délai > 2 h | 🟡 |
 | DATA-5 | Login hors-ligne (session valide) | ❌ |
-| DATA-6 | Flag `cloudOk` durable par contrôle | ❌ |
+| DATA-6 | Flag `cloudOk` durable par contrôle | ✅ |
 | CONC-2 | Ajout de photo atomique (multi-appareils) | ❌ |
 | PDF-1 | Pagination/lazy des photos (crash iPhone) | ❌ |
 | PDF-2 | Échappement HTML des champs libres | ✅ |
@@ -40,11 +40,11 @@
 | CONC-6 | `local-test` hors prod / ETAB_ID non réassignable | 🟡 |
 | CONC-7 | UUID nom fichier photo (anti-écrasement) | ✅ |
 | CONC-8 | Onglet leader + pause `document.hidden` | ❌ |
-| DATA-7 | Cap 200/module évince contrôle non synchro | ❌ |
+| DATA-7 | Cap 200/module évince contrôle non synchro | ✅ |
 | DATA-8 | Faux doublon à la minute → perte | ❌ |
 | DATA-9 | Doublons cloud (pas d'unicité serveur) | ❌ |
 | DATA-10 | `seen` pollué par entrées locales | ❌ |
-| DATA-11 | `_pushedSigs` posé avant confirmation | ❌ |
+| DATA-11 | `_pushedSigs` posé avant confirmation | ✅ |
 | DATA-12 | `date_controle` = heure upload, pas saisie | ❌ |
 | DATA-13 | Badge « N non synchronisés » persistant | ❌ |
 | PDF-3 | `limit=1000` masque contrôles anciens | ❌ |
