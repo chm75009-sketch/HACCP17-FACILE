@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v91';
+var APP_BUILD = 'v92';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -7994,8 +7994,7 @@ function showPage(id, noReset) {
   // déconnecté → on redirige vers le login. Couvre TOUS les déclencheurs (appels
   // différés/callbacks réseau, timers, autre fenêtre, bouton retour parasite…)
   // qui tenteraient de réafficher une page connectée après une déconnexion.
-  var _pagesPubliques = { 'page-login': 1, 'page-presentation': 1, 'page-admin': 1, 'page-inscription': 1 };
-  if (!_pagesPubliques[id]) {
+  if (!_estPagePublique(id)) {
     var _deco = (typeof lsGet === 'function') && lsGet('haccp_deconnecte') === '1';
     var _connecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !_deco;
     if (!_connecte) {
@@ -17555,6 +17554,13 @@ function imprimerPlatTemoin() {
 // données d'un compte. Et si on est déjà déconnecté, aucune page connectée ne
 // peut rester visible.
 
+// Liste UNIQUE des pages accessibles SANS être connecté (source de vérité partagée
+// par showPage ET _securiserNavigation → évite toute incohérence comme « S'inscrire
+// renvoie au login » ou « la page d'inscription disparaît au retour sur l'app »).
+function _estPagePublique(id) {
+  return id === 'page-login' || id === 'page-presentation' || id === 'page-admin' || id === 'page-inscription';
+}
+
 function _navAfficherPage(id) {
   var el = document.getElementById(id) || document.getElementById('page-login');
   if (!el) return;
@@ -17602,10 +17608,10 @@ function _securiserNavigation(targetId) {
       _navAfficherPage('page-login');
       return true;
     }
-    // 2) Pas connecté → aucune page connectée ne doit être visible.
+    // 2) Pas connecté → aucune page connectée ne doit être visible (mais on laisse
+    //    les pages PUBLIQUES, dont l'inscription, s'afficher normalement).
     if (!estConnecte) {
-      var pub = (targetId === 'page-login' || targetId === 'page-presentation' || targetId === 'page-admin');
-      _navAfficherPage(pub ? targetId : 'page-login');
+      _navAfficherPage(_estPagePublique(targetId) ? targetId : 'page-login');
       return true;
     }
   } catch(e) {}
