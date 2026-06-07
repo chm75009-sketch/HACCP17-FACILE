@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v94';
+var APP_BUILD = 'v95';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -19178,7 +19178,26 @@ function testEffacerDonnees() {
 
       // ── Soumission formulaire inscription ──
       window.submitInscriptionHaccp = function(event) {
-        event.preventDefault();
+        if (event && event.preventDefault) event.preventDefault();
+
+        // VALIDATION (la validation HTML 'required' n'est pas fiable ici car l'envoi
+        // est piloté en JavaScript). On vérifie nous-mêmes les conditions.
+        // 1) Consentement RGPD OBLIGATOIRE (conformité légale).
+        var _rgpd = document.getElementById('insc_rgpd');
+        if (!_rgpd || !_rgpd.checked) {
+          showStatus('⚠️ Vous devez accepter la politique de confidentialité (RGPD) pour envoyer votre demande.', 'err');
+          try { if (_rgpd) _rgpd.focus(); } catch(e){}
+          return;
+        }
+        // 2) Champs essentiels non vides.
+        var _etabV  = ((document.getElementById('insc_etab')  || {}).value || '').trim();
+        var _respV  = ((document.getElementById('insc_resp')  || {}).value || '').trim();
+        var _emailV = ((document.getElementById('insc_email') || {}).value || '').trim();
+        if (!_etabV || !_respV || !_emailV) {
+          showStatus('⚠️ Merci de renseigner au moins : nom de l\'établissement, responsable et e-mail.', 'err');
+          return;
+        }
+
         var btn = document.getElementById('btnSubmitInscription');
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi en cours…'; }
 
