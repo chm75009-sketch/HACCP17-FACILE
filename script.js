@@ -20442,6 +20442,51 @@ function _wellFormedStr(s) {
   }
   return out;
 }
+// ── BIZ-8 : accepter la VIRGULE décimale dans tous les champs de mesure ──
+// Problème : un champ <input type="number"> rejette « 3,5 » (clavier FR) → .value
+// devient vide → la NC n'est jamais calculée, en silence. Correctif global :
+//  1) on bascule les champs numériques en texte + clavier décimal (inputmode),
+//     pour qu'ils puissent contenir la virgule ;
+//  2) un écouteur en phase de capture remplace « , » par « . » EN DIRECT, avant
+//     que le oninput de conformité (phase cible) ne lise la valeur.
+function _activerVirguleDecimale(root) {
+  try {
+    (root || document).querySelectorAll('input[type="number"]').forEach(function(inp){
+      inp.setAttribute('type', 'text');
+      inp.setAttribute('inputmode', 'decimal');
+    });
+  } catch(_) {}
+}
+(function(){
+  if (typeof document === 'undefined') return;
+  document.addEventListener('input', function(e){
+    var el = e.target;
+    if (el && el.tagName === 'INPUT' && el.getAttribute('inputmode') === 'decimal' && el.value.indexOf(',') !== -1) {
+      var p = el.selectionStart;
+      el.value = el.value.replace(/,/g, '.');
+      try { el.setSelectionRange(p, p); } catch(_) {}
+    }
+  }, true);
+  function initVirgule(){
+    _activerVirguleDecimale(document);
+    try {
+      var obs = new MutationObserver(function(muts){
+        muts.forEach(function(m){
+          if (!m.addedNodes) return;
+          m.addedNodes.forEach(function(n){
+            if (n.nodeType !== 1) return;
+            if (n.matches && n.matches('input[type="number"]')) { n.setAttribute('type','text'); n.setAttribute('inputmode','decimal'); }
+            else if (n.querySelector && n.querySelector('input[type="number"]')) _activerVirguleDecimale(n);
+          });
+        });
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch(_) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initVirgule);
+  else initVirgule();
+})();
+
 function _sanitizeEnceintes(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(function (e) {
