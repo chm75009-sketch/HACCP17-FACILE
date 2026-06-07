@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v68';
+var APP_BUILD = 'v69';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -19440,12 +19440,15 @@ function testEffacerDonnees() {
             if (ins.error) { alert('Erreur création compte: ' + ins.error.message); return; }
 
             // V100 : Créer aussi une ligne dans etablissements pour permettre la connexion
+            // FIX — boucherie et collective tombaient par erreur sur 'resto' →
+            // les clients de ces secteurs étaient enregistrés avec le mauvais
+            // secteur (et, avec le verrouillage, enfermés dans le mauvais métier).
             var secteurMap = {
               'resto_trad': 'resto',
               'boulangerie': 'bp',
               'fast_food': 'rapide',
-              'boucherie': 'resto',
-              'collective': 'resto'
+              'boucherie': 'boucherie',
+              'collective': 'collective'
             };
             var secteurInterne = secteurMap[d.secteur] || 'resto';
             var etabRow = {
