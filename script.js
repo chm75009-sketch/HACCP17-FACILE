@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v83';
+var APP_BUILD = 'v84';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1085,33 +1085,15 @@ function lsRemove(key) {
   try { localStorage.removeItem(key); } catch(e) {}
 }
 
-// ── MOUCHARD DE NAVIGATION (diagnostic temporaire) ──────────────────────────
-// Trace persistante (localStorage → survit aux rechargements) + boîte visible à
-// l'écran, pour diagnostiquer le retour arrière. À RETIRER une fois résolu.
-function _trace(m) {
-  try {
-    var arr = JSON.parse(lsGet('haccp_navtrace') || '[]');
-    var d = new Date();
-    var hh = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2)+'.'+('00'+d.getMilliseconds()).slice(-3);
-    arr.push(hh + '  ' + m);
-    if (arr.length > 16) arr = arr.slice(-16);
-    lsSet('haccp_navtrace', JSON.stringify(arr));
-    _renderTrace(arr);
-  } catch(e) {}
-}
-function _renderTrace(arr) {
+// ── Traces de navigation : DÉSACTIVÉES (diagnostic terminé). Les appels _trace(...)
+// restés dans le code sont sans effet. _renderTrace retire l'ancienne boîte de
+// diagnostic et purge la trace stockée, le cas échéant.
+function _trace(m) { /* no-op — diagnostic retiré */ }
+function _renderTrace() {
   try {
     var box = document.getElementById('navDebugBox');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'navDebugBox';
-      box.style.cssText = 'position:fixed;left:0;bottom:0;z-index:2147483647;max-width:100vw;max-height:42vh;overflow:auto;background:rgba(0,0,0,.88);color:#3f3;font:10px/1.35 monospace;padding:6px 8px;white-space:pre-wrap;border-top:2px solid #3f3;-webkit-user-select:text;user-select:text';
-      box.title = 'Toucher pour effacer la trace';
-      box.onclick = function(){ try{ lsRemove('haccp_navtrace'); box.textContent='NAV TRACE (vidé)'; }catch(e){} };
-      (document.body || document.documentElement).appendChild(box);
-    }
-    arr = arr || JSON.parse(lsGet('haccp_navtrace') || '[]');
-    box.textContent = 'NAV TRACE — touche pour vider\n' + arr.join('\n');
+    if (box && box.parentNode) box.parentNode.removeChild(box);
+    lsRemove('haccp_navtrace');
   } catch(e) {}
 }
 try { document.addEventListener('DOMContentLoaded', function(){ _renderTrace(); }); } catch(e) {}
