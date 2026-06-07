@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v89';
+var APP_BUILD = 'v90';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -7994,7 +7994,7 @@ function showPage(id, noReset) {
   // déconnecté → on redirige vers le login. Couvre TOUS les déclencheurs (appels
   // différés/callbacks réseau, timers, autre fenêtre, bouton retour parasite…)
   // qui tenteraient de réafficher une page connectée après une déconnexion.
-  var _pagesPubliques = { 'page-login': 1, 'page-presentation': 1, 'page-admin': 1 };
+  var _pagesPubliques = { 'page-login': 1, 'page-presentation': 1, 'page-admin': 1, 'page-inscription': 1 };
   if (!_pagesPubliques[id]) {
     var _deco = (typeof lsGet === 'function') && lsGet('haccp_deconnecte') === '1';
     var _connecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !_deco;
