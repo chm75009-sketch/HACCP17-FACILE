@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v74';
+var APP_BUILD = 'v75';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -17437,6 +17437,21 @@ function imprimerPlatTemoin() {
 window.addEventListener('popstate', function(e) {
   var activePage = document.querySelector('.page.active');
   var activeId = activePage ? activePage.id : 'page-guide';
+  // SÉCURITÉ — si l'utilisateur n'est PAS connecté (ex. après déconnexion), le
+  // bouton « retour » du navigateur ne doit JAMAIS réafficher une page connectée.
+  // On le ramène systématiquement sur l'écran de connexion. (Sans ce garde-fou,
+  // l'ancien code basculait sur page-guide, qui est une page connectée.)
+  var estConnecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID);
+  if (!estConnecte || activeId === 'page-login') {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    var login = document.getElementById('page-login');
+    if (login) {
+      login.classList.add('active');
+      var saL = document.getElementById('scrollArea'); if (saL) saL.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
   if (activeId === 'page-guide' || activeId === 'page-home' || activeId === 'page-onboarding') {
     return; // Déjà sur une page racine
   }
