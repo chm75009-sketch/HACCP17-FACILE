@@ -6678,6 +6678,8 @@ async function validerReception() {
     }
   });
   pdfData = collecterDonnees();
+  // Mémoriser le fournisseur pour l'autocomplétion des prochaines réceptions.
+  try { memoFournisseur((document.getElementById('r_fournisseur') || {value:''}).value); } catch(e) {}
   document.getElementById('modalPdf').classList.add('visible');
   sauvegarderHistorique('Réception & Traçabilité', prenom);
   sauvegarderDonnesModule('page-reception');
@@ -7380,6 +7382,7 @@ function openModule(id) {
     document.getElementById('cuis_sig_required').style.display = 'none';
     document.getElementById('cuisPlatContainer').innerHTML = '';
     ajouterPlat();
+    try { syncPlatsDatalist(); pullPlats(); } catch(e) {}
     showPage('page-cuisson');
     updateModuleHeader('page-cuisson', 'cuisson');
     showPlatsTemoins();
@@ -7459,6 +7462,7 @@ function openModule(id) {
     hasSig = false;
     document.getElementById('produitsContainer').innerHTML = '';
     document.getElementById('r_timestamp').textContent = getNowStr();
+    try { syncFournisseursDatalist(); pullFournisseurs(); } catch(e) {}
     initVehTypeSelect();
     compartCount = 0;
     var cc = document.getElementById('compartimentsContainer');
@@ -9408,6 +9412,7 @@ function ajouterPlat() {
       '</div></div>'
     : '');
   container.appendChild(div);
+  try { syncPlatsDatalist(); } catch(e) {}
 }
 
 function supprimerPlat(id) {
@@ -9671,6 +9676,10 @@ function _finaliserCuisson(retirerVides) {
     });
     if (nbRetires && typeof showToast === 'function') showToast(nbRetires + ' plat(s) sans température non enregistré(s).', 'warn', 5000);
   }
+  // Mémoriser les noms de plats pour l'autocomplétion des prochaines cuissons.
+  try {
+    document.querySelectorAll('[id^="plat_nom_"]').forEach(function(el){ if (el && el.value) memoPlat(el.value); });
+  } catch(e) {}
   document.getElementById('modalCuisPdf').classList.add('visible');
   sauvegarderHistorique('Cuisson & Remise T', document.getElementById('cuis_sig_prenom') ? document.getElementById('cuis_sig_prenom').value : '');
   sauvegarderDonnesModule('page-cuisson');
@@ -20838,3 +20847,42 @@ function pullFriteusesCloud() {
     if (typeof showToast === 'function') showToast('✓ Vos ' + cloudArr.length + ' friteuse(s) ont été récupérées.', 'ok', 3000);
   });
 }
+
+// ── Valeurs mémorisées simples (listes de chaînes) : fournisseurs, plats… ──
+// Se remplissent toutes seules à chaque validation (pas de saisie en double) et
+// se synchronisent ; proposées ensuite en autocomplétion sur le champ concerné.
+function _getMemoListe(key) { try { var a = JSON.parse(lsGet(key) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function _saveMemoListe(key, arr) { try { lsSet(key, JSON.stringify(arr || [])); } catch (e) {} }
+function _ajouterMemoValeur(key, cloudModule, champ, valeur, maxN) {
+  valeur = _wellFormedStr(String(valeur || '')).trim();
+  if (!valeur || valeur === 'Non renseigné') return;
+  var arr = _getMemoListe(key).filter(function (v) { return String(v).toLowerCase() !== valeur.toLowerCase(); });
+  arr.unshift(valeur);
+  if (maxN && arr.length > maxN) arr = arr.slice(0, maxN);
+  _saveMemoListe(key, arr);
+  try { _listePushCloud(cloudModule, champ, arr); } catch (e) {}
+}
+function _pullMemoListe(key, cloudModule, sigKey, champ, onReady) {
+  _listePullCloud(cloudModule, champ, sigKey, function (cloudArr) { _saveMemoListe(key, cloudArr); if (onReady) try { onReady(cloudArr); } catch (e) {} });
+}
+
+// ── « Mes fournisseurs » (Réception) ──
+var FOURN_KEY = 'haccp_fournisseurs', FOURN_SIG = 'haccp_fournisseurs_cloudsig', FOURN_MODULE = '__fournisseurs_memo__';
+function syncFournisseursDatalist() {
+  if (typeof _setDatalist !== 'function') return;
+  _setDatalist('fournisseursList', _getMemoListe(FOURN_KEY));
+  var el = document.getElementById('r_fournisseur');
+  if (el) { try { el.setAttribute('list', 'fournisseursList'); } catch (e) {} }
+}
+function memoFournisseur(v) { _ajouterMemoValeur(FOURN_KEY, FOURN_MODULE, 'fournisseurs', v, 60); syncFournisseursDatalist(); }
+function pullFournisseurs() { _pullMemoListe(FOURN_KEY, FOURN_MODULE, FOURN_SIG, 'fournisseurs', syncFournisseursDatalist); }
+
+// ── « Mes plats récurrents » (Cuisson) ──
+var PLATS_KEY = 'haccp_plats_memo', PLATS_SIG = 'haccp_plats_memo_cloudsig', PLATS_MODULE = '__plats_memo__';
+function syncPlatsDatalist() {
+  if (typeof _setDatalist !== 'function') return;
+  _setDatalist('platsRecurrentsList', _getMemoListe(PLATS_KEY));
+  document.querySelectorAll('[id^="plat_nom_"]').forEach(function (inp) { try { inp.setAttribute('list', 'platsRecurrentsList'); } catch (e) {} });
+}
+function memoPlat(v) { _ajouterMemoValeur(PLATS_KEY, PLATS_MODULE, 'plats', v, 100); }
+function pullPlats() { _pullMemoListe(PLATS_KEY, PLATS_MODULE, PLATS_SIG, 'plats', syncPlatsDatalist); }
