@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v87';
+var APP_BUILD = 'v88';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -15094,6 +15094,18 @@ async function pullEquipeCloud() {
     var lastSig = ''; try { lastSig = lsGet(EQUIPE_CLOUD_SIG_KEY) || ''; } catch(e) {}
     var sameAsLocal = (cloudJson === JSON.stringify(getEquipe()));
     if (sig === lastSig) {
+      // Version cloud déjà connue. MAIS si l'équipe LOCALE a été vidée (ex. après une
+      // déconnexion, qui purge la copie locale) alors que le cloud contient encore des
+      // membres → on RESTAURE depuis le cloud au lieu de ne rien faire. (Sinon les
+      // membres semblent « disparus » alors qu'ils sont bien dans le cloud.)
+      if (getEquipe().length === 0 && contenu.equipe.length > 0) {
+        try { lsSet(EQUIPE_KEY, JSON.stringify(contenu.equipe)); } catch(e) {}
+        setEquipeMaj(Date.now());
+        if (typeof renderEquipe === 'function')       { try { renderEquipe(); } catch(e) {} }
+        if (typeof syncEquipeDatalist === 'function') { try { syncEquipeDatalist(); } catch(e) {} }
+        console.info('[HACCP Équipe] ✓ Équipe restaurée du cloud après purge locale (' + contenu.equipe.length + ' personne(s))');
+        return { ok: true, count: contenu.equipe.length, adopted: true };
+      }
       // Version cloud déjà connue : si le local a divergé depuis, on (re)pousse.
       if (!sameAsLocal && getEquipe().length) schedulePushEquipeCloud();
       return { ok: true, count: contenu.equipe.length, adopted: false };
@@ -21561,6 +21573,18 @@ function pullEncCfgCloud() {
         var sameAsLocal = (cloudJson === JSON.stringify(localArr));
 
         if (sig === lastSig) {
+          // Version cloud déjà connue. MAIS si le local a été vidé alors que le cloud
+          // a des enceintes → on RESTAURE (même protection que pour l'équipe).
+          if (localArr.length === 0 && cloudArr.length > 0) {
+            _saveEncCfgRaw(cloudArr); setEncCfgMaj(Date.now());
+            var pa = document.querySelector('.page.active');
+            if (pa && pa.id === 'page-temperatures' && typeof buildEnceintesPreconfigees === 'function') {
+              try { buildEnceintesPreconfigees(); } catch (e) {}
+            }
+            if (typeof _majMesEnceintesHint === 'function') { try { _majMesEnceintesHint(); } catch(e){} }
+            console.info('[Enceintes] ✓ config restaurée du cloud après purge locale (' + cloudArr.length + ')');
+            return;
+          }
           // Version cloud déjà connue : si le local a divergé depuis, on pousse.
           if (!sameAsLocal && localArr.length) scheduleEncCfgPush();
           return;
