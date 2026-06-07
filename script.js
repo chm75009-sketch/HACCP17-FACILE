@@ -7749,6 +7749,7 @@ function showPage(id, noReset) {
   // Généralisée à TOUS les modules et secteurs : on (re)branche les micros à chaque
   // ouverture de page, et un observateur global capte les champs créés ensuite.
   if (typeof hvVoiceInit === 'function') setTimeout(hvVoiceInit, 250);
+  setTimeout(function(){ try { renderAllMemoChips(); } catch(e) {} }, 280);
   if (typeof hvVoiceObserve === 'function') setTimeout(hvVoiceObserve, 300);
   if (id === 'page-temperatures') {
     // « Mes enceintes » : récupérer la config du client depuis le cloud (multi-appareils)
@@ -13562,6 +13563,8 @@ function effacerBrouillon(pageId) {
   } catch(e) {}
 }
 function sauvegarderDonnesModule(pageId) {
+  // Mémoriser les champs « nom » simples présents à l'écran (boutons bleus).
+  try { _memoCaptureSimples(); } catch(e) {}
   try {
     var data = collectPageDataUniversel(pageId);
     if (!data) return;
@@ -20490,7 +20493,7 @@ function hvVoiceObserve() {
     // Réception — empêcherait le scan de se déclencher, donc pas de micro.)
     if (_hvScanPending) return;
     _hvScanPending = true;
-    setTimeout(function () { _hvScanPending = false; hvVoiceInit(); }, 300);
+    setTimeout(function () { _hvScanPending = false; hvVoiceInit(); try { renderAllMemoChips(); } catch (e) {} }, 300);
   });
   try { _hvObserver.observe(root, { childList: true, subtree: true }); } catch (e) {}
 }
@@ -20651,7 +20654,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b42';
+  h.textContent = txt + ' · maj b43';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -21037,14 +21040,24 @@ function _buildChip(label, onPick) {
 }
 function _renderChipsInto(host, items, label, getLabel, onPick) {
   if (!host) return;
-  if (!items || !items.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  if (!items || !items.length) {
+    if (host.getAttribute('data-sig') !== '__empty__') { host.style.display = 'none'; host.innerHTML = ''; host.setAttribute('data-sig', '__empty__'); }
+    return;
+  }
+  var shown = items.slice(0, 12);
+  var labels = shown.map(getLabel);
+  // Signature : ne re-rend QUE si le contenu change → pas de mutation DOM inutile
+  // (sinon l'observateur DOM se redéclencherait en boucle).
+  var sig = label + '||' + labels.join('|');
+  if (host.getAttribute('data-sig') === sig) return;
+  host.setAttribute('data-sig', sig);
   host.innerHTML = '';
   host.style.display = 'flex'; host.style.flexWrap = 'wrap'; host.style.gap = '6px'; host.style.marginTop = '8px';
   var t = document.createElement('span');
   t.textContent = label;
   t.style.cssText = 'font-size:11px;color:#64748b;font-weight:700;width:100%;margin-bottom:2px';
   host.appendChild(t);
-  items.slice(0, 12).forEach(function (it) { host.appendChild(_buildChip(getLabel(it), function () { onPick(it); })); });
+  shown.forEach(function (it, i) { host.appendChild(_buildChip(labels[i], function () { onPick(it); })); });
 }
 function _chipsHostAfter(afterEl, hostId) {
   if (!afterEl || !afterEl.parentNode) return null;
@@ -21124,5 +21137,54 @@ function syncPlatsChips() {
     _renderChipsInto(host, liste, 'Plats déjà saisis — appuyez pour remplir :',
       function (it) { return it; },
       function (it) { inp.value = it; try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {} });
+  });
+}
+
+// ── Registre générique des champs « nom » simples (texte libre récurrent) ──
+// Chaque entrée reçoit automatiquement les boutons bleus « déjà saisis » (rendu
+// par l'observateur DOM) et est mémorisée à la validation (via sauvegarderDonnesModule).
+var MEMO_SIMPLES = [
+  { key:'haccp_memo_etiq',  sig:'haccp_memo_etiq_sig',  module:'__etiq_memo__',  champ:'v', prefix:'etiq_nom_',        label:'Produits déjà étiquetés — appuyez pour remplir :' },
+  { key:'haccp_memo_pt',    sig:'haccp_memo_pt_sig',    module:'__pt_memo__',    champ:'v', prefix:'pt_nom_',          label:'Plats déjà saisis — appuyez pour remplir :' },
+  { key:'haccp_memo_lt',    sig:'haccp_memo_lt_sig',    module:'__lt_memo__',    champ:'v', prefix:'lt_nom_',          label:'Plats déjà saisis — appuyez pour remplir :' },
+  { key:'haccp_memo_am',    sig:'haccp_memo_am_sig',    module:'__am_memo__',    champ:'v', prefix:'am_desig_',        label:'Désignations déjà saisies — appuyez pour remplir :' },
+  { key:'haccp_memo_perte', sig:'haccp_memo_perte_sig', module:'__perte_memo__', champ:'v', prefix:'perte_autre_nom_', label:'Produits déjà saisis — appuyez pour remplir :' }
+];
+function _memoSimpleInputs(prefix) {
+  var out = [];
+  document.querySelectorAll('[id^="' + prefix + '"]').forEach(function (el) {
+    if ((el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && el.id.indexOf(prefix) === 0) out.push(el);
+  });
+  return out;
+}
+var _memoSimplesPulled = false;
+function renderAllMemoChips() {
+  try { syncProduitsReceptionChips(); } catch (e) {}
+  try { syncPlatsChips(); } catch (e) {}
+  MEMO_SIMPLES.forEach(function (cfg) {
+    try {
+      var liste = _getMemoListe(cfg.key);
+      _memoSimpleInputs(cfg.prefix).forEach(function (inp) {
+        var host = _chipsHostAfter(inp.closest('.frow') || inp, 'memochips_' + inp.id);
+        _renderChipsInto(host, liste, cfg.label,
+          function (it) { return it; },
+          function (it) { inp.value = it; try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {} });
+      });
+    } catch (e) {}
+  });
+  // Récupération cloud une seule fois (dès qu'un établissement est connu).
+  if (!_memoSimplesPulled && typeof ETAB_ID !== 'undefined' && ETAB_ID) {
+    _memoSimplesPulled = true;
+    try { pullAllMemoSimples(); } catch (e) {}
+  }
+}
+function _memoCaptureSimples() {
+  MEMO_SIMPLES.forEach(function (cfg) {
+    try { _memoSimpleInputs(cfg.prefix).forEach(function (inp) { if (inp.value) _ajouterMemoValeur(cfg.key, cfg.module, cfg.champ, inp.value, 100); }); } catch (e) {}
+  });
+}
+function pullAllMemoSimples() {
+  MEMO_SIMPLES.forEach(function (cfg) {
+    try { _pullMemoListe(cfg.key, cfg.module, cfg.sig, cfg.champ, renderAllMemoChips); } catch (e) {}
   });
 }
