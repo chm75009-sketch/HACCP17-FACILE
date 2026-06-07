@@ -106,6 +106,15 @@
 | SEC-4 immutabilité contrôles signés (RLS UPDATE/DELETE ciblé) | ❌ à faire |
 | SEC-3 photos privées (bucket privé + URLs signées) | ❌ à faire |
 
+## 🛡️ Protection anti-perte de données (2026-06-07)
+
+| Correctif | Statut |
+|---|---|
+| Restaurer équipe/enceintes du cloud si la copie locale a été purgée (déconnexion) | ✅ |
+| Interdire l'envoi cloud d'une équipe/enceintes VIDE (anti-écrasement « le plus récent gagne ») | ✅ |
+| Retour arrière / multi-fenêtres / bfcache ne réaffichent plus de page connectée | ✅ |
+| Bouton de mise à jour fiable (numéro de version tappable) | ✅ |
+
 ---
 
 ## Ordre d'exécution retenu
