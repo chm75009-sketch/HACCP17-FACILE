@@ -27,6 +27,13 @@
         if (refreshing) return;
         // 1ère prise de contrôle (toute première installation) : ne pas recharger
         if (!hadController) { hadController = true; return; }
+        // MIN-15 — garde-fou anti-boucle : si un reload auto a déjà eu lieu il y a
+        // moins de 20 s (ex. shell servi cassé en 200), ne pas recharger en boucle.
+        try {
+          var _last = parseInt(sessionStorage.getItem('haccp_sw_reload_at') || '0', 10);
+          if (Date.now() - _last < 20000) { console.warn('[SW] reload auto ignoré (anti-boucle)'); return; }
+          sessionStorage.setItem('haccp_sw_reload_at', String(Date.now()));
+        } catch (e) {}
         refreshing = true;
         window.location.reload();
       });

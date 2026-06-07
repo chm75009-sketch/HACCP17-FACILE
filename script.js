@@ -592,19 +592,11 @@ async function _tryOfflineLogin(code, pwd) {
 }
 
 async function sbSauvegarderModule(module, donnees, signePar) {
-  if (!ETAB_ID) return;
-  if (!sb || MODE_LOCAL) return; // mode local : pas de sauvegarde Supabase
-  if (typeof pulseSync === 'function') pulseSync('Sauvegarde…');
-  try {
-    await sb.from('enregistrements').insert({
-      etab_id: ETAB_ID,
-      module: module,
-      donnees: donnees,
-      signe_par: signePar,
-    });
-  } catch(e) {
-    console.warn('Sauvegarde Supabase échouée:', e);
-  }
+  // MIN-12 — la table `enregistrements` n'est JAMAIS relue par l'app (la vraie
+  // persistance des contrôles passe par controles_haccp via enregistrerControleHACCP).
+  // On supprime cette double-écriture morte (charge inutile à chaque validation).
+  // Fonction conservée (appelée par de nombreux modules) → no-op sûr.
+  return;
 }
 
 async function sbSauvegarderEtab(etabData) {
@@ -20898,7 +20890,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b50';
+  h.textContent = txt + ' · maj b51';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
