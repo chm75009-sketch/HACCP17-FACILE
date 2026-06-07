@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v63';
+var APP_BUILD = 'v64';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -3309,7 +3309,11 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
       // fait foi). Clients payants : 12h, mot de passe à ressaisir ensuite.
       var lastCodeChk = (lsGet('haccp_last_code') || '').toUpperCase();
       var estEssaiChk = (lastCodeChk.indexOf('EU3J-') === 0 || lastCodeChk.indexOf('ESSAI-') === 0) && lsGet('haccp_trial_pwd');
-      var maxAge = estEssaiChk ? (16 * 24 * 60 * 60 * 1000) : (12 * 60 * 60 * 1000); // essai: 16j / payant: 12h
+      // MIN-10 — fenêtre de session d'essai dérivée de la durée réelle d'essai
+      // (au lieu d'un « 16 j » arbitraire) : durée d'essai + marge, cohérente avec
+      // la fenêtre de login hors-ligne (7 j). L'expiration en base reste l'autorité.
+      var essaiSessionJours = (typeof ESSAI_UNIVERSEL_JOURS === 'number' ? ESSAI_UNIVERSEL_JOURS : 3) + 4;
+      var maxAge = estEssaiChk ? (essaiSessionJours * 24 * 60 * 60 * 1000) : (12 * 60 * 60 * 1000); // essai: durée+marge / payant: 12h
       if (age > maxAge) {
         sessionClear();
         // Session expirée → afficher la présentation
@@ -12005,7 +12009,8 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
   lancerPackDDPP(dateFrom, dateTo, selectionIds);
 
   // 3) Injecter les photos dans les bons blocs (après que le DOM soit prêt)
-  setTimeout(function() {
+  var _injPhotosTries = 0;
+  function _injecterPhotosPack() {
     // Helper : construit le HTML d'UNE photo (image ou lien PDF)
     function _photoUnit(url) {
       var u = String(url || '');
@@ -12062,6 +12067,13 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
 
     try {
       var blocs = document.querySelectorAll('[data-controle-module][data-controle-ts]');
+      // MIN-4 — le rendu du Pack peut ne pas être prêt à 80 ms (gros Pack). Si aucun
+      // bloc n'est encore présent, on réessaie quelques fois au lieu de rater
+      // définitivement l'injection des photos.
+      if (blocs.length === 0 && (++_injPhotosTries) <= 15) {
+        setTimeout(_injecterPhotosPack, 200);
+        return;
+      }
       blocs.forEach(function(bloc) {
         var codeMod = bloc.getAttribute('data-controle-module');
         var tsStr   = bloc.getAttribute('data-controle-ts');
@@ -12132,7 +12144,8 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
     } catch(e) {
       console.warn('[Pack DDPP] Erreur injection photos :', e);
     }
-  }, 80);
+  }
+  setTimeout(_injecterPhotosPack, 80);
 }
 
 function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
