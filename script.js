@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v75';
+var APP_BUILD = 'v76';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1806,6 +1806,7 @@ async function connexion() {
   try {
     lsSet('haccp_etab', JSON.stringify(ETAB));
     lsSet('haccp_etab_id', ETAB_ID);
+    lsRemove('haccp_deconnecte'); // connexion réussie → on lève le marqueur de déconnexion
     // Session 24h
     sessionWrite(JSON.stringify({
       etabId: ETAB_ID,
@@ -3640,6 +3641,7 @@ function modeTest() {
   // Mode local actif pour bypass Supabase
   if (typeof MODE_LOCAL !== 'undefined') MODE_LOCAL = true;
   ETAB_ID = 'local-test';
+  try { lsRemove('haccp_deconnecte'); } catch(e) {} // mode test = connecté
   SB_READY = true;
   SECTEUR_ACTIF = ETAB.secteur;
   // V80 — En mode Test : CLIENT_MODE désactivé, tous les secteurs visibles pour pouvoir basculer
@@ -3697,6 +3699,7 @@ function changerDeCompte() {
     lsRemove('haccp_date_expiration');
     lsRemove(EQUIPE_KEY);
     lsRemove(EQUIPE_MAJ_KEY);
+    lsSet('haccp_deconnecte', '1');
     sessionClear();
   } catch(e) {}
   // Fermer aussi la session Auth éventuelle.
@@ -3715,6 +3718,11 @@ function changerDeCompte() {
 function deconnecterConfirme() {
   ETAB_ID = null; SB_READY = false;
   CLIENT_MODE = false;
+  // Marqueur de déconnexion (lu en direct → résiste à l'instantané bfcache iOS au
+  // retour arrière) + fermeture de la session Auth sécurisée.
+  try { lsSet('haccp_deconnecte', '1'); } catch(e) {}
+  try { if (window._supabase && window._supabase.auth) window._supabase.auth.signOut(); } catch(e) {}
+  _SB_ACCESS_TOKEN = null; _SB_AUTH_ETAB = null;
   try {
     lsRemove('haccp_etab');
     lsRemove('haccp_etab_id');
@@ -17441,7 +17449,8 @@ window.addEventListener('popstate', function(e) {
   // bouton « retour » du navigateur ne doit JAMAIS réafficher une page connectée.
   // On le ramène systématiquement sur l'écran de connexion. (Sans ce garde-fou,
   // l'ancien code basculait sur page-guide, qui est une page connectée.)
-  var estConnecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID);
+  var deconnecte = (typeof lsGet === 'function') && lsGet('haccp_deconnecte') === '1';
+  var estConnecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !deconnecte;
   if (!estConnecte || activeId === 'page-login') {
     document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
     var login = document.getElementById('page-login');
@@ -17463,6 +17472,36 @@ window.addEventListener('popstate', function(e) {
     document.getElementById('scrollArea').scrollTop = 0;
     window.scrollTo(0,0);
   }
+});
+
+// SÉCURITÉ — restauration depuis le cache navigateur (bfcache) ou simple
+// réaffichage de l'onglet : si l'utilisateur n'est PAS connecté, ne jamais
+// laisser une page connectée visible (cas du « retour » qui réaffiche un
+// instantané mis en cache du tableau de bord après déconnexion).
+function _forcerLoginSiDeconnecte() {
+  try {
+    // Marqueur lu EN DIRECT dans le stockage (non figé par l'instantané bfcache
+    // iOS) : posé à la déconnexion, retiré à la connexion. S'il est présent, on
+    // force le login même si la variable ETAB_ID a été restaurée à « connecté ».
+    var deconnecte = (typeof lsGet === 'function') && lsGet('haccp_deconnecte') === '1';
+    var estConnecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !deconnecte;
+    if (estConnecte) return;
+    var activePage = document.querySelector('.page.active');
+    var activeId = activePage ? activePage.id : '';
+    // Seules ces pages sont autorisées hors connexion.
+    if (activeId === 'page-login' || activeId === 'page-presentation' || activeId === 'page-admin') return;
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    var login = document.getElementById('page-login');
+    if (login) {
+      login.classList.add('active');
+      var sa = document.getElementById('scrollArea'); if (sa) sa.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }
+  } catch (_e) {}
+}
+window.addEventListener('pageshow', function(e) { _forcerLoginSiDeconnecte(); });
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') _forcerLoginSiDeconnecte();
 });
 // ══ FIN NAVIGATION RETOUR ══
 
