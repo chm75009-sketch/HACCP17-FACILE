@@ -35,7 +35,7 @@
 | Code | Point | Statut |
 |---|---|---|
 | CONC-3 | Backoff + jitter liaison photo | ✅ |
-| CONC-4 | Réconciliation allégée (champs + fenêtre 7j) | ❌ |
+| CONC-4 | Réconciliation allégée (champs + fenêtre 7j) | ✅ |
 | CONC-5 | Lignes `__diag__` hors prod | ✅ |
 | CONC-6 | `local-test` hors prod / ETAB_ID non réassignable | ✅ |
 | CONC-7 | UUID nom fichier photo (anti-écrasement) | ✅ |
@@ -80,7 +80,7 @@
 | MIN-10 | Session essai 16j vs 3j réel | ❌ |
 | MIN-11 | `ETAB_ID`/`MODE_LOCAL` déclarés en double | ✅ |
 | MIN-12 | Table `enregistrements` écrite jamais relue | ✅ |
-| MIN-13 | Pas de pull périodique PC→iPhone | ❌ |
+| MIN-13 | Pas de pull périodique PC→iPhone | ✅ |
 | MIN-14 | `navigator.storage.persist()` jamais appelé | ✅ |
 | MIN-15 | Boucle de reload si shell HTML cassé en 200 | ✅ |
 

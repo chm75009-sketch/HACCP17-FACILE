@@ -19826,6 +19826,11 @@ async function synchroniserControlesManquants() {
   if (_reconcileEnCours) return;
   if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
   if (typeof localStorage === 'undefined') return;
+  if (String(ETAB_ID) === 'local-test') return; // mode test : pas de cloud (CONC-6)
+  // CONC-4 — sortie anticipée SANS appel réseau si tout est déjà confirmé au cloud.
+  // Sans ça, on rechargeait tout le cloud toutes les 60 s même quand rien n'était
+  // en attente. On ne paie le fetch que s'il reste au moins un contrôle non cloudOk.
+  if (typeof _compterNonSync === 'function' && _compterNonSync() === 0) return;
   _reconcileEnCours = true;
   try {
     // 1. État du cloud (signatures déjà présentes)
@@ -19857,6 +19862,7 @@ async function synchroniserControlesManquants() {
       var dirty = false;
       for (var j = 0; j < arr.length; j++) {
         var entry = arr[j];
+        if (entry && entry.cloudOk) continue; // CONC-4 — déjà confirmé au cloud, rien à faire
         var data = (entry && entry.data) ? entry.data : entry;
         if (!data) continue;
         var entryTs = entry && entry.timestamp;
@@ -19903,6 +19909,29 @@ window.synchroniserControlesManquants = synchroniserControlesManquants;
   if (typeof window === 'undefined') return;
   setTimeout(function(){ try { synchroniserControlesManquants(); } catch(e){} }, 6000);
   setInterval(function(){ try { synchroniserControlesManquants(); } catch(e){} }, 60000);
+
+  // MIN-13 — pull périodique du cloud (PC → iPhone). La réconciliation (CONC-4)
+  // ne recharge plus le cloud quand tout est synchronisé ; un contrôle fait sur
+  // un autre appareil n'apparaîtrait donc pas sans recharger la page. On rafraîchit
+  // l'historique/tableau de bord quand l'app est VISIBLE et qu'on les consulte,
+  // et à chaque retour au premier plan.
+  function _estPageConsultation() {
+    try {
+      var p = document.querySelector('.page.active');
+      return !!(p && (p.id === 'page-exports' || p.id === 'page-dashboard'));
+    } catch(e) { return false; }
+  }
+  function _pullCloudSiConsultation() {
+    try {
+      if (document.hidden) return;
+      if (!_estPageConsultation()) return;
+      if (typeof chargerHistoriqueControlesCloud === 'function') chargerHistoriqueControlesCloud();
+    } catch(e) {}
+  }
+  setInterval(_pullCloudSiConsultation, 90000); // toutes les 90 s si on consulte
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible') setTimeout(_pullCloudSiConsultation, 400);
+  });
 })();
 
 
@@ -20939,7 +20968,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b54';
+  h.textContent = txt + ' · maj b55';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
