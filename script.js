@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v64';
+var APP_BUILD = 'v65';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -445,6 +445,31 @@ if (typeof document !== 'undefined') {
 }
 // ══════════════════════════════════════════════════════════════
 
+
+// SW-6 — insertion via REST direct (et non via le SDK supabase-js, qui peut lever
+// un DataCloneError sur Safari iOS et faire échouer en silence une écriture — ex.
+// une inscription client envoyée depuis un iPhone). Renvoie {ok, status, body}.
+async function _restInsert(table, rows, prefer) {
+  try {
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') {
+      return { ok: false, msg: 'Cloud indisponible' };
+    }
+    var resp = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Content-Type': 'application/json',
+        'Prefer': prefer || 'return=minimal'
+      },
+      body: JSON.stringify(Array.isArray(rows) ? rows : [rows])
+    });
+    var body = ''; try { body = await resp.text(); } catch(e) {}
+    return { ok: resp.ok, status: resp.status, body: body };
+  } catch(err) {
+    return { ok: false, msg: (err && err.message) || 'Erreur réseau' };
+  }
+}
 
 async function sbLoginTentative(codeAcces, pwd) {
   // Appel direct REST Supabase — contourne le bug iOS Safari du SDK (DataCloneError)
@@ -18807,17 +18832,13 @@ function testEffacerDonnees() {
           statut: 'en_attente'
         };
 
-        if (!window._supabase) {
-          showStatus('❌ Erreur : connexion à la base impossible. Réessayez.', 'err');
-          if (btn) { btn.disabled = false; btn.textContent = '🚀 Envoyer ma demande'; }
-          return false;
-        }
-
-        // Insertion Supabase
-        window._supabase.from('demandes_inscription').insert([data]).then(function(res) {
-          if (res.error) {
-            console.error('[V95] Erreur Supabase insert:', res.error);
-            showStatus('❌ Erreur lors de l\'envoi : ' + (res.error.message || 'inconnue'), 'err');
+        // SW-6 — insertion via REST direct (le SDK supabase-js peut lever un
+        // DataCloneError sur iPhone → inscription perdue en silence). Le formulaire
+        // d'inscription est souvent rempli depuis un mobile : chemin critique.
+        _restInsert('demandes_inscription', data).then(function(res) {
+          if (!res || !res.ok) {
+            console.error('[V95] Erreur inscription REST:', res && (res.body || res.msg));
+            showStatus('❌ Erreur lors de l\'envoi : ' + ((res && (res.body || res.msg)) || 'inconnue'), 'err');
             if (btn) { btn.disabled = false; btn.textContent = '🚀 Envoyer ma demande'; }
             return;
           }
