@@ -41,7 +41,16 @@
         navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
           // Vérifier les mises à jour à l'ouverture, au retour au premier plan,
           // et toutes les heures pour les sessions longues (app installée).
-          var verifier = function () { try { reg.update(); } catch (e) {} };
+          // Hors-ligne : on NE vérifie PAS (sinon le retéléchargement de sw.js
+          // échoue et génère « Script sw.js load failed » dans la console). Le SW
+          // déjà installé continue de servir l'app depuis le cache.
+          var verifier = function () {
+            try {
+              if (navigator.onLine === false) return;
+              var p = reg.update();
+              if (p && typeof p.catch === 'function') p.catch(function () {});
+            } catch (e) {}
+          };
           verifier();
           setInterval(verifier, 60 * 60 * 1000);
           document.addEventListener('visibilitychange', function () {
