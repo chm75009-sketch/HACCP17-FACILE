@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v92';
+var APP_BUILD = 'v93';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1911,6 +1911,9 @@ async function connexion() {
     CLIENT_MODE = true;
     console.log('[SEC] Client verrouillé sur son secteur :', d && d.secteur);
   }
+  // Mémoriser l'état de verrouillage pour pouvoir le restaurer à l'identique lors
+  // d'une reprise de session après mise à jour (voir initApp).
+  try { lsSet('haccp_client_mode', CLIENT_MODE ? '1' : '0'); } catch(e) {}
   // V101 — Appliquer le grisage immédiatement après l'affichage du choix secteur
   setTimeout(appliquerClientMode, 50);
   var sa=document.getElementById('scrollArea'); if(sa) sa.scrollTop=0; window.scrollTo(0,0);
@@ -3438,6 +3441,41 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
   // V89 — Au démarrage, afficher la page de présentation (commerciale).
   // Le bouton "Se connecter" mène vers page-login.
   // Si une session existe, on saute la présentation et on va au login (avec champs pré-remplis).
+  // REPRISE APRÈS MISE À JOUR VOLONTAIRE — si l'utilisateur vient de cliquer
+  // « Mettre à jour » alors qu'il était connecté, on le ramène DIRECTEMENT dans
+  // l'app (pas de renvoi au login), en restaurant l'état depuis le stockage local.
+  try {
+    if (sessionStorage.getItem('haccp_maj_reprise') === '1') {
+      sessionStorage.removeItem('haccp_maj_reprise');
+      var _eid = lsGet('haccp_etab_id');
+      var _estr = lsGet('haccp_etab');
+      if (_eid && _estr && lsGet('haccp_deconnecte') !== '1') {
+        // État essentiel (sûr à poser tout de suite) :
+        ETAB = JSON.parse(_estr);
+        ETAB_ID = _eid;
+        SECTEUR_ACTIF = (ETAB && ETAB.secteur) || lsGet('haccp_secteur_actif_' + _eid) || 'resto';
+        CLIENT_MODE = (lsGet('haccp_client_mode') === '1');
+        SB_READY = true;
+        if (typeof MODE_LOCAL !== 'undefined' && String(_eid).indexOf('local-') === 0) MODE_LOCAL = true;
+        var _expert = (lsGet('haccp_mode') === 'expert');
+        showPage(_expert ? 'page-home' : 'page-guide');
+        // Le RESTE dépend de variables/fonctions définies plus loin dans le fichier
+        // (INGREDIENTS_*, renderMods, pulls cloud, topbar) : on diffère pour qu'elles
+        // soient bien initialisées au moment de l'appel.
+        setTimeout(function(){
+          try {
+            INGREDIENTS_DB = (SECTEUR_ACTIF === 'bp') ? INGREDIENTS_BP : INGREDIENTS_RESTO;
+            var _hero = document.getElementById('heroEtab'); if (_hero) _hero.textContent = (ETAB && ETAB.nom) || '';
+            if (typeof updateTopbarEtab === 'function') updateTopbarEtab();
+            if (_expert && typeof renderMods === 'function') renderMods('quotidien');
+            if (typeof pullEquipeCloud === 'function') pullEquipeCloud();
+            if (typeof pullEncCfgCloud === 'function') pullEncCfgCloud();
+          } catch(e){}
+        }, 250);
+        return;
+      }
+    }
+  } catch(eMaj) {}
   try {
     var sessionStr = sessionRead();
     if (sessionStr) {
@@ -21379,6 +21417,9 @@ function saveEnceintesConfig(a) { _saveEncCfgRaw(a); setEncCfgMaj(Date.now()); s
 // sans dépendre de la bannière (imprévisible). Hors-ligne : simple rechargement.
 function forcerMajApp() {
   if (!confirm('Mettre à jour l\'application vers la dernière version ?\n\nVos données sont conservées.')) return;
+  // Mémoriser qu'on fait une mise à jour VOLONTAIRE : au redémarrage, on REPREND la
+  // session là où on était (pas de renvoi au login) — voir initApp.
+  try { if (typeof ETAB_ID !== 'undefined' && ETAB_ID && lsGet('haccp_deconnecte') !== '1') sessionStorage.setItem('haccp_maj_reprise', '1'); } catch(e) {}
   try {
     if (navigator.onLine !== false && 'caches' in window) {
       if (typeof showToast === 'function') showToast('⏳ Mise à jour en cours…', 'info', 4000);
