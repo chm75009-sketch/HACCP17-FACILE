@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v93';
+var APP_BUILD = 'v94';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -3476,6 +3476,15 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
       }
     }
   } catch(eMaj) {}
+  // RESTAURATION DE L'INSCRIPTION — si l'utilisateur était en train de s'inscrire et
+  // que la page a été rechargée (typiquement : changement d'appli sur mobile), on
+  // rouvre le formulaire d'inscription au lieu de le renvoyer ailleurs.
+  try {
+    if (sessionStorage.getItem('haccp_sur_inscription') === '1') {
+      showPage('page-inscription');
+      return;
+    }
+  } catch(eInsc) {}
   try {
     var sessionStr = sessionRead();
     if (sessionStr) {
@@ -8040,6 +8049,12 @@ function showPage(id, noReset) {
       id = 'page-login';
     }
   }
+  // Mémoriser si on est sur la page d'inscription → permet de la RESTAURER après un
+  // rechargement (ex. sur mobile, changer d'appli recharge la page). Voir initApp.
+  try {
+    if (id === 'page-inscription') sessionStorage.setItem('haccp_sur_inscription', '1');
+    else sessionStorage.removeItem('haccp_sur_inscription');
+  } catch(e) {}
   if (id === 'page-login' || id === 'page-onboarding' || id === 'page-presentation' || id === 'page-guide' || id === 'page-choix') {
     try { _trace('showPage(' + id + ')'); } catch(e) {}
   }
