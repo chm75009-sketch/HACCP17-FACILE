@@ -142,7 +142,10 @@ function construireNomFichierPhoto(photo) {
     + String(d.getHours()).padStart(2, '0')
     + String(d.getMinutes()).padStart(2, '0')
     + String(d.getSeconds()).padStart(2, '0');
-  var rand = Math.random().toString(36).substring(2, 6);
+  var rand = (function(){
+    try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '').substring(0, 12); } catch(_) {}
+    return Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
+  })();
   // Déduit l'extension à partir du base64 (jpg par défaut, pdf si c'est un PDF)
   var ext = 'jpg';
   if (photo.base64 && photo.base64.indexOf('application/pdf') !== -1) ext = 'pdf';
@@ -173,7 +176,9 @@ async function uploadPhotoVersStorage(photo) {
         'apikey':        SUPABASE_ANON,
         'Authorization': 'Bearer ' + SUPABASE_ANON,
         'Content-Type':  blob.type || 'image/jpeg',
-        'x-upsert':      'true'
+        // CONC-7 : nom de fichier désormais unique (UUID) → on refuse l'écrasement
+        // silencieux d'une autre photo (deux clichés à la même seconde).
+        'x-upsert':      'false'
       },
       body: blob
     });
@@ -229,8 +234,19 @@ async function synchroniserPhotos() {
 
     // ── PASSE 2 : Lier les photos uploadées au contrôle correspondant (Livraison 2B) ──
     var aLier = await photoQueueDB.photos.where('status').equals('synced').toArray();
+    // CONC-3 : backoff exponentiel + jitter — au lieu de retenter chaque photo non
+    // liée toutes les 5 s (pic = 15-30 GET/s à 20 clients), on espace les tentatives
+    // (5s, 10s, 20s… plafonné à 5 min). 60 tentatives couvrent alors plusieurs heures.
+    var nowMs = Date.now();
     aLier = aLier.filter(function(p) {
-      return !p.controleSupabaseId && (p.linkTries || 0) < 60;  // Max 60 tentatives (~5 min)
+      if (p.controleSupabaseId || (p.linkTries || 0) >= 60) return false;
+      var tries = p.linkTries || 0;
+      if (tries > 0 && p.lastLinkTry) {
+        var base = Math.min(5000 * Math.pow(2, tries - 1), 5 * 60 * 1000);
+        var attente = base + base * 0.2 * Math.random(); // jitter ±20%
+        if (nowMs - new Date(p.lastLinkTry).getTime() < attente) return false;
+      }
+      return true;
     });
     if (aLier.length > 0) {
       for (var j = 0; j < aLier.length; j++) {
@@ -287,8 +303,8 @@ async function lierPhotoAuControle(photo) {
     return;
   }
 
-  // Incrémente compteur de tentatives
-  try { await photoQueueDB.photos.update(photo.id, { linkTries: (photo.linkTries || 0) + 1 }); } catch(_){}
+  // Incrémente compteur de tentatives + horodate (pour le backoff CONC-3)
+  try { await photoQueueDB.photos.update(photo.id, { linkTries: (photo.linkTries || 0) + 1, lastLinkTry: new Date().toISOString() }); } catch(_){}
 
   // Fenêtre temporelle : contrôle créé entre photo.createdAt - 5 min et photo.createdAt + 2h
   var dPhoto = new Date(photo.createdAt);
