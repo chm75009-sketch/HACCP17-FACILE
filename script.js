@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v95';
+var APP_BUILD = 'v96';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -8035,6 +8035,17 @@ function resetModule(pageId) {
   if (tsEl) tsEl.value = getNowStr ? getNowStr() : '';
 }
 
+// Pages qui NE sont PAS des modules de contrôle (accueils, connexion, inscription,
+// réglages, rapports…). Sur ces pages, le bandeau « Saisie réalisée par… » ne doit
+// JAMAIS apparaître et l'intervenant courant est remis à zéro.
+function _pageHorsControle(id) {
+  return id === 'page-login' || id === 'page-presentation' || id === 'page-inscription' ||
+         id === 'page-admin' || id === 'page-guide' || id === 'page-home' || id === 'page-choix' ||
+         id === 'page-equipe' || id === 'page-settings' || id === 'page-onboarding' ||
+         id === 'page-reports' || id === 'page-history' || id === 'page-exports' ||
+         id === 'page-pack-ddpp' || id === 'page-dashboard';
+}
+
 function showPage(id, noReset) {
   // ── VERROU DE SÉCURITÉ AU POINT D'ENTRÉE ──────────────────────────────────
   // Toute page nécessitant une session est REFUSÉE si l'utilisateur est
@@ -8100,13 +8111,13 @@ function showPage(id, noReset) {
   if (id === 'page-guide' && typeof renderBarometre === 'function') {
     setTimeout(renderBarometre, 30);
   }
-  // Retour à un écran d'accueil (liste des modules, guidé OU expert) => on remet
-  // l'intervenant à zéro : on redemandera « qui intervient ? » au prochain module
-  // ouvert (nouvelle saisie), et le bandeau « Saisie réalisée par… » ne traîne pas
-  // sur la page d'accueil.
-  if (id === 'page-guide' || id === 'page-home') {
+  // Page HORS contrôle (accueil, connexion, inscription, réglages, rapports…) :
+  // on remet l'intervenant à zéro (nouvelle saisie au prochain module) ET on retire
+  // tout bandeau « Saisie réalisée par… » résiduel — il ne doit apparaître que sur
+  // les modules de contrôle.
+  if (_pageHorsControle(id)) {
     INTERVENANT_ACTUEL = null;
-    try { var _accueil = document.getElementById(id); var _bIntv = _accueil && _accueil.querySelector('.bandeau-intervenant'); if (_bIntv) _bIntv.remove(); } catch(e) {}
+    try { var _hp = document.getElementById(id); var _bIntv = _hp && _hp.querySelector('.bandeau-intervenant'); if (_bIntv) _bIntv.remove(); } catch(e) {}
   }
   // Module Équipe — registre des personnes
   if (id === 'page-equipe' && typeof renderEquipe === 'function') {
@@ -8122,7 +8133,7 @@ function showPage(id, noReset) {
   // Pré-remplir la signature avec l'intervenant choisi + bandeau « Saisie réalisée par … ».
   // Déclenché ici pour couvrir tous les chemins d'ouverture (modules, retour de PDF…),
   // avec une seconde passe pour les appareils lents (après l'init des signatures).
-  if (id !== 'page-guide' && id !== 'page-home' && id !== 'page-equipe' && typeof prefillIntervenantSig === 'function') {
+  if (!_pageHorsControle(id) && typeof prefillIntervenantSig === 'function') {
     setTimeout(prefillIntervenantSig, 200);
     setTimeout(prefillIntervenantSig, 550);
   }
