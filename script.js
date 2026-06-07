@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v90';
+var APP_BUILD = 'v91';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -8048,9 +8048,14 @@ function showPage(id, noReset) {
   if (id === 'page-guide' && typeof renderBarometre === 'function') {
     setTimeout(renderBarometre, 30);
   }
-  // Retour à la liste des modules => on redemandera « qui intervient ? »
-  // au prochain module ouvert (nouvelle saisie).
-  if (id === 'page-guide') { INTERVENANT_ACTUEL = null; }
+  // Retour à un écran d'accueil (liste des modules, guidé OU expert) => on remet
+  // l'intervenant à zéro : on redemandera « qui intervient ? » au prochain module
+  // ouvert (nouvelle saisie), et le bandeau « Saisie réalisée par… » ne traîne pas
+  // sur la page d'accueil.
+  if (id === 'page-guide' || id === 'page-home') {
+    INTERVENANT_ACTUEL = null;
+    try { var _accueil = document.getElementById(id); var _bIntv = _accueil && _accueil.querySelector('.bandeau-intervenant'); if (_bIntv) _bIntv.remove(); } catch(e) {}
+  }
   // Module Équipe — registre des personnes
   if (id === 'page-equipe' && typeof renderEquipe === 'function') {
     if (typeof _resetEquipeForm === 'function') { try { _resetEquipeForm(); } catch(e) {} }
@@ -8065,7 +8070,7 @@ function showPage(id, noReset) {
   // Pré-remplir la signature avec l'intervenant choisi + bandeau « Saisie réalisée par … ».
   // Déclenché ici pour couvrir tous les chemins d'ouverture (modules, retour de PDF…),
   // avec une seconde passe pour les appareils lents (après l'init des signatures).
-  if (id !== 'page-guide' && id !== 'page-equipe' && typeof prefillIntervenantSig === 'function') {
+  if (id !== 'page-guide' && id !== 'page-home' && id !== 'page-equipe' && typeof prefillIntervenantSig === 'function') {
     setTimeout(prefillIntervenantSig, 200);
     setTimeout(prefillIntervenantSig, 550);
   }
