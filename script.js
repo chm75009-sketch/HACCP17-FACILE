@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v81';
+var APP_BUILD = 'v82';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -7958,6 +7958,9 @@ function resetModule(pageId) {
 }
 
 function showPage(id, noReset) {
+  if (id === 'page-login' || id === 'page-onboarding' || id === 'page-presentation' || id === 'page-guide' || id === 'page-choix') {
+    try { _trace('showPage(' + id + ')'); } catch(e) {}
+  }
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   var target = document.getElementById(id);
   if (target) {
@@ -17567,8 +17570,10 @@ window.addEventListener('popstate', function(e) {
 function _revaliderAffichage() { _securiserNavigation(_idPageActive()); }
 window.addEventListener('pageshow', function(e) { try { _trace('pageshow persisted=' + (e && e.persisted) + ' active=' + _idPageActive()); } catch(_t){} _revaliderAffichage(); });
 window.addEventListener('pagehide', function(e) { try { _trace('pagehide persisted=' + (e && e.persisted) + ' (page quittée/rechargée)'); } catch(_t){} });
-window.addEventListener('focus', function() { _revaliderAffichage(); });
+window.addEventListener('focus', function() { try { _trace('focus active=' + _idPageActive()); } catch(_t){} _revaliderAffichage(); });
+window.addEventListener('hashchange', function() { try { _trace('hashchange active=' + _idPageActive()); } catch(_t){} });
 document.addEventListener('visibilitychange', function() {
+  try { _trace('visibilitychange=' + document.visibilityState + ' active=' + _idPageActive()); } catch(_t){}
   if (document.visibilityState === 'visible') _revaliderAffichage();
 });
 // ══ FIN NAVIGATION RETOUR & SÉCURITÉ DE SESSION ══
