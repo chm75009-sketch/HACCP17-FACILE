@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v66';
+var APP_BUILD = 'v67';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -3413,6 +3413,8 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
           if (ce && lastCode) ce.value = lastCode;
         } catch(e) {}
         if (pe) pe.value = '';
+        // Compte mémorisé → proposer « Changer de compte ».
+        try { if (typeof _majLienChangerCompte === 'function') _majLienChangerCompte(); } catch(e){}
         // Focus sur le champ mot de passe pour faciliter la saisie
         if (pe) try { pe.focus(); } catch(e){}
       }, 300);
@@ -3652,6 +3654,48 @@ function seDeconnecter() {
   // V80 fix — Utiliser confirm() natif (plus fiable que showConfirm modal)
   if (!confirm('Confirmez-vous vouloir vous déconnecter ?')) return;
   deconnecterConfirme();
+}
+
+// Affiche/masque le lien « Changer de compte » sur l'écran de connexion selon
+// qu'un compte est mémorisé (code pré-rempli) ou non.
+function _majLienChangerCompte() {
+  try {
+    var ce = document.getElementById('login_code');
+    var aUnCompte = !!(ce && ce.value && ce.value.trim()) || !!(typeof lsGet === 'function' && lsGet('haccp_last_code'));
+    var lnk = document.getElementById('login_changer_compte');
+    var sep = document.getElementById('login_changer_compte_sep');
+    if (lnk) lnk.style.display = aUnCompte ? 'inline' : 'none';
+    if (sep) sep.style.display = aUnCompte ? 'inline' : 'none';
+  } catch(e) {}
+}
+
+// « Changer de compte » depuis l'écran de connexion : oublie le compte mémorisé
+// sur CET appareil (les données restent dans le cloud) et repart sur un login vierge.
+function changerDeCompte() {
+  if (!confirm('Changer de compte ?\n\nLe compte mémorisé sur cet appareil sera oublié. Vos données restent en sécurité dans le cloud — vous les retrouverez en vous reconnectant.')) return;
+  try {
+    lsRemove('haccp_last_code');
+    lsRemove('haccp_trial_pwd');
+    if (typeof OFFLINE_CRED_KEY !== 'undefined') lsRemove(OFFLINE_CRED_KEY);
+    lsRemove('haccp_etab');
+    lsRemove('haccp_etab_id');
+    lsRemove('haccp_etab_data');
+    lsRemove('haccp_date_expiration');
+    lsRemove(EQUIPE_KEY);
+    lsRemove(EQUIPE_MAJ_KEY);
+    sessionClear();
+  } catch(e) {}
+  // Fermer aussi la session Auth éventuelle.
+  try { if (window._supabase && window._supabase.auth) window._supabase.auth.signOut(); } catch(e) {}
+  _SB_ACCESS_TOKEN = null; _SB_AUTH_ETAB = null;
+  ETAB_ID = null; SB_READY = false; CLIENT_MODE = false; SECTEUR_ACTIF = '';
+  var c = document.getElementById('login_code'); if (c) c.value = '';
+  var p = document.getElementById('login_pwd'); if (p) p.value = '';
+  var e = document.getElementById('login_error'); if (e) e.style.display = 'none';
+  _majLienChangerCompte();
+  if (typeof showToast === 'function') showToast('Compte oublié sur cet appareil. Connectez-vous avec un autre code.', 'info', 4000);
+  showPage('page-login');
+  try { if (c) c.focus(); } catch(eF) {}
 }
 
 function deconnecterConfirme() {
@@ -7863,6 +7907,8 @@ function showPage(id, noReset) {
     target.classList.add('active');
     target.scrollTop = 0;
   }
+  // Écran de connexion : afficher « Changer de compte » si un compte est mémorisé.
+  if (id === 'page-login') { try { if (typeof _majLienChangerCompte === 'function') setTimeout(_majLienChangerCompte, 60); } catch(e) {} }
   // V80 — Injecter/rafraîchir le bandeau de responsabilité dans le module si applicable
   if (typeof injecterAvertissementResponsabilite === 'function') {
     setTimeout(injecterAvertissementResponsabilite, 50);
