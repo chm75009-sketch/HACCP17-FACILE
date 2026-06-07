@@ -41,7 +41,7 @@
 | CONC-7 | UUID nom fichier photo (anti-écrasement) | ✅ |
 | CONC-8 | Onglet leader + pause `document.hidden` | ❌ |
 | DATA-7 | Cap 200/module évince contrôle non synchro | ✅ |
-| DATA-8 | Faux doublon à la minute → perte | ❌ |
+| DATA-8 | Faux doublon à la minute → perte | ✅ |
 | DATA-9 | Doublons cloud (pas d'unicité serveur) | ❌ |
 | DATA-10 | `seen` pollué par entrées locales | ❌ |
 | DATA-11 | `_pushedSigs` posé avant confirmation | ✅ |

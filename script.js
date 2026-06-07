@@ -13703,6 +13703,15 @@ function sauvegarderDonnesModule(pageId) {
     }
 
 var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
+    // DATA-8 — identifiant unique du contrôle (inclus dans les signatures de dédup
+    // ET envoyé au cloud via contenu). L'horodatage getNowStr() est à la minute :
+    // sans uid, deux contrôles même module/agent/minute s'écrasent comme doublon.
+    try {
+      if (data && !data.uid) {
+        data.uid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : (Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 10));
+      }
+    } catch(eUid) {}
     var entry = {
       pageId: pageId,
       timestamp: new Date().toISOString(),
@@ -13734,7 +13743,7 @@ var key = 'haccp_module_data_' + pageId + '_' + (ETAB_ID || 'local');
     try {
       if (typeof enregistrerControleHACCP === 'function' && (typeof ETAB_ID !== 'undefined' && ETAB_ID)) {
         window._pushedSigs = window._pushedSigs || {};
-        var _sigPush = pageId + '|' + ((data && data.timestamp) || entry.timestamp || '') + '|' + ((data && (data.signe || data.signataire)) || '');
+        var _sigPush = pageId + '|' + ((data && data.timestamp) || entry.timestamp || '') + '|' + ((data && (data.signe || data.signataire)) || '') + '|' + ((data && data.uid) || '');
         if (!window._pushedSigs[_sigPush]) {
           window._pushedSigs[_sigPush] = true; // réservation anti-doublon le temps de l'envoi
           var _modNom = (data && data.module) || pageId.replace('page-', '');
@@ -19796,7 +19805,7 @@ async function synchroniserControlesManquants() {
     Object.keys(cloud).forEach(function(t){
       var c = (cloud[t] && cloud[t].contenu) || {};
       var pid = c.pageId || (cloud[t] && cloud[t].module) || '';
-      seen[pid + '|' + (c.timestamp || t) + '|' + (c.signe || c.signataire || '')] = true;
+      seen[pid + '|' + (c.timestamp || t) + '|' + (c.signe || c.signataire || '') + '|' + (c.uid || '')] = true;
     });
     // 2. Parcourir le local du compte courant et renvoyer les manquants
     var etabKey = '_' + String(ETAB_ID);
@@ -19817,7 +19826,7 @@ async function synchroniserControlesManquants() {
         var pid = data.pageId || (entry && entry.pageId) || '';
         var ts  = data.timestamp || entryTs || '';
         if (!pid || !ts) continue;
-        var sig = pid + '|' + ts + '|' + (data.signe || data.signataire || '');
+        var sig = pid + '|' + ts + '|' + (data.signe || data.signataire || '') + '|' + (data.uid || '');
         if (seen[sig]) {
           // Déjà présent au cloud → marquer cloudOk (DATA-6/13 : compteur exact).
           if (entry && !entry.cloudOk) { entry.cloudOk = true; dirty = true; }
@@ -19914,7 +19923,7 @@ window.synchroniserControlesManquants = synchroniserControlesManquants;
             var moduleNom = (donnees && donnees.module) || moduleCourt;
             // Éviter de renvoyer ce que la sauvegarde a déjà poussé directement.
             window._pushedSigs = window._pushedSigs || {};
-            var sigW = ((donnees && donnees.pageId) || ('page-' + moduleCourt)) + '|' + ((donnees && donnees.timestamp) || entry.timestamp || '') + '|' + ((donnees && (donnees.signe || donnees.signataire)) || '');
+            var sigW = ((donnees && donnees.pageId) || ('page-' + moduleCourt)) + '|' + ((donnees && donnees.timestamp) || entry.timestamp || '') + '|' + ((donnees && (donnees.signe || donnees.signataire)) || '') + '|' + ((donnees && donnees.uid) || '');
             if (window._pushedSigs[sigW]) return;
             window._pushedSigs[sigW] = true; // réservation anti-doublon le temps de l'envoi
             var _tsW = entry.timestamp;
@@ -20051,7 +20060,7 @@ function ouvrirMesRapports() {
       Object.keys(rows).forEach(function(t){
         var rr = rows[t] || {}; var cc = rr.contenu || {};
         var pp = cc.pageId || rr.module || '';
-        seenSig[pp + '|' + (cc.timestamp || t) + '|' + (cc.signe || cc.signataire || '')] = true;
+        seenSig[pp + '|' + (cc.timestamp || t) + '|' + (cc.signe || cc.signataire || '') + '|' + (cc.uid || '')] = true;
       });
       if (typeof localStorage !== 'undefined') {
         for (var li = 0; li < localStorage.length; li++) {
@@ -20068,7 +20077,7 @@ function ouvrirMesRapports() {
             var pid = c.pageId || (entry && entry.pageId) || '';
             var tsL = (entry && entry.timestamp) || c.timestamp || '';
             if (!tsL) return;
-            var sig = pid + '|' + (c.timestamp || tsL) + '|' + (c.signe || c.signataire || '');
+            var sig = pid + '|' + (c.timestamp || tsL) + '|' + (c.signe || c.signataire || '') + '|' + (c.uid || '');
             if (seenSig[sig]) return; // déjà présent (cloud)
             seenSig[sig] = true;
             var keyTs = tsL;
@@ -20889,7 +20898,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b49';
+  h.textContent = txt + ' · maj b50';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
