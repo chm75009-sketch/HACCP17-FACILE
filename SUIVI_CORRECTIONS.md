@@ -90,10 +90,21 @@
 |---|---|
 | Politique de confidentialité | ✅ (doc + page in-app) |
 | Registre des traitements (complet) | ✅ doc |
-| Durées de conservation + purge programmée | ✅ doc (purge SQL à exécuter) |
+| Durées de conservation + purge programmée | ✅ purge `pg_cron` active (`purge_controles_3ans`, mensuelle, 3 ans) |
 | Procédure droit à l'oubli / résiliation | ✅ doc |
 | Mentions légales / CGU | ✅ (doc + page in-app) |
-| Confirmation région UE (Supabase) | ⏳ à confirmer côté dashboard |
+| Confirmation région UE (Supabase) | ✅ West EU (Ireland) — confirmé 2026-06-07 |
+
+## 🔐 Fondation Auth / cloisonnement (2026-06-07)
+
+| Étape | Statut |
+|---|---|
+| Comptes Supabase Auth par établissement (mdp **haché**, `establishment_id` dans le JWT) | ✅ fonction `ensure_etab_auth_user` + trigger `etab_auth_sync` (présent + futur) |
+| Réparation jetons GoTrue (NULL→'') | ✅ |
+| Session Auth ouverte au login (toast « Session sécurisée active ») | ✅ vérifié vert |
+| SEC-1 RLS cloisonnement (bascule des requêtes sur le JWT + policies) | ❌ à faire — **refactor sensible** (voir note) |
+| SEC-4 immutabilité contrôles signés (RLS UPDATE/DELETE ciblé) | ❌ à faire |
+| SEC-3 photos privées (bucket privé + URLs signées) | ❌ à faire |
 
 ---
 
