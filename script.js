@@ -4623,6 +4623,8 @@ function ajouterProduit(skipScroll, compartId) {
   // Construire les mentions avec addEventListener (fiable sur mobile)
   var mentionsDiv = document.getElementById('mentions_' + id);
   if (mentionsDiv) mentionsDiv.appendChild(buildMentions(id));
+  // Boutons bleus « Produits déjà reçus » sous la catégorie (rappel en un tap).
+  try { syncProduitsReceptionChips(); } catch(e) {}
   // V80 fix — Désactiver T° tant que la catégorie n'est pas choisie (force le bon ordre)
   var tempField = document.getElementById('temp_' + id);
   if (tempField) {
@@ -6717,6 +6719,8 @@ async function validerReception() {
   pdfData = collecterDonnees();
   // Mémoriser le fournisseur pour l'autocomplétion des prochaines réceptions.
   try { memoFournisseur((document.getElementById('r_fournisseur') || {value:''}).value); } catch(e) {}
+  // Mémoriser les produits reçus (catégorie + nom) pour les boutons « déjà reçus ».
+  try { memoProduitsReceptionDepuisEcran(); } catch(e) {}
   document.getElementById('modalPdf').classList.add('visible');
   sauvegarderHistorique('Réception & Traçabilité', prenom);
   sauvegarderDonnesModule('page-reception');
@@ -7419,7 +7423,7 @@ function openModule(id) {
     document.getElementById('cuis_sig_required').style.display = 'none';
     document.getElementById('cuisPlatContainer').innerHTML = '';
     ajouterPlat();
-    try { syncPlatsDatalist(); pullPlats(); } catch(e) {}
+    try { syncPlatsDatalist(); syncPlatsChips(); pullPlats(); } catch(e) {}
     showPage('page-cuisson');
     updateModuleHeader('page-cuisson', 'cuisson');
     showPlatsTemoins();
@@ -7499,7 +7503,7 @@ function openModule(id) {
     hasSig = false;
     document.getElementById('produitsContainer').innerHTML = '';
     document.getElementById('r_timestamp').textContent = getNowStr();
-    try { syncFournisseursDatalist(); pullFournisseurs(); } catch(e) {}
+    try { syncFournisseursDatalist(); pullFournisseurs(); pullProduitsReception(); } catch(e) {}
     initVehTypeSelect();
     compartCount = 0;
     var cc = document.getElementById('compartimentsContainer');
@@ -9449,7 +9453,7 @@ function ajouterPlat() {
       '</div></div>'
     : '');
   container.appendChild(div);
-  try { syncPlatsDatalist(); } catch(e) {}
+  try { syncPlatsDatalist(); syncPlatsChips(); } catch(e) {}
 }
 
 function supprimerPlat(id) {
@@ -20647,7 +20651,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b41';
+  h.textContent = txt + ' · maj b42';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.
@@ -21015,4 +21019,110 @@ function syncPlatsDatalist() {
   document.querySelectorAll('[id^="plat_nom_"]').forEach(function (inp) { try { inp.setAttribute('list', 'platsRecurrentsList'); } catch (e) {} });
 }
 function memoPlat(v) { _ajouterMemoValeur(PLATS_KEY, PLATS_MODULE, 'plats', v, 100); }
-function pullPlats() { _pullMemoListe(PLATS_KEY, PLATS_MODULE, PLATS_SIG, 'plats', syncPlatsDatalist); }
+function pullPlats() { _pullMemoListe(PLATS_KEY, PLATS_MODULE, PLATS_SIG, 'plats', function(){ syncPlatsDatalist(); syncPlatsChips(); }); }
+
+// ════════════════════════════════════════════════════════════════════
+// BOUTONS BLEUS « DÉJÀ SAISIS » (mémo-chips) — moteur générique réutilisable
+// Mémorise les valeurs saisies et les propose en boutons bleus sous le champ
+// (rappel en un tap). Fiable iPhone, synchronisé. Boutons construits via DOM
+// (pas d'inline onclick) -> robustes aux apostrophes/guillemets.
+// ════════════════════════════════════════════════════════════════════
+function _buildChip(label, onPick) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = label;
+  b.style.cssText = 'background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;cursor:pointer;font-family:Outfit,sans-serif';
+  b.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); try { onPick(); } catch (e) {} };
+  return b;
+}
+function _renderChipsInto(host, items, label, getLabel, onPick) {
+  if (!host) return;
+  if (!items || !items.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.innerHTML = '';
+  host.style.display = 'flex'; host.style.flexWrap = 'wrap'; host.style.gap = '6px'; host.style.marginTop = '8px';
+  var t = document.createElement('span');
+  t.textContent = label;
+  t.style.cssText = 'font-size:11px;color:#64748b;font-weight:700;width:100%;margin-bottom:2px';
+  host.appendChild(t);
+  items.slice(0, 12).forEach(function (it) { host.appendChild(_buildChip(getLabel(it), function () { onPick(it); })); });
+}
+function _chipsHostAfter(afterEl, hostId) {
+  if (!afterEl || !afterEl.parentNode) return null;
+  var host = document.getElementById(hostId);
+  if (!host) {
+    host = document.createElement('div');
+    host.id = hostId; host.className = 'memo-chips';
+    afterEl.parentNode.insertBefore(host, afterEl.nextSibling);
+  }
+  return host;
+}
+
+// ── Réception : produits déjà reçus (re-remplit CATÉGORIE + produit → seuil OK) ──
+var PRODREC_KEY = 'haccp_produits_reception', PRODREC_SIG = 'haccp_produits_reception_cloudsig', PRODREC_MODULE = '__produits_reception_memo__';
+function memoProduitReception(cat, nom) {
+  cat = String(cat || ''); nom = _wellFormedStr(String(nom || '')).trim();
+  if (!cat || !nom) return;
+  var arr = _getMemoListe(PRODREC_KEY).filter(function (it) {
+    return !(it && String(it.cat) === cat && String(it.nom).toLowerCase() === nom.toLowerCase());
+  });
+  arr.unshift({ cat: cat, nom: nom });
+  if (arr.length > 60) arr = arr.slice(0, 60);
+  _saveMemoListe(PRODREC_KEY, arr);
+  try { _listePushCloud(PRODREC_MODULE, 'produits', arr); } catch (e) {}
+}
+function _recRemplirProduit(id, cat, nom) {
+  var catSel = document.getElementById('cat_' + id);
+  if (!catSel) return;
+  catSel.value = cat;
+  try { onCategorieChange(id); } catch (e) {}
+  if (cat === 'custom') {
+    var a = document.getElementById('autre_nom_' + id); if (a) a.value = nom;
+  } else {
+    var t = document.getElementById('type_' + id);
+    if (t) {
+      t.value = nom;
+      if (t.value !== nom) { // produit absent de cette catégorie -> voie « Autre »
+        catSel.value = 'custom'; try { onCategorieChange(id); } catch (e) {}
+        var a2 = document.getElementById('autre_nom_' + id); if (a2) a2.value = nom;
+      } else { try { onTypeChange(id); } catch (e) {} }
+    }
+  }
+  try { checkConformite(id); } catch (e) {}
+}
+function syncProduitsReceptionChips() {
+  var liste = _getMemoListe(PRODREC_KEY);
+  document.querySelectorAll('[id^="produit_"]').forEach(function (b) {
+    if (!/^produit_\d+$/.test(b.id)) return;
+    var id = b.id.replace('produit_', '');
+    var catSel = document.getElementById('cat_' + id);
+    if (!catSel) return;
+    var host = _chipsHostAfter(catSel.closest('.frow') || catSel, 'prodrec_chips_' + id);
+    _renderChipsInto(host, liste, 'Produits déjà reçus — appuyez pour remplir :',
+      function (it) { return it.nom; },
+      function (it) { _recRemplirProduit(id, it.cat, it.nom); });
+  });
+}
+function memoProduitsReceptionDepuisEcran() {
+  document.querySelectorAll('[id^="produit_"]').forEach(function (b) {
+    if (!/^produit_\d+$/.test(b.id)) return;
+    var id = b.id.replace('produit_', '');
+    var cat = (document.getElementById('cat_' + id) || {}).value || '';
+    if (!cat) return;
+    var nom = (cat === 'custom') ? ((document.getElementById('autre_nom_' + id) || {}).value || '')
+                                 : ((document.getElementById('type_' + id) || {}).value || '');
+    if (nom) memoProduitReception(cat, nom);
+  });
+}
+function pullProduitsReception() { _pullMemoListe(PRODREC_KEY, PRODREC_MODULE, PRODREC_SIG, 'produits', syncProduitsReceptionChips); }
+
+// ── Cuisson : plats déjà saisis en boutons bleus (en plus du datalist) ──
+function syncPlatsChips() {
+  var liste = _getMemoListe(PLATS_KEY);
+  document.querySelectorAll('[id^="plat_nom_"]').forEach(function (inp) {
+    var id = inp.id.replace('plat_nom_', '');
+    var host = _chipsHostAfter(inp.closest('.frow') || inp, 'plat_chips_' + id);
+    _renderChipsInto(host, liste, 'Plats déjà saisis — appuyez pour remplir :',
+      function (it) { return it; },
+      function (it) { inp.value = it; try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {} });
+  });
+}
