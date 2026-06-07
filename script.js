@@ -19864,6 +19864,66 @@ function fermerMesRapports() {
   if (o) o.remove();
 }
 
+// ── RGPD — Page « Confidentialité » & « Mentions légales » (overlay client) ──
+// Les champs entre {{ }} sont à compléter avec l'identité de l'éditeur.
+function ouvrirInfosLegales(section) {
+  var existing = document.getElementById('infosLegalesOverlay');
+  if (existing) existing.remove();
+
+  var confidentialite =
+    '<h2 style="margin:0 0 10px;font-size:19px">Politique de confidentialité</h2>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d\'autocontrôle sanitaire pour les professionnels des métiers de bouche. Nous ne vendons jamais vos données et ne les utilisons pas à des fins publicitaires.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Données traitées</h3>' +
+    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
+      '<li>Identité de l\'établissement (nom, SIRET, adresse, e-mail)</li>' +
+      '<li>Données d\'autocontrôle HACCP (relevés, non-conformités, signataire, signature)</li>' +
+      '<li>Photos de traçabilité (bons de livraison, étiquettes…)</li>' +
+      '<li>Données techniques (session, identifiant d\'appareil) pour la sécurité</li>' +
+    '</ul>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Bases légales</h3>' +
+    '<p style="color:#475569;font-size:13px">Exécution du contrat, obligation légale de traçabilité (Paquet Hygiène, arrêté du 21/12/2009), et intérêt légitime (sécurité).</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Hébergement & sous-traitants</h3>' +
+    '<p style="color:#475569;font-size:13px">Données hébergées chez Supabase (région UE). Aucun cookie publicitaire ni pistage tiers. L\'application utilise le stockage local de votre navigateur pour fonctionner hors-ligne.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Vos droits</h3>' +
+    '<p style="color:#475569;font-size:13px">Accès, rectification, effacement, limitation, opposition, portabilité — par e-mail à <strong>{{EMAIL CONTACT RGPD}}</strong> (réponse sous 1 mois). Réclamation possible auprès de la CNIL (cnil.fr).</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Conservation</h3>' +
+    '<p style="color:#475569;font-size:13px">Les contrôles sont conservés le temps nécessaire à la preuve réglementaire, puis purgés. Compte résilié : suppression définitive sous 30 jours (hors obligation légale de conservation).</p>';
+
+  var mentions =
+    '<h2 style="margin:0 0 10px;font-size:19px">Mentions légales</h2>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Éditeur</h3>' +
+    '<p style="color:#475569;font-size:13px">{{RAISON SOCIALE}} — {{FORME JURIDIQUE}}<br>SIRET {{SIRET}} — RCS {{VILLE}}<br>Siège : {{ADRESSE}}<br>Contact : {{EMAIL}} — {{TÉLÉPHONE}}<br>Directeur de la publication : {{NOM}}</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Hébergement</h3>' +
+    '<p style="color:#475569;font-size:13px">Application : GitHub Pages (GitHub Inc.).<br>Données & médias : Supabase (région UE).</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Responsabilité</h3>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d\'aide à l\'autocontrôle ; il ne se substitue pas à la responsabilité de l\'exploitant quant au respect de ses obligations sanitaires.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Droit applicable</h3>' +
+    '<p style="color:#475569;font-size:13px">Droit français. Litiges : tribunaux compétents de {{VILLE}}.</p>';
+
+  var corps = (section === 'mentions') ? mentions : confidentialite;
+  var autreLbl = (section === 'mentions') ? 'Confidentialité' : 'Mentions légales';
+  var autreSec = (section === 'mentions') ? 'confidentialite' : 'mentions';
+
+  var overlay = document.createElement('div');
+  overlay.id = 'infosLegalesOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.55);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px';
+  overlay.innerHTML =
+    '<div style="background:#fff;max-width:680px;width:100%;border-radius:16px;padding:22px 22px 28px;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:Outfit,sans-serif">' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:4px">' +
+        '<button onclick="ouvrirInfosLegales(\'' + autreSec + '\')" style="background:#eef2ff;border:none;color:#4338ca;padding:7px 13px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">' + autreLbl + ' →</button>' +
+        '<button onclick="fermerInfosLegales()" aria-label="Fermer" style="background:#f1f5f9;border:none;color:#334155;width:34px;height:34px;border-radius:9px;font-size:18px;font-weight:800;cursor:pointer">×</button>' +
+      '</div>' +
+      corps +
+      '<div style="margin-top:18px;text-align:right"><button onclick="fermerInfosLegales()" style="background:#0f1729;border:none;color:#fff;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Fermer</button></div>' +
+    '</div>';
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) fermerInfosLegales(); });
+  document.body.appendChild(overlay);
+}
+function fermerInfosLegales() {
+  var o = document.getElementById('infosLegalesOverlay');
+  if (o) o.remove();
+}
+
 function ouvrirMesRapports() {
   var existing = document.getElementById('mesRapportsOverlay');
   if (existing) existing.remove();
@@ -20751,7 +20811,7 @@ function _majMesEnceintesHint() {
     ? ('✓ ' + n + ' enceinte(s) enregistrée(s) — rechargées à chaque session.')
     : 'Astuce : réglez vos enceintes, puis « Enregistrer mes enceintes » pour les retrouver à chaque fois.';
   // Repère de version (permet de vérifier qu'un appareil a bien la dernière mise à jour).
-  h.textContent = txt + ' · maj b45';
+  h.textContent = txt + ' · maj b46';
 }
 
 // Lit les enceintes présentes à l'écran → configuration à mémoriser.

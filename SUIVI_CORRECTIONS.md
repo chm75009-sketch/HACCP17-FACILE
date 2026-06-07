@@ -88,12 +88,12 @@
 
 | Élément | Statut |
 |---|---|
-| Politique de confidentialité | ❌ |
-| Registre des traitements (complet) | ❌ |
-| Durées de conservation + purge programmée | ❌ |
-| Procédure droit à l'oubli / résiliation | ❌ |
-| Mentions légales / CGU | ❌ |
-| Confirmation région UE (Supabase) | ❌ |
+| Politique de confidentialité | ✅ (doc + page in-app) |
+| Registre des traitements (complet) | ✅ doc |
+| Durées de conservation + purge programmée | ✅ doc (purge SQL à exécuter) |
+| Procédure droit à l'oubli / résiliation | ✅ doc |
+| Mentions légales / CGU | ✅ (doc + page in-app) |
+| Confirmation région UE (Supabase) | ⏳ à confirmer côté dashboard |
 
 ---
 

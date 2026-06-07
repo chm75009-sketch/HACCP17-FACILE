@@ -409,7 +409,13 @@
         <div style="max-width:1100px;margin:0 auto;text-align:center;font-size:10px;color:rgba(255,255,255,0.4);line-height:1.7">
           <div>© 2026 HACCP Pro — Application HACCP pour professionnels de la restauration et des métiers de bouche</div>
           <div>Conformité réglementaire française — Signature numérique horodatée</div>
-          <div style="margin-top:8px"><a href="#" onclick="event.preventDefault();showPage('page-admin')" style="color:rgba(255,255,255,0.25);text-decoration:none;font-size:10px;cursor:pointer">Admin</a></div>
+          <div style="margin-top:8px">
+            <a href="#" onclick="event.preventDefault();ouvrirInfosLegales('confidentialite')" style="color:rgba(255,255,255,0.55);text-decoration:none;font-size:11px;cursor:pointer">Confidentialité</a>
+            <span style="color:rgba(255,255,255,0.2);margin:0 8px">·</span>
+            <a href="#" onclick="event.preventDefault();ouvrirInfosLegales('mentions')" style="color:rgba(255,255,255,0.55);text-decoration:none;font-size:11px;cursor:pointer">Mentions légales</a>
+            <span style="color:rgba(255,255,255,0.2);margin:0 8px">·</span>
+            <a href="#" onclick="event.preventDefault();showPage('page-admin')" style="color:rgba(255,255,255,0.25);text-decoration:none;font-size:10px;cursor:pointer">Admin</a>
+          </div>
         </div>
       </footer>
       <!-- V92 — Bouton flottant "Haut de page" -->
