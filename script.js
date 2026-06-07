@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v82';
+var APP_BUILD = 'v83';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -3437,7 +3437,10 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
         var lastCodeAuto = (lsGet('haccp_last_code') || '').toUpperCase();
         var trialPwd = lsGet('haccp_trial_pwd');
         var estEssaiAuto = (lastCodeAuto.indexOf('EU3J-') === 0 || lastCodeAuto.indexOf('ESSAI-') === 0);
-        if (estEssaiAuto && trialPwd) {
+        // SÉCURITÉ — ne JAMAIS reconnecter automatiquement si l'utilisateur vient
+        // de se déconnecter volontairement (marqueur posé), y compris dans une
+        // autre fenêtre/onglet partageant le stockage.
+        if (estEssaiAuto && trialPwd && lsGet('haccp_deconnecte') !== '1') {
           try { _trace('initApp -> RECONNEXION AUTO essai (' + lastCodeAuto + ')'); } catch(e){}
           showPage('page-login');
           setTimeout(function(){
@@ -7958,6 +7961,20 @@ function resetModule(pageId) {
 }
 
 function showPage(id, noReset) {
+  // ── VERROU DE SÉCURITÉ AU POINT D'ENTRÉE ──────────────────────────────────
+  // Toute page nécessitant une session est REFUSÉE si l'utilisateur est
+  // déconnecté → on redirige vers le login. Couvre TOUS les déclencheurs (appels
+  // différés/callbacks réseau, timers, autre fenêtre, bouton retour parasite…)
+  // qui tenteraient de réafficher une page connectée après une déconnexion.
+  var _pagesPubliques = { 'page-login': 1, 'page-presentation': 1, 'page-admin': 1 };
+  if (!_pagesPubliques[id]) {
+    var _deco = (typeof lsGet === 'function') && lsGet('haccp_deconnecte') === '1';
+    var _connecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !_deco;
+    if (!_connecte) {
+      try { _trace('showPage(' + id + ') BLOQUE (deconnecte) -> login'); } catch(e) {}
+      id = 'page-login';
+    }
+  }
   if (id === 'page-login' || id === 'page-onboarding' || id === 'page-presentation' || id === 'page-guide' || id === 'page-choix') {
     try { _trace('showPage(' + id + ')'); } catch(e) {}
   }
@@ -17575,6 +17592,19 @@ window.addEventListener('hashchange', function() { try { _trace('hashchange acti
 document.addEventListener('visibilitychange', function() {
   try { _trace('visibilitychange=' + document.visibilityState + ' active=' + _idPageActive()); } catch(_t){}
   if (document.visibilityState === 'visible') _revaliderAffichage();
+});
+// SÉCURITÉ MULTI-FENÊTRES — si une AUTRE fenêtre/onglet (même app, même stockage)
+// se déconnecte, on se déconnecte aussi ici immédiatement. Empêche une 2ᵉ instance
+// restée connectée de « ressusciter » la session après une déconnexion.
+window.addEventListener('storage', function(e) {
+  try {
+    if (!e) return;
+    if (e.key === 'haccp_deconnecte' && e.newValue === '1') {
+      _trace('storage: deconnexion depuis une autre fenetre');
+      _deconnexionSilencieuse();
+      _navAfficherPage('page-login');
+    }
+  } catch(_e) {}
 });
 // ══ FIN NAVIGATION RETOUR & SÉCURITÉ DE SESSION ══
 
