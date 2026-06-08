@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v106';
+var APP_BUILD = 'v107';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14472,13 +14472,19 @@ function reimprimerControleCloud(ts) {
           var pj = row.photos;
           if (typeof pj === 'string') pj = JSON.parse(pj);
           if (Array.isArray(pj)) {
+            var _etiqPos = 0;
             pj.forEach(function(item) {
               var u = (typeof item === 'string') ? item : (item && item.u);
               if (!u) return;
               var ref = (item && typeof item === 'object') ? (item.r || '') : '';
               var src = (item && typeof item === 'object') ? (item.s || '') : '';
-              var cle = ref ? ref : (src === 'bon_livraison' ? 'bl' : '');
-              if (cle && !photosMap[cle]) photosMap[cle] = u;
+              if (src === 'bon_livraison') { if (!photosMap['bl']) photosMap['bl'] = u; return; }
+              // Étiquette produit : clé = référence produit si présente, SINON la POSITION
+              // (1ʳᵉ photo → produit 1, etc.). Robuste même si la référence a été perdue
+              // (sinon la photo n'était rattachée à aucun produit → « Pas de photo »).
+              _etiqPos++;
+              var cle = (ref && String(ref).length) ? String(ref) : String(_etiqPos);
+              if (!photosMap[cle]) photosMap[cle] = u;
             });
           }
         } catch(ePh) {}
