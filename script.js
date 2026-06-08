@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v115';
+var APP_BUILD = 'v116';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -3506,6 +3506,7 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
 // ── DÉMARRAGE ──
 (function initApp() {
   try { _trace('initApp — session=' + (!!sessionRead()) + ' marker=' + lsGet('haccp_deconnecte') + ' trialPwd=' + (!!lsGet('haccp_trial_pwd'))); } catch(e){}
+  try { _installerFiletSignaturePhotos(); } catch(e){} // SEC-3 — filet de re-signature des photos
   // V89 — Au démarrage, afficher la page de présentation (commerciale).
   // Le bouton "Se connecter" mène vers page-login.
   // Si une session existe, on saute la présentation et on va au login (avec champs pré-remplis).
@@ -14381,6 +14382,39 @@ async function _signerTableauPhotos(arr) {
     if (taches.length) await Promise.all(taches);
   } catch(e) {}
   return arr;
+}
+
+// SEC-3 — FILET DE SÉCURITÉ GLOBAL. Si une <img> pointe encore vers une URL PUBLIQUE du
+// bucket photos et qu'elle échoue à charger (cas d'un bucket basculé en PRIVÉ), on
+// re-signe le chemin à la volée et on remplace la source. Garantit qu'AUCUN écran
+// d'affichage ne casse après la bascule — même un chemin d'affichage oublié. La
+// signature proactive (_signerPhotosHisto / _signerTableauPhotos) évite le clignotement
+// sur les surfaces principales ; ce filet rattrape tout le reste (avatars équipe,
+// étiquettes réception, aperçus, etc.).
+var _filetPhotosInstalle = false;
+function _installerFiletSignaturePhotos() {
+  if (_filetPhotosInstalle || typeof document === 'undefined') return;
+  _filetPhotosInstalle = true;
+  document.addEventListener('error', function(ev){
+    try {
+      var img = ev && ev.target;
+      if (!img || img.tagName !== 'IMG') return;
+      if (img.getAttribute('data-sig-try') === '1') return;            // déjà tenté
+      if (typeof PHOTO_SYNC_BUCKET === 'undefined' || typeof SUPABASE_URL === 'undefined') return;
+      var src = img.getAttribute('src') || '';
+      var pubPrefix = SUPABASE_URL + '/storage/v1/object/public/' + PHOTO_SYNC_BUCKET + '/';
+      if (src.indexOf(pubPrefix) !== 0) return;                        // pas une URL publique du bucket
+      if (!window._supabase || !window._supabase.storage) return;
+      img.setAttribute('data-sig-try', '1');
+      var chemin = src.substring(pubPrefix.length).split('?')[0];
+      window._supabase.storage.from(PHOTO_SYNC_BUCKET).createSignedUrl(chemin, 3600).then(function(res){
+        var s = res && res.data && res.data.signedUrl;
+        if (!s) return;
+        if (s.indexOf('http') !== 0) s = SUPABASE_URL + (s.charAt(0) === '/' ? '' : '/') + s;
+        img.src = s;
+      }).catch(function(){});
+    } catch(e){}
+  }, true); // capture : l'événement 'error' des <img> ne remonte pas (ne bouillonne pas)
 }
 
 async function chargerControlesCloudCache() {
