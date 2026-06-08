@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v100';
+var APP_BUILD = 'v101';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1883,6 +1883,10 @@ async function connexion() {
   // (les personnes ajoutées sur un autre appareil deviennent visibles ici).
   try { if (typeof pullEquipeCloud === 'function') setTimeout(pullEquipeCloud, 400); } catch(e){}
   try { if (typeof pullEncCfgCloud === 'function') setTimeout(pullEncCfgCloud, 500); } catch(e){}
+  // SYNCHRO FORCÉE à la connexion : remonte AUTOMATIQUEMENT tout contrôle resté bloqué
+  // en local (ex. marqué « synchronisé » par erreur) vers le cloud, pour qu'il apparaisse
+  // sur tous les appareils. Sans risque de doublon (dédup par signature).
+  try { if (typeof synchroniserControlesManquants === 'function') setTimeout(function(){ synchroniserControlesManquants(true); }, 3500); } catch(e){}
   // V102 — Mettre à jour le bandeau du haut avec les vraies infos client
   try { if (typeof updateTopbarEtab === 'function') updateTopbarEtab(); } catch(e){}
   // Indicateur mode local — V106 : bandeau retiré côté client (visible uniquement en console)
