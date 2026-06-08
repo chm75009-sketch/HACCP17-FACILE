@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v98';
+var APP_BUILD = 'v99';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14281,9 +14281,12 @@ async function chargerControlesCloudCache() {
     var seen = {};
     var rowsUniques = [];
     rows.forEach(function(r) {
-      // Les lignes techniques (registre équipe, config enceintes) ne sont pas des
-      // contrôles : on les ignore pour ne pas polluer l'historique ni le tableau de bord.
-      if (r.module === EQUIPE_MODULE || r.module === ENCEINTES_CFG_MODULE) return;
+      // Les lignes TECHNIQUES (registre équipe, config enceintes, listes mémorisées
+      // « memo », configs friteuses/fournisseurs/produits…) ne sont PAS des contrôles :
+      // leur nom de module est entouré de doubles underscores (__xxx__). On les ignore
+      // PARTOUT (historique, rapports, Pack DDPP, tableau de bord) — sinon elles
+      // s'affichaient comme des contrôles et ne s'ouvraient pas au clic.
+      if (/^__.*__$/.test(String(r.module || ''))) return;
       var contenu = r.contenu;
       if (typeof contenu === 'string') { try { contenu = JSON.parse(contenu); } catch(eP) { contenu = {}; } }
       var ts = r.date_controle;
@@ -20641,8 +20644,15 @@ function ouvrirMesRapports() {
       window._histoCloudRows = rows;
     } catch(eMerge) { console.warn('fusion local rapports:', eMerge && eMerge.message); }
     var keys = Object.keys(rows).sort(function(a, b) { return new Date(b) - new Date(a); })
-      .filter(function(t){ // isolation par secteur actif (cloud + local)
+      .filter(function(t){
         var rr = rows[t] || {};
+        // Exclure les enregistrements INTERNES (équipe, enceintes, listes mémorisées
+        // « memo », configs…) : leur nom de module est entouré de doubles underscores
+        // (__xxx__). Ce ne sont PAS des contrôles → ils ne doivent pas apparaître dans
+        // « Mes rapports » (et ils ne s'ouvraient pas au clic).
+        var _mod = String(rr.module || (rr.contenu && rr.contenu.module) || '');
+        if (/^__.*__$/.test(_mod)) return false;
+        // isolation par secteur actif (cloud + local)
         return (typeof _secteurActifMatch !== 'function') || _secteurActifMatch(rr.contenu || {});
       });
     if (keys.length === 0) {
