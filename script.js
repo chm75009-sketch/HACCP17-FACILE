@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v112';
+var APP_BUILD = 'v113';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14549,40 +14549,65 @@ function reimprimerControleCloud(ts) {
       // chaque produit détaillé, non-conformités) au lieu de l'affichage simplifié.
       var estReception = /r[ée]ception/i.test(String(titre)) || (pageId === 'page-reception');
       if (estReception && row.contenu.reception && typeof imprimerReception === 'function') {
-        // V121 — Replacer chaque photo (et le bon de livraison) à sa place grâce à son étiquette
-        var photosMap = {};
-        try {
-          // Réunir les photos de TOUTES les entrées de la MÊME MINUTE : le contrôle a pu
-          // être réparti/dupliqué (fiche sur une ligne, photos sur une autre). On ne se
-          // fie donc PAS seulement à la ligne cliquée (qui peut avoir 0 photo).
-          var pj = [];
-          var _mk = String(ts).substring(0, 16);
-          var _vu = {};
-          Object.keys(window._histoCloudRows || {}).forEach(function(k){
-            if (String(k).substring(0, 16) !== _mk) return;
-            var _rp = window._histoCloudRows[k] && window._histoCloudRows[k].photos;
-            if (typeof _rp === 'string') { try { _rp = JSON.parse(_rp); } catch(e){ _rp = null; } }
-            if (Array.isArray(_rp)) _rp.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !_vu[u]) { pj.push(it); _vu[u] = true; } });
-          });
-          if (!pj.length && row.photos) { pj = (typeof row.photos === 'string') ? JSON.parse(row.photos) : row.photos; }
-          if (Array.isArray(pj)) {
-            var _etiqPos = 0;
-            pj.forEach(function(item) {
-              var u = (typeof item === 'string') ? item : (item && item.u);
-              if (!u) return;
-              var ref = (item && typeof item === 'object') ? (item.r || '') : '';
-              var src = (item && typeof item === 'object') ? (item.s || '') : '';
-              if (src === 'bon_livraison') { if (!photosMap['bl']) photosMap['bl'] = u; return; }
-              // Étiquette produit : clé = référence produit si présente, SINON la POSITION
-              // (1ʳᵉ photo → produit 1, etc.). Robuste même si la référence a été perdue
-              // (sinon la photo n'était rattachée à aucun produit → « Pas de photo »).
-              _etiqPos++;
-              var cle = (ref && String(ref).length) ? String(ref) : String(_etiqPos);
-              if (!photosMap[cle]) photosMap[cle] = u;
+        // Construit la table photo (clé = réf produit ou position ; 'bl' = bon de livraison).
+        var _construirePhotosMap = function(pj) {
+          var pm = {};
+          try {
+            if (Array.isArray(pj)) {
+              var _etiqPos = 0;
+              pj.forEach(function(item) {
+                var u = (typeof item === 'string') ? item : (item && item.u);
+                if (!u) return;
+                var ref = (item && typeof item === 'object') ? (item.r || '') : '';
+                var src = (item && typeof item === 'object') ? (item.s || '') : '';
+                if (src === 'bon_livraison') { if (!pm['bl']) pm['bl'] = u; return; }
+                _etiqPos++;
+                var cle = (ref && String(ref).length) ? String(ref) : String(_etiqPos);
+                if (!pm[cle]) pm[cle] = u;
+              });
+            }
+          } catch(e) {}
+          return pm;
+        };
+        // Photos du cache local (même minute) — repli immédiat / hors-ligne.
+        var _photosCacheLocal = function() {
+          var pj = [], vu = {};
+          try {
+            var mk = String(ts).substring(0, 16);
+            Object.keys(window._histoCloudRows || {}).forEach(function(k){
+              if (String(k).substring(0, 16) !== mk) return;
+              var rp = window._histoCloudRows[k] && window._histoCloudRows[k].photos;
+              if (typeof rp === 'string') { try { rp = JSON.parse(rp); } catch(e){ rp = null; } }
+              if (Array.isArray(rp)) rp.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !vu[u]) { pj.push(it); vu[u] = true; } });
             });
-          }
-        } catch(ePh) {}
-        imprimerReception(row.contenu.reception, photosMap);
+            if (!pj.length && row.photos) { var rp0 = (typeof row.photos === 'string') ? JSON.parse(row.photos) : row.photos; if (Array.isArray(rp0)) pj = rp0; }
+          } catch(e) {}
+          return pj;
+        };
+        var _rendre = function(pj) { try { imprimerReception(row.contenu.reception, _construirePhotosMap(pj)); } catch(e) {} };
+        // FIABILITÉ — on récupère les photos FRAÎCHES dans le cloud (comme le Pack, qui
+        // marche à tous les coups), au lieu de dépendre de l'état (parfois incomplet) du
+        // cache local. Repli sur le cache si hors-ligne / requête impossible.
+        var _dc = new Date(ts);
+        if (isNaN(_dc.getTime()) || typeof ETAB_ID === 'undefined' || !ETAB_ID || typeof SUPABASE_URL === 'undefined' || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+          _rendre(_photosCacheLocal());
+          return;
+        }
+        var _dMin = new Date(_dc.getTime() - 120000).toISOString();
+        var _dMax = new Date(_dc.getTime() + 120000).toISOString();
+        var _url = SUPABASE_URL + '/rest/v1/controles_haccp?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+          + '&date_controle=gte.' + encodeURIComponent(_dMin) + '&date_controle=lte.' + encodeURIComponent(_dMax)
+          + '&photos=not.is.null&select=photos';
+        fetch(_url, { cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() } })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(rows){
+            var pj = [], vu = {};
+            if (Array.isArray(rows)) rows.forEach(function(rr){ var p = rr.photos; if (typeof p === 'string') { try{ p = JSON.parse(p); }catch(e){ p = null; } } if (Array.isArray(p)) p.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !vu[u]) { pj.push(it); vu[u] = true; } }); });
+            if (!pj.length) pj = _photosCacheLocal(); // repli
+            if (typeof _signerTableauPhotos === 'function') { _signerTableauPhotos(pj).then(function(){ _rendre(pj); }).catch(function(){ _rendre(pj); }); }
+            else _rendre(pj);
+          })
+          .catch(function(){ _rendre(_photosCacheLocal()); });
         return;
       }
       var estNuis = /nuisible/i.test(String(titre)) || (pageId === 'page-nuisibles');
