@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v113';
+var APP_BUILD = 'v114';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1605,6 +1605,15 @@ function activerEssaiUniversel() {
       '<input id="eu_adresse" placeholder="Adresse complète *" style="' + inp + '">' +
       '<input id="eu_tel" placeholder="Téléphone *" style="' + inp + '">' +
       '<input id="eu_email" type="email" placeholder="E-mail *" style="' + inp + '">' +
+      '<select id="eu_secteur" style="' + inp + ';color:#374151;background:#fff">' +
+        '<option value="">— Votre secteur d\'activité * —</option>' +
+        '<option value="resto">Restauration traditionnelle</option>' +
+        '<option value="bp">Boulangerie &amp; Pâtisserie</option>' +
+        '<option value="rapide">Restauration rapide</option>' +
+        '<option value="boucherie">Boucherie &amp; Charcuterie</option>' +
+        '<option value="collective">Restauration collective</option>' +
+      '</select>' +
+      '<div style="font-size:10.5px;color:#9ca3af;margin:-4px 0 9px;line-height:1.4">🔒 Votre essai sera configuré pour ce secteur.</div>' +
       '<div id="eu_err" style="display:none;color:#dc2626;font-size:12px;font-weight:600;margin:2px 0 10px;text-align:center"></div>' +
       '<button id="eu_btn" onclick="validerEssaiUniversel()" style="width:100%;background:linear-gradient(135deg,#16a34a,#4ade80);color:#0a0e1a;border:none;padding:13px;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">🚀 Activer mes ' + ESSAI_UNIVERSEL_JOURS + ' jours</button>' +
       '<button onclick="document.getElementById(\'essaiUnivModal\').classList.remove(\'visible\')" style="width:100%;background:none;border:none;color:#6b7280;font-size:13px;font-weight:600;margin-top:8px;cursor:pointer;font-family:inherit">Annuler</button>' +
@@ -1620,8 +1629,10 @@ window.validerEssaiUniversel = async function() {
   var adr  = (document.getElementById('eu_adresse')||{}).value || '';
   var tel  = (document.getElementById('eu_tel')||{}).value || '';
   var mail = ((document.getElementById('eu_email')||{}).value || '').trim().toLowerCase();
+  var sect = ((document.getElementById('eu_secteur')||{}).value || '').trim();
   etab=etab.trim(); resp=resp.trim(); adr=adr.trim(); tel=tel.trim();
   if (!etab || !resp || !adr || !tel || !mail) { show('Merci de remplir tous les champs.'); return; }
+  if (!sect) { show('Merci de choisir votre secteur d\'activité.'); return; }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { show('E-mail invalide.'); return; }
 
   if (!window._supabase) { show('Connexion à la base impossible. Réessayez.'); return; }
@@ -1664,7 +1675,7 @@ window.validerEssaiUniversel = async function() {
       code_acces: code,
       mot_de_passe: pwd,
       nom: etab,
-      secteur: 'resto',
+      secteur: sect, // verrouillé sur le secteur choisi (compte essai = NON multi-secteur)
       adresse: adr + ' | ' + mail + ' | ' + tel + ' | ' + resp,
       actif: true,
       date_debut: dateDebut,
@@ -19695,6 +19706,7 @@ function testEffacerDonnees() {
         var tel  = (document.getElementById('essai_tel') || {}).value || '';
         var mail = (document.getElementById('essai_email') || {}).value || '';
         var adr  = (document.getElementById('essai_adresse') || {}).value || '';
+        var secteurEssai = ((document.getElementById('essai_secteur') || {}).value || '').trim();
         var duree = parseInt((document.getElementById('essai_duree') || {}).value || '0', 10);
 
         etab = etab.trim(); resp = resp.trim(); tel = tel.trim(); mail = mail.trim(); adr = adr.trim();
@@ -19702,6 +19714,7 @@ function testEffacerDonnees() {
           alert('Merci de remplir TOUS les champs :\n• Établissement\n• Nom + prénom\n• Adresse\n• Téléphone\n• E-mail');
           return;
         }
+        if (!secteurEssai) { alert('Merci de choisir le SECTEUR d\'activité (le compte essai sera verrouillé dessus).'); return; }
         if (!(duree >= 1 && duree <= 15)) { alert('La durée doit être comprise entre 1 et 15 jours.'); return; }
 
         var code = genererCodeEssai();
@@ -19715,7 +19728,7 @@ function testEffacerDonnees() {
           code_acces: code,
           mot_de_passe: pwd,
           nom: etab,
-          secteur: 'resto',
+          secteur: secteurEssai, // verrouillé sur le secteur choisi (essai = NON multi-secteur)
           adresse: adr,
           actif: true,
           date_debut: dateDebut,
@@ -19781,6 +19794,14 @@ function testEffacerDonnees() {
           '<input id="essai_adresse" placeholder="Adresse complète *" style="' + inputStyle + '">' +
           '<input id="essai_tel" placeholder="Téléphone *" style="' + inputStyle + '">' +
           '<input id="essai_email" placeholder="E-mail *" style="' + inputStyle + '">' +
+          '<select id="essai_secteur" style="' + inputStyle + '">' +
+            '<option value="">— Secteur d\'activité * (verrouillé) —</option>' +
+            '<option value="resto">Restauration traditionnelle</option>' +
+            '<option value="bp">Boulangerie &amp; Pâtisserie</option>' +
+            '<option value="rapide">Restauration rapide</option>' +
+            '<option value="boucherie">Boucherie &amp; Charcuterie</option>' +
+            '<option value="collective">Restauration collective</option>' +
+          '</select>' +
           '<div style="display:flex;align-items:center;gap:10px;margin:4px 0 12px"><span style="font-size:13px;color:rgba(255,255,255,0.8)">Durée :</span>' +
           '<select id="essai_duree" style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif">' +
           [1,2,3,5,7,10,14,15].map(function(n){ return '<option value="'+n+'"'+(n===7?' selected':'')+'>'+n+' jour'+(n>1?'s':'')+'</option>'; }).join('') +
