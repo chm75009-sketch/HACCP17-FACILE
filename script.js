@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v114';
+var APP_BUILD = 'v115';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1193,6 +1193,25 @@ function _purgerBase64(obj) {
   }
   walk(obj);
   return changed;
+}
+
+// COMPACTION AUTO — enlève les photos base64 des contrôles DÉJÀ synchronisés (cloudOk).
+// La photo reste dans le cloud (+ file IndexedDB tant qu'elle n'est pas montée) → aucune
+// perte. Empêche le localStorage de se remplir. Appelée au démarrage puis toutes les 3 min.
+function _compacterStockageLocal() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('haccp_module_data_') === 0) keys.push(k); }
+    keys.forEach(function(k){
+      var arr;
+      try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { return; }
+      if (!Array.isArray(arr)) return;
+      var modif = false;
+      arr.forEach(function(e){ if (e && e.cloudOk && e.data) { if (_purgerBase64(e.data)) modif = true; } });
+      if (modif) { try { localStorage.setItem(k, JSON.stringify(arr)); } catch(eW){} }
+    });
+  } catch(e) {}
 }
 
 function libererEspaceLocal() {
@@ -20636,6 +20655,9 @@ var _isSyncLeader = true;
   setTimeout(function(){ try { synchroniserControlesManquants(); } catch(e){} }, 6000);
   // Boucle périodique : seul le leader la fait tourner (évite N onglets × lectures cloud).
   setInterval(function(){ if (!_isSyncLeader) return; try { synchroniserControlesManquants(); } catch(e){} }, 60000);
+  // Compaction du stockage local (retrait des photos base64 des contrôles synchronisés).
+  setTimeout(function(){ try { _compacterStockageLocal(); } catch(e){} }, 9000);
+  setInterval(function(){ try { _compacterStockageLocal(); } catch(e){} }, 180000);
 
   // MIN-13 — pull périodique du cloud (PC → iPhone). La réconciliation (CONC-4)
   // ne recharge plus le cloud quand tout est synchronisé ; un contrôle fait sur
