@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v99';
+var APP_BUILD = 'v100';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -20277,15 +20277,16 @@ if (typeof window !== 'undefined') {
 }
 
 var _reconcileEnCours = false;
-async function synchroniserControlesManquants() {
+async function synchroniserControlesManquants(force) {
   if (_reconcileEnCours) return;
   if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
   if (typeof localStorage === 'undefined') return;
   if (String(ETAB_ID) === 'local-test') return; // mode test : pas de cloud (CONC-6)
   // CONC-4 — sortie anticipée SANS appel réseau si tout est déjà confirmé au cloud.
-  // Sans ça, on rechargeait tout le cloud toutes les 60 s même quand rien n'était
-  // en attente. On ne paie le fetch que s'il reste au moins un contrôle non cloudOk.
-  if (typeof _compterNonSync === 'function' && _compterNonSync() === 0) return;
+  // En mode FORCÉ (force=true) on ignore ce raccourci ET le flag cloudOk : on
+  // re-vérifie TOUS les contrôles locaux contre l'état réel du cloud, pour rattraper
+  // un contrôle marqué « synchronisé » par erreur mais absent du cloud.
+  if (!force && typeof _compterNonSync === 'function' && _compterNonSync() === 0) return;
   _reconcileEnCours = true;
   try {
     // 1. État du cloud (signatures déjà présentes)
@@ -20317,7 +20318,7 @@ async function synchroniserControlesManquants() {
       var dirty = false;
       for (var j = 0; j < arr.length; j++) {
         var entry = arr[j];
-        if (entry && entry.cloudOk) continue; // CONC-4 — déjà confirmé au cloud, rien à faire
+        if (!force && entry && entry.cloudOk) continue; // CONC-4 — déjà confirmé au cloud (sauf synchro forcée)
         var data = (entry && entry.data) ? entry.data : entry;
         if (!data) continue;
         var entryTs = entry && entry.timestamp;
@@ -20332,7 +20333,7 @@ async function synchroniserControlesManquants() {
         }
         // Laisser l'espion 3s gérer les contrôles très récents (évite un doublon
         // de course). On ne rattrape que ceux de plus de 30 s.
-        if (entryTs) { var age = Date.now() - new Date(entryTs).getTime(); if (!isNaN(age) && age < 30000) continue; }
+        if (!force && entryTs) { var age = Date.now() - new Date(entryTs).getTime(); if (!isNaN(age) && age < 30000) continue; }
         manquants++;
         // DATA-12 — garantir une date ISO valide même pour les contrôles legacy.
         try { if (data && !data.savedAt && entryTs) data.savedAt = entryTs; } catch(eSv) {}
@@ -20566,6 +20567,29 @@ function fermerInfosLegales() {
   if (o) o.remove();
 }
 
+// Synchro FORCÉE déclenchée par l'utilisateur : re-vérifie TOUS les contrôles locaux
+// contre le cloud et renvoie ceux qui y manquent (même marqués « synchronisés » par
+// erreur). Sert à faire remonter sur tous les appareils des contrôles restés bloqués
+// en local sur un seul.
+async function forcerSynchroComplete(btn) {
+  if (typeof ETAB_ID === 'undefined' || !ETAB_ID) { if (typeof showToast === 'function') showToast('Connectez-vous d\'abord.', 'warn', 3000); return; }
+  if (navigator.onLine === false) { if (typeof showToast === 'function') showToast('Pas de connexion internet — réessayez en ligne.', 'err', 4000); return; }
+  var _old = btn && btn.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Synchro…'; }
+  if (typeof showToast === 'function') showToast('⏳ Synchronisation forcée en cours…', 'info', 4000);
+  try {
+    window._syncErrorShown = false;
+    if (typeof synchroniserControlesManquants === 'function') await synchroniserControlesManquants(true);
+    if (typeof showToast === 'function') showToast('✅ Synchronisation terminée — vos contrôles sont à jour dans le cloud (visibles sur tous vos appareils).', 'ok', 5000);
+  } catch(e) {
+    if (typeof showToast === 'function') showToast('Synchro : ' + ((e && e.message) || 'erreur'), 'err', 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = _old || '🔄 Synchroniser'; }
+  }
+  // Rafraîchir la liste affichée (ferme puis rouvre pour re-rendre proprement).
+  try { if (typeof fermerMesRapports === 'function' && document.getElementById('mesRapportsListe')) { fermerMesRapports(); setTimeout(function(){ try { ouvrirMesRapports(); } catch(e){} }, 350); } } catch(e) {}
+}
+
 function ouvrirMesRapports() {
   var existing = document.getElementById('mesRapportsOverlay');
   if (existing) existing.remove();
@@ -20584,7 +20608,14 @@ function ouvrirMesRapports() {
   hClose.textContent = 'Fermer';
   hClose.style.cssText = 'background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit';
   hClose.onclick = fermerMesRapports;
+  var hSync = document.createElement('button');
+  hSync.type = 'button';
+  hSync.textContent = '🔄 Synchroniser';
+  hSync.title = 'Forcer la remontée de vos contrôles vers le cloud (pour les retrouver sur tous vos appareils)';
+  hSync.style.cssText = 'background:#0f766e;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit;margin-right:8px';
+  hSync.onclick = function(){ forcerSynchroComplete(hSync); };
   head.appendChild(hTitle);
+  head.appendChild(hSync);
   head.appendChild(hClose);
 
   var hint = document.createElement('div');
