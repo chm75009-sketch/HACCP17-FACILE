@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v110';
+var APP_BUILD = 'v111';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14388,7 +14388,23 @@ async function chargerControlesCloudCache() {
       }
       seen[cle] = ts;
       rowsUniques.push(r);
-      histo[ts] = { module: r.module, contenu: contenu, photos: r.photos };
+      if (histo[ts]) {
+        // COLLISION de date_controle (contrôle réparti sur 2 lignes ayant la MÊME heure
+        // exacte mais une clé différente) : au lieu d'écraser, on FUSIONNE les photos et
+        // on garde le contenu le plus complet (celui qui a la fiche réception).
+        try {
+          var _ex = histo[ts];
+          var _exP = Array.isArray(_ex.photos) ? _ex.photos : (_ex.photos ? [_ex.photos] : []);
+          var _nP = Array.isArray(r.photos) ? r.photos : (r.photos ? [r.photos] : []);
+          var _vc = {};
+          _exP.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u) _vc[u] = true; });
+          _nP.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !_vc[u]) { _exP.push(it); _vc[u] = true; } });
+          _ex.photos = _exP;
+          if ((!_ex.contenu || !_ex.contenu.reception) && contenu && contenu.reception) { _ex.contenu = contenu; _ex.module = r.module; }
+        } catch(eCol) {}
+      } else {
+        histo[ts] = { module: r.module, contenu: contenu, photos: r.photos };
+      }
       // Regrouper par module (page) pour le Pack et le tableau de bord
       if (pid) {
         if (!cache[pid]) cache[pid] = [];
