@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v111';
+var APP_BUILD = 'v112';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1170,6 +1170,31 @@ function nettoyerBrouillons() {
 // le CACHE LOCAL : on garde les contrôles récents de chaque module (pré-remplissage
 // + hors-ligne) et on supprime les plus anciens, les brouillons, l'historique
 // local (recalculable) et les caches de documents (régénérables).
+// Retire (vide) les photos base64 lourdes d'un objet, en profondeur. Renvoie true si
+// quelque chose a été retiré. Utilisé pour libérer de l'espace sur les contrôles déjà
+// synchronisés (leurs photos sont dans le cloud → la copie locale base64 est inutile).
+function _purgerBase64(obj) {
+  var changed = false;
+  function walk(o) {
+    if (!o || typeof o !== 'object') return;
+    if (Array.isArray(o)) {
+      for (var i = 0; i < o.length; i++) {
+        var v = o[i];
+        if (typeof v === 'string' && v.indexOf('data:') === 0 && v.length > 200) { o[i] = ''; changed = true; }
+        else if (v && typeof v === 'object') walk(v);
+      }
+    } else {
+      for (var k in o) { if (Object.prototype.hasOwnProperty.call(o, k)) {
+        var vv = o[k];
+        if (typeof vv === 'string' && vv.indexOf('data:') === 0 && vv.length > 200) { o[k] = ''; changed = true; }
+        else if (vv && typeof vv === 'object') walk(vv);
+      }}
+    }
+  }
+  walk(obj);
+  return changed;
+}
+
 function libererEspaceLocal() {
   if (!confirm('Libérer de l\'espace sur cet appareil ?\n\n'
     + '• On garde les contrôles récents + tout reste dans le cloud (Mes Rapports / Pack DDPP).\n'
@@ -1185,7 +1210,16 @@ function libererEspaceLocal() {
       try {
         if (k.indexOf('haccp_module_data_') === 0) {
           var arr = JSON.parse(localStorage.getItem(k) || '[]');
-          if (Array.isArray(arr) && arr.length > GARDER) localStorage.setItem(k, JSON.stringify(arr.slice(0, GARDER)));
+          if (Array.isArray(arr)) {
+            var _modif = false;
+            // 1) Garder les 30 contrôles récents par module.
+            if (arr.length > GARDER) { arr = arr.slice(0, GARDER); _modif = true; }
+            // 2) Retirer les PHOTOS base64 (lourdes) des contrôles DÉJÀ synchronisés au
+            //    cloud (cloudOk) : la preuve est dans le cloud → on libère de la place
+            //    sans perdre la photo (elle reste affichée via le cloud).
+            arr.forEach(function(e){ if (e && e.cloudOk && e.data) { if (_purgerBase64(e.data)) _modif = true; } });
+            if (_modif) localStorage.setItem(k, JSON.stringify(arr));
+          }
         } else if (k.indexOf('haccp_brouillon_') === 0
                 || k === 'haccp_historique'
                 || k === 'haccp_am_doc_rapport'
