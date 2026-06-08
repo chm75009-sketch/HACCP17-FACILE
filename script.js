@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v104';
+var APP_BUILD = 'v105';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -12284,6 +12284,12 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
           if (!photosParModule[codeMod]) photosParModule[codeMod] = [];
           photosParModule[codeMod].push({ ts: r.date_controle, photos: r.photos });
         });
+        // SEC-3 — signer les URLs de photos du Pack avant injection (sécurité bucket privé).
+        try {
+          var _aSigner = [];
+          Object.keys(photosParModule).forEach(function(m){ photosParModule[m].forEach(function(e){ if (Array.isArray(e.photos)) _aSigner.push(e.photos); }); });
+          for (var _si = 0; _si < _aSigner.length; _si++) { await _signerTableauPhotos(_aSigner[_si]); }
+        } catch(eSig) {}
         console.info('[Pack DDPP] Photos récupérées :', photosParModule);
       } else {
         console.warn('[Pack DDPP] Récupération photos HTTP ' + resp.status);
@@ -14256,6 +14262,63 @@ function chargerHistoriqueControles() {
 // Ce cache sert à l'historique, au Pack et au tableau de bord.
 window._histoCloudRows = window._histoCloudRows || {};
 window._cloudCache = window._cloudCache || {};
+// SEC-3 — Convertit les URLs PUBLIQUES de photos en URLs SIGNÉES (liens temporaires
+// nécessitant la session authentifiée). Repli : si la signature échoue, on garde l'URL
+// d'origine. Tant que le bucket reste public → rien ne change ; une fois le bucket passé
+// en PRIVÉ → seules les URLs signées marchent (photos visibles dans l'app, inaccessibles
+// sans authentification).
+async function _signerPhotosHisto(histo) {
+  try {
+    if (!window._supabase || !window._supabase.storage || typeof PHOTO_SYNC_BUCKET === 'undefined') return;
+    var pubPrefix = SUPABASE_URL + '/storage/v1/object/public/' + PHOTO_SYNC_BUCKET + '/';
+    var taches = [];
+    Object.keys(histo || {}).forEach(function(ts){
+      var rec = histo[ts];
+      var ph = rec && rec.photos;
+      if (!Array.isArray(ph)) return;
+      ph.forEach(function(it, idx){
+        var u = (typeof it === 'string') ? it : (it && it.u);
+        if (!u || typeof u !== 'string' || u.indexOf(pubPrefix) !== 0) return; // déjà signé / local / autre
+        var chemin = u.substring(pubPrefix.length).split('?')[0];
+        taches.push(
+          window._supabase.storage.from(PHOTO_SYNC_BUCKET).createSignedUrl(chemin, 3600).then(function(res){
+            var signed = res && res.data && res.data.signedUrl;
+            if (!signed) return;
+            if (signed.indexOf('http') !== 0) signed = SUPABASE_URL + (signed.charAt(0) === '/' ? '' : '/') + signed;
+            if (typeof it === 'string') ph[idx] = signed; else it.u = signed;
+          }).catch(function(){})
+        );
+      });
+    });
+    if (taches.length) await Promise.all(taches);
+  } catch(e) {}
+}
+
+// SEC-3 — signe en place les URLs publiques d'UN tableau de photos (réutilisable :
+// rapports, Pack DDPP…). Repli sur l'URL d'origine si la signature échoue.
+async function _signerTableauPhotos(arr) {
+  try {
+    if (!Array.isArray(arr) || !window._supabase || !window._supabase.storage || typeof PHOTO_SYNC_BUCKET === 'undefined') return arr;
+    var pubPrefix = SUPABASE_URL + '/storage/v1/object/public/' + PHOTO_SYNC_BUCKET + '/';
+    var taches = [];
+    arr.forEach(function(it, idx){
+      var u = (typeof it === 'string') ? it : (it && it.u);
+      if (!u || typeof u !== 'string' || u.indexOf(pubPrefix) !== 0) return;
+      var chemin = u.substring(pubPrefix.length).split('?')[0];
+      taches.push(
+        window._supabase.storage.from(PHOTO_SYNC_BUCKET).createSignedUrl(chemin, 3600).then(function(res){
+          var s = res && res.data && res.data.signedUrl;
+          if (!s) return;
+          if (s.indexOf('http') !== 0) s = SUPABASE_URL + (s.charAt(0) === '/' ? '' : '/') + s;
+          if (typeof it === 'string') arr[idx] = s; else it.u = s;
+        }).catch(function(){})
+      );
+    });
+    if (taches.length) await Promise.all(taches);
+  } catch(e) {}
+  return arr;
+}
+
 async function chargerControlesCloudCache() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return null;
@@ -14315,6 +14378,8 @@ async function chargerControlesCloudCache() {
         cache[pid].push({ pageId: pid, timestamp: ts, data: contenu });
       }
     });
+    // SEC-3 — signer les URLs de photos (sécurité) avant exposition aux rapports/Pack.
+    try { await _signerPhotosHisto(histo); } catch(eSig) {}
     window._cloudCache = cache;
     window._histoCloudRows = histo;
     return rowsUniques;
