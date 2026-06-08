@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v103';
+var APP_BUILD = 'v104';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -15517,12 +15517,24 @@ function remplirChampsIntervenant(page) {
   // Signature — couvre « sig_prenom » (réception) ET « xxx_sig_prenom » (autres modules)
   page.querySelectorAll('input[id$="sig_prenom"]').forEach(function(inp){ if (!inp.value) inp.value = prenom; });
   page.querySelectorAll('input[id$="sig_nom"]').forEach(function(inp){ if (!inp.value) inp.value = nom; });
-  // Champs intermédiaires « personne qui réalise / responsable » (non destructif).
-  // On cible « Nom & prénom » (et « … de l'auditeur ») et « Nom du responsable ». On NE
-  // touche PAS aux champs désignant quelqu'un d'autre (fournisseur, transporteur/chauffeur,
-  // responsable HACCP de l'établissement, titulaire d'un document, inscription…).
-  page.querySelectorAll('input[placeholder^="Nom & prénom"], input[placeholder^="Nom & Prénom"], input[placeholder="Nom du responsable"]')
-    .forEach(function(inp){ if (!inp.value) inp.value = complet; });
+  // Champs « personne qui RÉALISE le contrôle / responsable » (non destructif).
+  // On normalise les accents pour attraper TOUTES les variantes de placeholder, dans
+  // TOUS les modules : « Nom & prénom », « Nom & prenom » (sans accent), « Nom prenom »,
+  // « Nom & prénom de l'auditeur », « Nom du responsable ». On NE remplit PAS les champs
+  // désignant quelqu'un d'AUTRE (salarié évincé, fournisseur, chauffeur/transporteur,
+  // titulaire de document, responsable HACCP de l'établissement, contact inscription…).
+  try {
+    page.querySelectorAll('input[type="text"], input:not([type])').forEach(function(inp){
+      if (inp.value) return; // ne jamais écraser une saisie existante
+      var ph = inp.getAttribute('placeholder') || '';
+      if (!ph) return;
+      var n = ph.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); // sans accents
+      var estIntervenant = (n.indexOf('nom & prenom') === 0 || n.indexOf('nom prenom') === 0 || n === 'nom du responsable');
+      if (!estIntervenant) return;
+      if (/evinc|salari|fournisseur|chauffeur|transporteur|titulaire|contact|responsable haccp/.test(n)) return;
+      inp.value = complet;
+    });
+  } catch(e) {}
   // Bandeau visible « Saisie réalisée par … » en haut du module
   afficherBandeauIntervenant(page, complet);
 }
