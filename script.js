@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v116';
+var APP_BUILD = 'v117';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -20453,37 +20453,61 @@ if (!ETAB_ID) {
     contenu:       contenuPropre,
     signature:     (donnees && donnees.signature) ? String(donnees.signature) : null,
     photos:        [],
-    date_controle: _dateControle
+    date_controle: _dateControle,
+    // DATA-9 — identifiant client stable du contrôle (posé à la sauvegarde). Sert de clé
+    // de déduplication SERVEUR : un re-push du même contrôle (même uid) est ignoré.
+    uid:           (donnees && donnees.uid) ? String(donnees.uid) : null
   };
   var controleFull = Object.assign({}, controleBase, {
     nc_detectee: !!(donnees && donnees.nc_detectee),
     nc_details:  (donnees && donnees.nc_details) ? String(donnees.nc_details) : null
   });
 
-  function _postControle(payload) {
-    return fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+  // DATA-9 — POST avec déduplication SERVEUR optionnelle. Quand useDedup est vrai, on
+  // demande on_conflict(code_client,uid) + ignore-duplicates : un re-push du MÊME contrôle
+  // (retry réseau, espion 3s + envoi immédiat, réconciliation) est alors IGNORÉ par le
+  // serveur → plus de doublons. Sinon, insert classique.
+  function _postControle(payload, useDedup) {
+    var u = SUPABASE_URL + '/rest/v1/controles_haccp';
+    var prefer = 'return=minimal';
+    if (useDedup) { u += '?on_conflict=code_client,uid'; prefer = 'resolution=ignore-duplicates,return=minimal'; }
+    return fetch(u, {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_ANON,
         'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type':  'application/json',
-        'Prefer':        'return=minimal'
+        'Prefer':        prefer
       },
       body: JSON.stringify(payload)
     });
   }
+  // Repli : retire la colonne uid (schéma pas encore migré).
+  function _sansUid(p) { var q = Object.assign({}, p); delete q.uid; return q; }
 
   // Envoi via REST direct (compatible iPhone Safari — même méthode que le reste de l'appli)
   try {
-    var response = await _postControle(controleFull);
+    var _dedup = (window._dedupServeurAbsent !== true) && !!controleBase.uid;
+    var response = await _postControle(controleFull, _dedup);
     if (!response.ok) {
       var errTxt = '';
       try { errTxt = await response.text(); } catch(eTxt) {}
-      // 400 + mention de colonne (PGRST204) → colonnes nc_* absentes du schéma.
+      // (a) Déduplication non encore supportée par le schéma (colonne uid ou index
+      //     on_conflict absents) → on la désactive pour la session et on réessaie SANS
+      //     uid ni on_conflict, pour ne JAMAIS perdre le contrôle.
+      if (_dedup && response.status === 400 && /uid|on.?conflict|unique|exclusion constraint/i.test(errTxt || '')) {
+        window._dedupServeurAbsent = true;
+        _dedup = false;
+        response = await _postControle(_sansUid(controleFull), false);
+        if (response.ok) { window._lastSyncError = ''; console.info('[HACCP Cloud] ✓ Contrôle "' + nomModule + '" envoyé (dédup serveur absente)'); return { ok: true }; }
+        try { errTxt = await response.text(); } catch(eTxt2) {}
+      }
+      // (b) 400 + mention de colonne (PGRST204) → colonnes nc_* absentes du schéma.
       // On réessaie sans elles pour ne JAMAIS perdre le contrôle côté cloud.
       var colManquante = response.status === 400 && /column|PGRST|nc_detectee|nc_details|schema cache/i.test(errTxt || '');
       if (colManquante) {
-        var resp2 = await _postControle(controleBase);
+        var _base = (window._dedupServeurAbsent === true) ? _sansUid(controleBase) : controleBase;
+        var resp2 = await _postControle(_base, _dedup);
         if (resp2.ok) {
           console.info('[HACCP Cloud] ✓ Contrôle "' + nomModule + '" envoyé (sans colonnes nc_*)');
           window._lastSyncError = '';
