@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v101';
+var APP_BUILD = 'v102';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -8152,6 +8152,9 @@ function showPage(id, noReset) {
   if (window.history && window.history.pushState) {
     window.history.pushState({page: id}, '', '');
   }
+  // Mise à jour silencieuse : si une nouvelle version est prête et qu'on arrive sur un
+  // écran neutre (accueil/connexion), l'appliquer maintenant (voir _tenterMajAuto).
+  try { if (window._tenterMajAuto) setTimeout(window._tenterMajAuto, 300); } catch(e) {}
   // Modules gérés par ouvrirModule() — ont leur propre reset+init, ne pas double-resetter
   var geresParOuvrir = ['page-reception','page-temperatures','page-hygiene','page-ouverture',
     'page-cuisson','page-refroidissement','page-huiles','page-etiquetage','page-fermeture',
