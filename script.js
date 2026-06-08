@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v107';
+var APP_BUILD = 'v108';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14369,16 +14369,22 @@ async function chargerControlesCloudCache() {
       // Clé anti-doublon : même module + même heure de contrôle d'origine = même contrôle
       var cle = (pid || r.module || '') + '|' + ((contenu && contenu.timestamp) ? contenu.timestamp : ts) + '|' + ((contenu && (contenu.signe || contenu.signataire)) || '');
       if (seen[cle]) {
-        // DOUBLON détecté. Si la version déjà retenue n'a PAS de photos mais celle-ci
-        // OUI (cas typique : un re-push a créé un doublon aux photos vides), on récupère
-        // les photos pour ne PAS les perdre dans le rapport.
+        // DOUBLON détecté. Un re-push a pu RÉPARTIR les photos d'un même contrôle sur
+        // plusieurs lignes (ex. le bon de livraison sur l'une, l'étiquette produit sur
+        // l'autre). On FUSIONNE donc toutes les photos des doublons (union par URL) pour
+        // n'en perdre aucune dans le rapport.
         try {
           var _prev = histo[seen[cle]];
-          var _prevHas = _prev && Array.isArray(_prev.photos) ? _prev.photos.length > 0 : !!(_prev && _prev.photos);
-          var _curHas = Array.isArray(r.photos) ? r.photos.length > 0 : !!r.photos;
-          if (_prev && !_prevHas && _curHas) _prev.photos = r.photos;
+          if (_prev) {
+            var _pp = Array.isArray(_prev.photos) ? _prev.photos : (_prev.photos ? [_prev.photos] : []);
+            var _cp = Array.isArray(r.photos) ? r.photos : (r.photos ? [r.photos] : []);
+            var _vus = {};
+            _pp.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u) _vus[u] = true; });
+            _cp.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !_vus[u]) { _pp.push(it); _vus[u] = true; } });
+            _prev.photos = _pp;
+          }
         } catch(eDup) {}
-        return; // doublon → ignoré (mais photos récupérées si besoin)
+        return; // doublon → ignoré (mais photos fusionnées)
       }
       seen[cle] = ts;
       rowsUniques.push(r);
