@@ -12,7 +12,7 @@
 |---|---|---|
 | SEC-1 (C1) | Cloisonnement serveur (clé anon partagée) | ✅ RLS active (chemin B : requêtes routées sur le JWT établissement, policy `code_client = establishment_id`) |
 | SEC-2 (C2) | Mots de passe en clair, vérifiés client | ✅ comptes Auth (mdp haché) + JWT `establishment_id` |
-| SEC-3 (C3) | Photos traçabilité en URL publiques | 🟡 code prêt (URLs signées) — reste à passer le bucket en privé |
+| SEC-3 (C3) | Photos traçabilité en URL publiques | ✅ bucket `haccp-photos` privé + lecture réservée aux connectés (URLs signées) ; policies anon SELECT/UPDATE supprimées ; filet de re-signature côté app |
 | SEC-4 (C4) | Contrôles signés modifiables/supprimables | ✅ RLS : pas de DELETE/UPDATE sur contrôles signés |
 | DATA-1 | Purge quota efface contrôles non synchro | ✅ |
 | DATA-2 | Alerte si IndexedDB indispo (photo perdue silencieuse) | ✅ |
@@ -104,7 +104,7 @@
 | Session Auth ouverte au login (toast « Session sécurisée active ») | ✅ vérifié vert |
 | SEC-1 RLS cloisonnement (bascule des requêtes sur le JWT + policies) | ✅ chemin B en place : `_sbBearer()` route sur le JWT établissement, policy `auth.role()='anon' OR code_client = establishment_id` — chaque établissement ne voit que ses données |
 | SEC-4 immutabilité contrôles signés (RLS UPDATE/DELETE ciblé) | ✅ pas de DELETE/UPDATE autorisé sur les contrôles |
-| SEC-3 photos privées (bucket privé + URLs signées) | 🟡 code prêt (createSignedUrl + repli) — reste à basculer le bucket `haccp-photos` en privé |
+| SEC-3 photos privées (bucket privé + URLs signées) | ✅ bucket `haccp-photos` en privé, SELECT réservé à `authenticated`, anon SELECT/UPDATE supprimés, filet de re-signature global (`_installerFiletSignaturePhotos`) |
 
 ## 🛡️ Protection anti-perte de données (2026-06-07)
 
