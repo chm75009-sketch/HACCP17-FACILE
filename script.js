@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v117';
+var APP_BUILD = 'v118';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -22417,3 +22417,220 @@ function pullAllMemoSimples() {
     try { _pullMemoListe(cfg.key, cfg.module, cfg.sig, cfg.champ, renderAllMemoChips); } catch (e) {}
   });
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// CAPTEURS DE TEMPÉRATURE (BÊTA — INTERNE, CACHÉ AUX CLIENTS)
+// Relevé automatique via sondes connectées (UbiBot pour le test).
+// Accès caché : ajouter #capteurs à l'URL, ou appeler window.ouvrirCapteursBeta().
+// La config (sonde ↔ frigo ↔ seuils) est rangée dans une ligne technique
+// __sondes_config__ de controles_haccp (même mécanisme que les enceintes →
+// synchro PC/téléphone, AUCUN SQL requis). Lecture des températures via l'API
+// plateforme UbiBot (clé de compte). RIEN n'est visible tant qu'on n'ouvre pas
+// ce panneau. Étape suivante (après validation sonde réelle) : enregistrement
+// automatique 24h/24 + alertes côté serveur.
+// ════════════════════════════════════════════════════════════════════════════
+var SONDES_CFG_MODULE = '__sondes_config__';
+var SONDES_LS_KEY = 'haccp_sondes_config';
+var UBIBOT_KEY_LS = 'haccp_ubibot_key';
+var _pushSondesTimer = null;
+
+function getSondesConfig() {
+  try { var a = JSON.parse(lsGet(SONDES_LS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function _saveSondesRaw(arr) { try { lsSet(SONDES_LS_KEY, JSON.stringify(arr || [])); } catch (e) {} }
+function getUbibotKey() { try { return lsGet(UBIBOT_KEY_LS) || ''; } catch (e) { return ''; } }
+function setUbibotKey(k) { try { lsSet(UBIBOT_KEY_LS, String(k || '')); } catch (e) {} }
+
+function saveSondesConfig(arr) { _saveSondesRaw(arr); scheduleSondesPush(); }
+function scheduleSondesPush() {
+  if (_pushSondesTimer) clearTimeout(_pushSondesTimer);
+  _pushSondesTimer = setTimeout(function () { _pushSondesTimer = null; pushSondesCloud(); }, 800);
+}
+function pushSondesCloud() {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
+    if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return;
+    var payload = {
+      code_client: String(ETAB_ID), module: SONDES_CFG_MODULE,
+      contenu: { sondes: getSondesConfig(), ubibotKey: getUbibotKey(), maj: Date.now() },
+      signature: null, photos: [], date_controle: new Date().toISOString()
+    };
+    fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payload)
+    }).catch(function () {});
+  } catch (e) {}
+}
+function pullSondesCloud(cb) {
+  try {
+    if (typeof ETAB_ID === 'undefined' || !ETAB_ID || typeof SUPABASE_URL === 'undefined') { if (cb) cb(); return; }
+    var url = SUPABASE_URL + '/rest/v1/controles_haccp'
+      + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+      + '&module=eq.' + encodeURIComponent(SONDES_CFG_MODULE)
+      + '&select=contenu,created_at&order=created_at.desc&limit=1';
+    fetch(url, { cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rows) {
+        if (Array.isArray(rows) && rows.length) {
+          var c = rows[0].contenu; if (typeof c === 'string') { try { c = JSON.parse(c); } catch (e) { c = null; } }
+          if (c && Array.isArray(c.sondes)) _saveSondesRaw(c.sondes);
+          if (c && c.ubibotKey && !getUbibotKey()) setUbibotKey(c.ubibotKey);
+        }
+        if (cb) cb();
+      }).catch(function () { if (cb) cb(); });
+  } catch (e) { if (cb) cb(); }
+}
+
+// Lit les dernières températures depuis l'API plateforme UbiBot (clé de compte).
+// Renvoie une map { channel_id: { temp, date, nom } }.
+function _lireTemperaturesUbiBot() {
+  var key = getUbibotKey();
+  if (!key) return Promise.resolve({});
+  var url = 'https://api.ubibot.com/channels?account_key=' + encodeURIComponent(key);
+  return fetch(url, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) {
+      var map = {};
+      try {
+        var chans = (j && (j.channels || j.data)) || [];
+        chans.forEach(function (ch) {
+          var id = String(ch.channel_id || ch.id || '');
+          var lv = ch.last_values; if (typeof lv === 'string') { try { lv = JSON.parse(lv); } catch (e) { lv = null; } }
+          var temp = null, date = ch.last_entry_date || '';
+          if (lv) {
+            // WS1 : la température est généralement field1 (on tente plusieurs noms par robustesse).
+            ['field1', 'temperature', 'temp'].some(function (f) {
+              if (lv[f] && typeof lv[f].value !== 'undefined') { temp = lv[f].value; if (lv[f].created_at) date = lv[f].created_at; return true; }
+              return false;
+            });
+          }
+          if (id) map[id] = { temp: temp, date: date, nom: ch.name || '' };
+        });
+      } catch (e) {}
+      return map;
+    }).catch(function () { return {}; });
+}
+
+function ouvrirCapteursBeta() { pullSondesCloud(function () { _renderCapteursBeta(); }); }
+function fermerCapteursBeta() { var ov = document.getElementById('capteurs_beta_overlay'); if (ov) ov.remove(); try { if (location.hash === '#capteurs') history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
+
+function _renderCapteursBeta() {
+  var ov = document.getElementById('capteurs_beta_overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'capteurs_beta_overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:99999;overflow:auto;-webkit-overflow-scrolling:touch';
+    document.body.appendChild(ov);
+  }
+  var sondes = getSondesConfig();
+  var enceintes = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
+  var encOpts = '<option value="">— choisir un frigo / congélateur —</option>';
+  enceintes.forEach(function (e) { var n = (e && (e.nom || e.name)) || ''; if (n) encOpts += '<option value="' + _echap(n) + '">' + _echap(n) + '</option>'; });
+  var listeHtml = '';
+  if (!sondes.length) {
+    listeHtml = '<div style="color:#64748b;font-size:13px;padding:8px 0">Aucune sonde associée pour l\'instant.</div>';
+  } else {
+    sondes.forEach(function (s, i) {
+      listeHtml += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;margin-bottom:6px;background:#fff">'
+        + '<div style="font-size:13px"><strong>' + _echap(s.nom || 'Sonde') + '</strong> <span style="color:#64748b">→ ' + _echap(s.enceinte || '—') + '</span>'
+        + '<br><span style="color:#94a3b8;font-size:11px">canal ' + _echap(s.channel || '?') + ' · seuils ' + _echap(String(s.min)) + '°C à ' + _echap(String(s.max)) + '°C</span></div>'
+        + '<button onclick="supprimerSondeBeta(' + i + ')" style="border:none;background:#fee2e2;color:#b91c1c;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">Retirer</button>'
+        + '</div>';
+    });
+  }
+  ov.innerHTML =
+    '<div style="max-width:560px;margin:24px auto;background:#f8fafc;border-radius:16px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    + '<h2 style="margin:0;font-size:18px;color:#0f172a">🌡️ Capteurs de température</h2>'
+    + '<button onclick="fermerCapteursBeta()" style="border:none;background:#e2e8f0;border-radius:8px;padding:6px 12px;cursor:pointer">Fermer</button></div>'
+    + '<div style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:14px">⚙️ Espace <strong>interne (BÊTA)</strong> — invisible pour vos clients. Sert à brancher et tester une sonde.</div>'
+
+    + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">1. Clé du compte UbiBot</div>'
+    + '<div style="display:flex;gap:6px"><input id="cap_ubikey" type="text" value="' + _echap(getUbibotKey()) + '" placeholder="Account API key UbiBot" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
+    + '<button onclick="enregistrerCleUbibot()" style="border:none;background:#2563eb;color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">Enregistrer</button></div>'
+    + '<div style="color:#94a3b8;font-size:11px;margin-top:4px">Dans votre compte UbiBot → Profil → API key.</div></div>'
+
+    + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">2. Associer une sonde à un frigo</div>'
+    + '<input id="cap_nom" placeholder="Nom (ex. Sonde frigo dessert)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
+    + '<input id="cap_channel" placeholder="N° de canal UbiBot (channel id)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
+    + '<select id="cap_enceinte" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">' + encOpts + '</select>'
+    + '<div style="display:flex;gap:6px;margin-bottom:8px"><input id="cap_min" type="number" step="0.1" placeholder="Seuil min °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
+    + '<input id="cap_max" type="number" step="0.1" placeholder="Seuil max °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px"></div>'
+    + '<button onclick="ajouterSondeBeta()" style="width:100%;border:none;background:#16a34a;color:#fff;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer">+ Associer la sonde</button></div>'
+
+    + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#0f172a">3. Sondes associées</div>' + listeHtml + '</div>'
+
+    + '<button onclick="rafraichirTemperaturesBeta()" style="width:100%;border:none;background:#0ea5e9;color:#fff;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer">🔄 Lire les températures maintenant</button>'
+    + '<div id="cap_resultats" style="margin-top:12px"></div>'
+    + '</div>';
+}
+
+function enregistrerCleUbibot() {
+  var v = (document.getElementById('cap_ubikey') || {}).value || '';
+  setUbibotKey(v.trim()); scheduleSondesPush();
+  if (typeof showToast === 'function') showToast('Clé UbiBot enregistrée.', 'ok', 2000);
+}
+function ajouterSondeBeta() {
+  var nom = ((document.getElementById('cap_nom') || {}).value || '').trim();
+  var channel = ((document.getElementById('cap_channel') || {}).value || '').trim();
+  var enceinte = ((document.getElementById('cap_enceinte') || {}).value || '').trim();
+  var min = parseFloat((document.getElementById('cap_min') || {}).value);
+  var max = parseFloat((document.getElementById('cap_max') || {}).value);
+  if (!nom || !channel) { alert('Indiquez au moins un nom et le n° de canal.'); return; }
+  if (isNaN(min)) min = (enceinte && /cong/i.test(enceinte)) ? -25 : 0;
+  if (isNaN(max)) max = (enceinte && /cong/i.test(enceinte)) ? -18 : 4;
+  var arr = getSondesConfig();
+  arr.push({ nom: nom, channel: channel, enceinte: enceinte, min: min, max: max });
+  saveSondesConfig(arr);
+  _renderCapteursBeta();
+  if (typeof showToast === 'function') showToast('Sonde associée.', 'ok', 2000);
+}
+function supprimerSondeBeta(i) {
+  var arr = getSondesConfig();
+  if (i >= 0 && i < arr.length) { arr.splice(i, 1); saveSondesConfig(arr); _renderCapteursBeta(); }
+}
+function rafraichirTemperaturesBeta() {
+  var box = document.getElementById('cap_resultats');
+  if (box) box.innerHTML = '<div style="text-align:center;color:#64748b;font-size:13px;padding:8px">⏳ Lecture en cours…</div>';
+  if (!getUbibotKey()) { if (box) box.innerHTML = '<div style="color:#b91c1c;font-size:13px">Renseignez d\'abord la clé UbiBot (étape 1).</div>'; return; }
+  _lireTemperaturesUbiBot().then(function (map) {
+    var sondes = getSondesConfig();
+    if (!sondes.length) { if (box) box.innerHTML = '<div style="color:#64748b;font-size:13px">Associez au moins une sonde (étape 2).</div>'; return; }
+    var html = '';
+    sondes.forEach(function (s) {
+      var r = map[String(s.channel)];
+      var couleur = '#94a3b8', etat = '⚪ Pas de données', t = '';
+      if (r && r.temp !== null && typeof r.temp !== 'undefined' && !isNaN(parseFloat(r.temp))) {
+        var tv = parseFloat(r.temp); t = tv.toFixed(1) + ' °C';
+        var ok = tv >= s.min && tv <= s.max;
+        couleur = ok ? '#16a34a' : '#dc2626';
+        etat = (ok ? '🟢 Conforme' : '🔴 HORS SEUIL') + (r.date ? ' · ' + _heureLisibleCap(r.date) : '');
+      }
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #e5e7eb;border-left:5px solid ' + couleur + ';border-radius:10px;padding:10px 12px;margin-bottom:6px;background:#fff">'
+        + '<div style="font-size:13px"><strong>' + _echap(s.nom) + '</strong><br><span style="color:#64748b;font-size:12px">' + etat + '</span></div>'
+        + '<div style="font-size:20px;font-weight:800;color:' + couleur + '">' + (t || '—') + '</div></div>';
+    });
+    if (box) box.innerHTML = html;
+  }).catch(function () { if (box) box.innerHTML = '<div style="color:#b91c1c;font-size:13px">Lecture impossible (clé ou réseau).</div>'; });
+}
+function _heureLisibleCap(d) { try { var x = new Date(d); if (isNaN(x.getTime())) return ''; return x.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+function _echap(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// Accès caché par l'URL (#capteurs) — aucun bouton visible pour les clients.
+try {
+  window.ouvrirCapteursBeta = ouvrirCapteursBeta;
+  window.fermerCapteursBeta = fermerCapteursBeta;
+  window.ajouterSondeBeta = ajouterSondeBeta;
+  window.supprimerSondeBeta = supprimerSondeBeta;
+  window.rafraichirTemperaturesBeta = rafraichirTemperaturesBeta;
+  window.enregistrerCleUbibot = enregistrerCleUbibot;
+  function _capteursVerifHash() { try { if (location.hash === '#capteurs') ouvrirCapteursBeta(); } catch (e) {} }
+  window.addEventListener('hashchange', _capteursVerifHash);
+  if (document.readyState !== 'loading') setTimeout(_capteursVerifHash, 300);
+  else document.addEventListener('DOMContentLoaded', function () { setTimeout(_capteursVerifHash, 300); });
+} catch (e) {}
