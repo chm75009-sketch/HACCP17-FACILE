@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v108';
+var APP_BUILD = 'v109';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14395,6 +14395,33 @@ async function chargerControlesCloudCache() {
         cache[pid].push({ pageId: pid, timestamp: ts, data: contenu });
       }
     });
+    // FUSION photos multi-lignes — un même contrôle a pu être RÉPARTI sur plusieurs
+    // lignes cloud (re-push : la fiche sur l'une, les photos sur l'autre, avec des clés
+    // légèrement différentes donc non dédupliquées). Pour chaque entrée affichée, on
+    // réunit TOUTES les photos des lignes cloud de la MÊME MINUTE → plus aucune photo
+    // perdue dans les rapports.
+    try {
+      var _photosMin = {};
+      rows.forEach(function(rr){
+        var dc = rr && rr.date_controle; if (!dc) return;
+        if (/^__.*__$/.test(String(rr.module || ''))) return;
+        var ph = rr.photos;
+        if (typeof ph === 'string') { try { ph = JSON.parse(ph); } catch(e){ ph = null; } }
+        if (!Array.isArray(ph) || !ph.length) return;
+        var mk = String(dc).substring(0, 16); // clé = minute
+        if (!_photosMin[mk]) _photosMin[mk] = { list: [], vus: {} };
+        ph.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !_photosMin[mk].vus[u]) { _photosMin[mk].list.push(it); _photosMin[mk].vus[u] = true; } });
+      });
+      Object.keys(histo).forEach(function(ts){
+        var rec = histo[ts]; if (!rec) return;
+        var extra = _photosMin[String(ts).substring(0, 16)];
+        if (!extra || !extra.list.length) return;
+        var cur = Array.isArray(rec.photos) ? rec.photos : (rec.photos ? [rec.photos] : []);
+        var vus = {}; cur.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u) vus[u] = true; });
+        extra.list.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !vus[u]) { cur.push(it); vus[u] = true; } });
+        rec.photos = cur;
+      });
+    } catch(eMin) {}
     // SEC-3 — signer les URLs de photos (sécurité) avant exposition aux rapports/Pack.
     try { await _signerPhotosHisto(histo); } catch(eSig) {}
     window._cloudCache = cache;
