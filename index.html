@@ -21,11 +21,30 @@
   if ('serviceWorker' in navigator) {
     (function () {
       var hadController = !!navigator.serviceWorker.controller;
-      // Quand le nouveau SW prend le contrôle : on NE recharge PAS automatiquement
-      // (pour ne jamais interrompre une saisie en cours). On propose la mise à jour
-      // via la bannière → l'utilisateur recharge quand il veut, en 1 appui.
+      // Quand le nouveau SW prend le contrôle (nouvelle version prête) :
+      //  • si l'utilisateur est sur une page SANS saisie en cours (accueil, connexion,
+      //    liste des modules…), on RECHARGE AUTOMATIQUEMENT pour appliquer la mise à
+      //    jour tout de suite, en gardant la session (plus de bannière à cliquer, plus
+      //    d'attente interminable) ;
+      //  • s'il est dans un module de contrôle (saisie possible), on NE recharge PAS :
+      //    on propose la bannière pour ne pas lui faire perdre son travail.
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (!hadController) { hadController = true; return; } // 1ère installation : rien
+        try {
+          var actId = (document.querySelector('.page.active') || {}).id || '';
+          var sansSaisie = (typeof _pageHorsControle === 'function') ? _pageHorsControle(actId) : true;
+          if (sansSaisie) {
+            // Garder la session au rechargement (cf. initApp / haccp_maj_reprise).
+            try {
+              if (typeof ETAB_ID !== 'undefined' && ETAB_ID && localStorage.getItem('haccp_deconnecte') !== '1') {
+                sessionStorage.setItem('haccp_maj_reprise', '1');
+              }
+            } catch (e) {}
+            window.location.reload();
+            return;
+          }
+        } catch (e) {}
+        // Saisie en cours (ou cas incertain) : on ne coupe pas, on propose la bannière.
         try { if (typeof afficherBanniereMaj === 'function') afficherBanniereMaj(); } catch (e) {}
       });
       // Bannière « nouvelle version prête » : feedback clair + mise à jour en 1 appui
