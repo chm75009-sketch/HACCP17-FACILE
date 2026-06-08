@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v105';
+var APP_BUILD = 'v106';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14368,8 +14368,19 @@ async function chargerControlesCloudCache() {
       var pid = (contenu && contenu.pageId) ? contenu.pageId : null;
       // Clé anti-doublon : même module + même heure de contrôle d'origine = même contrôle
       var cle = (pid || r.module || '') + '|' + ((contenu && contenu.timestamp) ? contenu.timestamp : ts) + '|' + ((contenu && (contenu.signe || contenu.signataire)) || '');
-      if (seen[cle]) return; // doublon → ignoré
-      seen[cle] = true;
+      if (seen[cle]) {
+        // DOUBLON détecté. Si la version déjà retenue n'a PAS de photos mais celle-ci
+        // OUI (cas typique : un re-push a créé un doublon aux photos vides), on récupère
+        // les photos pour ne PAS les perdre dans le rapport.
+        try {
+          var _prev = histo[seen[cle]];
+          var _prevHas = _prev && Array.isArray(_prev.photos) ? _prev.photos.length > 0 : !!(_prev && _prev.photos);
+          var _curHas = Array.isArray(r.photos) ? r.photos.length > 0 : !!r.photos;
+          if (_prev && !_prevHas && _curHas) _prev.photos = r.photos;
+        } catch(eDup) {}
+        return; // doublon → ignoré (mais photos récupérées si besoin)
+      }
+      seen[cle] = ts;
       rowsUniques.push(r);
       histo[ts] = { module: r.module, contenu: contenu, photos: r.photos };
       // Regrouper par module (page) pour le Pack et le tableau de bord
