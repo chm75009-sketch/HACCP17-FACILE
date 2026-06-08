@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v109';
+var APP_BUILD = 'v110';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14502,8 +14502,19 @@ function reimprimerControleCloud(ts) {
         // V121 — Replacer chaque photo (et le bon de livraison) à sa place grâce à son étiquette
         var photosMap = {};
         try {
-          var pj = row.photos;
-          if (typeof pj === 'string') pj = JSON.parse(pj);
+          // Réunir les photos de TOUTES les entrées de la MÊME MINUTE : le contrôle a pu
+          // être réparti/dupliqué (fiche sur une ligne, photos sur une autre). On ne se
+          // fie donc PAS seulement à la ligne cliquée (qui peut avoir 0 photo).
+          var pj = [];
+          var _mk = String(ts).substring(0, 16);
+          var _vu = {};
+          Object.keys(window._histoCloudRows || {}).forEach(function(k){
+            if (String(k).substring(0, 16) !== _mk) return;
+            var _rp = window._histoCloudRows[k] && window._histoCloudRows[k].photos;
+            if (typeof _rp === 'string') { try { _rp = JSON.parse(_rp); } catch(e){ _rp = null; } }
+            if (Array.isArray(_rp)) _rp.forEach(function(it){ var u = (typeof it === 'string') ? it : (it && it.u); if (u && !_vu[u]) { pj.push(it); _vu[u] = true; } });
+          });
+          if (!pj.length && row.photos) { pj = (typeof row.photos === 'string') ? JSON.parse(row.photos) : row.photos; }
           if (Array.isArray(pj)) {
             var _etiqPos = 0;
             pj.forEach(function(item) {
