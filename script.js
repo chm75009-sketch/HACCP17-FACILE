@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v133';
+var APP_BUILD = 'v134';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -19970,7 +19970,7 @@ function testEffacerDonnees() {
           document.getElementById('essaisListe').innerHTML = '<div style="color:#fca5a5;padding:12px">Base indisponible.</div>';
           return;
         }
-        window._supabase.from('etablissements').select('*').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%,code_acces.like.CLIENT-%').then(function(res) {
+        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,adresse,actif,date_debut,date_expiration,responsable,telephone,email,derniere_connexion').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%,code_acces.like.CLIENT-%').then(function(res) {
           var liste = document.getElementById('essaisListe');
           if (!liste) return;
           if (res.error) { liste.innerHTML = '<div style="color:#fca5a5;padding:12px">Erreur : ' + escapeHtml(res.error.message) + '</div>'; return; }
@@ -20094,7 +20094,7 @@ function testEffacerDonnees() {
       // — MODIFICATION d'un compte (nom, secteur, mot de passe, expiration, verrouillage) —
       window.modifierEtab = function(id, code) {
         if (!window._supabase) return;
-        window._supabase.from('etablissements').select('*').eq('id', id).limit(1).then(function(res){
+        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,date_expiration,actif').eq('id', id).limit(1).then(function(res){
           if (res.error || !res.data || !res.data[0]) { alert('Impossible de charger le compte.'); return; }
           var r = res.data[0];
           var ex = document.getElementById('modifEtabOverlay'); if (ex) ex.remove();
@@ -20109,7 +20109,7 @@ function testEffacerDonnees() {
             + '<div style="font-size:12px;color:#64748b;margin-bottom:14px">Modifiez les champs puis enregistrez.</div>'
             + '<label style="font-size:12px;color:#334155;font-weight:600">Nom de l\'établissement</label><input id="mod_nom" value="' + escapeHtml(r.nom || '') + '" style="' + inp + '">'
             + '<label style="font-size:12px;color:#334155;font-weight:600">Secteur</label><select id="mod_secteur" style="' + inp + '">' + opts + '</select>'
-            + '<label style="font-size:12px;color:#334155;font-weight:600">Mot de passe</label><input id="mod_pwd" value="' + escapeHtml(r.mot_de_passe || '') + '" style="' + inp + '">'
+            + '<label style="font-size:12px;color:#334155;font-weight:600">Mot de passe</label><input id="mod_pwd" value="" placeholder="(laisser vide = inchangé)" style="' + inp + '">'
             + '<label style="font-size:12px;color:#334155;font-weight:600">Date d\'expiration</label><input id="mod_exp" type="date" value="' + (r.date_expiration || '') + '" style="' + inp + '">'
             + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;margin:4px 0 14px;cursor:pointer"><input type="checkbox" id="mod_multi" ' + (r.multi_secteur ? 'checked' : '') + ' style="width:16px;height:16px"> Accès à TOUS les secteurs (compte test)</label>'
             + '<div style="display:flex;gap:8px"><button onclick="sauverModifEtab(\'' + id + '\',\'' + escapeHtml(code) + '\')" style="flex:1;background:#16a34a;color:#fff;border:none;padding:11px;border-radius:9px;font-weight:700;cursor:pointer">💾 Enregistrer</button>'
@@ -20126,7 +20126,8 @@ function testEffacerDonnees() {
         var exp = (document.getElementById('mod_exp') || {}).value || '';
         var multi = !!((document.getElementById('mod_multi') || {}).checked);
         if (!nom) { alert('Le nom ne peut pas être vide.'); return; }
-        var patch = { nom: nom, secteur: secteur, mot_de_passe: pwd, multi_secteur: multi };
+        var patch = { nom: nom, secteur: secteur, multi_secteur: multi };
+        if (pwd) patch.mot_de_passe = pwd; // ne touche au mot de passe que si un nouveau est saisi
         if (exp) patch.date_expiration = exp;
         window._supabase.from('etablissements').update(patch).eq('id', id).then(function(res){
           if (res.error) { alert('Erreur : ' + res.error.message); return; }
