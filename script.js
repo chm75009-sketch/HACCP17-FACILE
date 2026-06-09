@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v132';
+var APP_BUILD = 'v133';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -523,21 +523,24 @@ async function _restInsert(table, rows, prefer) {
 }
 
 async function sbLoginTentative(codeAcces, pwd) {
-  // Appel direct REST Supabase — contourne le bug iOS Safari du SDK (DataCloneError)
-  var url = SUPABASE_URL + '/rest/v1/etablissements?code_acces=eq.' + encodeURIComponent(codeAcces.toUpperCase()) + '&limit=1';
+  // SEC — connexion via la fonction serveur sécurisée login_etab : le mot de passe est
+  // vérifié CÔTÉ SERVEUR et la table des comptes (ni les mots de passe) n'est jamais
+  // exposée à la clé publique.
+  var url = SUPABASE_URL + '/rest/v1/rpc/login_etab';
   var response;
   try {
     response = await fetch(url, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'apikey': SUPABASE_ANON,
         'Authorization': 'Bearer ' + _sbBearer(),
         'Content-Type': 'application/json',
-      }
+      },
+      body: JSON.stringify({ p_code: String(codeAcces || ''), p_pwd: String(pwd || '') })
     });
   } catch(fetchErr) {
     var emsg = (fetchErr && fetchErr.message) ? fetchErr.message : String(fetchErr);
-    console.error('Supabase fetch erreur réseau:', emsg);
+    console.error('Supabase rpc erreur réseau:', emsg);
     return { ok: false, msg: 'Erreur réseau.', retry: true };
   }
 
@@ -546,24 +549,17 @@ async function sbLoginTentative(codeAcces, pwd) {
     return { ok: false, msg: 'Erreur serveur (' + response.status + ').', retry: true };
   }
 
-  var data;
+  var res;
   try {
-    data = await response.json();
+    res = await response.json();
   } catch(jsonErr) {
     return { ok: false, msg: 'Erreur lecture réponse serveur.', retry: true };
   }
 
-  if (!data || data.length === 0) {
-    return { ok: false, msg: 'Code d\'accès non reconnu. Vérifiez le code et réessayez.' };
+  if (!res || res.ok !== true) {
+    return { ok: false, msg: (res && res.msg) ? res.msg : 'Code d\'accès ou mot de passe incorrect.' };
   }
-  var etab = data[0];
-  // Vérification mot de passe
-  if (etab.mot_de_passe && etab.mot_de_passe !== pwd) {
-    return { ok: false, msg: 'Mot de passe incorrect.' };
-  }
-  if (!etab.actif) {
-    return { ok: false, msg: 'Cet établissement est désactivé. Contactez HACCP Pro.' };
-  }
+  var etab = res.data || {};
   if (etab.date_expiration) {
     // Expiration INCLUSIVE jusqu'à la fin de journée locale (cohérent avec le
     // compte à rebours tickEssaiCountdown et avec le message « jusqu'au … inclus »).
