@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v138';
+var APP_BUILD = 'v139';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -8210,6 +8210,15 @@ function _pageHorsControle(id) {
          id === 'page-pack-ddpp' || id === 'page-dashboard';
 }
 
+function _scrollHaut(t) {
+  try {
+    window.scrollTo(0, 0);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    var _sa = document.getElementById('scrollArea'); if (_sa) _sa.scrollTop = 0;
+    if (t && typeof t.scrollTop !== 'undefined') t.scrollTop = 0;
+  } catch(e) {}
+}
 function showPage(id, noReset) {
   // ── VERROU DE SÉCURITÉ AU POINT D'ENTRÉE ──────────────────────────────────
   // Toute page nécessitant une session est REFUSÉE si l'utilisateur est
@@ -8238,6 +8247,10 @@ function showPage(id, noReset) {
   if (target) {
     target.classList.add('active');
     target.scrollTop = 0;
+    // SCROLL GLOBAL — toujours afficher le HAUT du nouvel écran (fenêtre + conteneurs).
+    _scrollHaut(target);
+    setTimeout(function(){ _scrollHaut(target); }, 30);
+    setTimeout(function(){ _scrollHaut(target); }, 140);
   }
   // Écran de connexion : afficher « Changer de compte » si un compte est mémorisé.
   if (id === 'page-login') { try { if (typeof _majLienChangerCompte === 'function') setTimeout(_majLienChangerCompte, 60); } catch(e) {} }
@@ -19685,7 +19698,7 @@ function testEffacerDonnees() {
           if (dash) dash.style.display = 'block';
           try { var av = document.getElementById('adminVersion'); if (av) av.textContent = (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?'); } catch(e){}
           try { lsSet('haccp_admin_ok', '1'); } catch(e){}
-          try { window.scrollTo(0, 0); } catch(e){}
+          setTimeout(function(){ try { _scrollHaut(document.getElementById('adminDashboard')); } catch(e){} }, 60);
           adminTab('demandes');
         } else {
           if (err) {
