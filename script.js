@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v151';
+var APP_BUILD = 'v152';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -921,7 +921,7 @@ async function sbSauvegarderEtab(etabData) {
             ['👋', 'Hygiène &amp; Tenue Personnel'],
             ['📄', 'Contrôle Documentaire'],
             ['⚡', 'NC &amp; Actions Correctives'],
-            ['🥄', 'Plat Témoin (72h)'],
+            ['🥄', 'Plat Témoin (5 j)'],
             ['🍽️', 'Liaison Chaude/Froide'],
             ['👥', 'Registre des Convives'],
             ['📌', 'Affichage Réglementaire'],
@@ -7206,7 +7206,7 @@ var MODULES = [
   {id:'dashboard',    cat:'pilotage',  num:17, ico:'📊', name:'Consulter — Votre tableau de bord',                 color:'c18', badge:'Live',      ddpp:false, freq:'Permanent',   alert:false, fn:''},
   {id:'exports',      cat:'pilotage',  num:18, ico:'📄', name:'Générer — Votre Pack contrôle DDPP',                color:'c19', badge:'Pack DDPP', ddpp:false, freq:'Sur demande',  alert:false, fn:''},
   {id:'allergenes',   cat:'pilotage',  num:19, ico:'🥜', name:'Affichage — Allergènes de votre carte',             color:'c20', badge:'Option',    ddpp:false, freq:'Ponctuel',    alert:false, option:true, fn:'Générez la matrice des 14 allergènes de votre carte'},
-  {id:'plat-temoin',  cat:'quotidien', num:20, ico:'🍽️', name:'Plat Témoin — Conservation 72h',                   color:'c6',  badge:'DDPP',      ddpp:true,  freq:'Quotidien',   alert:false, fn:'', secteurs:['collective']},
+  {id:'plat-temoin',  cat:'quotidien', num:20, ico:'🍽️', name:'Plat Témoin — Conservation 5 jours',               color:'c6',  badge:'DDPP',      ddpp:true,  freq:'Quotidien',   alert:false, fn:'', secteurs:['collective']},
   {id:'liaison-thermique', cat:'quotidien', num:21, ico:'🌡️', name:'Liaison Chaude/Froide — Distribution',           color:'c7',  badge:'DDPP',      ddpp:true,  freq:'Quotidien',   alert:false, fn:'', secteurs:['collective']},
   {id:'registre-convives', cat:'quotidien', num:22, ico:'👥', name:'Registre des Convives & Grammages',              color:'c8',  badge:'',          ddpp:false, freq:'Quotidien',   alert:false, fn:'', secteurs:['collective']},
   {id:'analyses-micro',    cat:'periodique', num:23, ico:'🔬', name:'Analyses Microbiologiques',                     color:'c9',  badge:'',          ddpp:false, freq:'Mensuel',     alert:false, fn:'', secteurs:['collective']},
@@ -9417,8 +9417,8 @@ var CATALOGUE_NC_DEFS = [
 
   /* ── PLAT TÉMOIN / ANALYSES MICRO (restauration collective) ── */
   { labels:['Destruction effectuée'],
-    norme:'Plat témoin conservé 72 h puis détruit avec traçabilité',
-    ncs:['Destruction non tracée','Conservation < 72 h','Plat témoin manquant'],
+    norme:'Plat témoin conservé 5 jours puis détruit avec traçabilité',
+    ncs:['Destruction non tracée','Conservation < 5 jours','Plat témoin manquant'],
     actions:['Traçabilité de destruction complétée','Prélèvement systématique rappelé au personnel'] },
   { labels:['Résultat global'],
     norme:'Résultats microbiologiques conformes aux critères',
