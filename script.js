@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v148';
+var APP_BUILD = 'v149';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -6657,11 +6657,11 @@ function clearSignature() {
 function collecterDonnees() {
   var data = {
     timestamp: getNowStr(),
-    fournisseur: document.getElementById('r_fournisseur').value || 'Non renseigné',
+    fournisseur: (document.getElementById('r_fournisseur') || {}).value || 'Non renseigné',
     transporteur: document.getElementById('r_transporteur') ? document.getElementById('r_transporteur').value || '' : '',
-    bl: document.getElementById('r_bl').value || 'Non renseigné',
-    obs: document.getElementById('r_obs').value || '',
-    signataire: (document.getElementById('sig_prenom').value + ' ' + document.getElementById('sig_nom').value).trim(),
+    bl: (document.getElementById('r_bl') || {}).value || 'Non renseigné',
+    obs: (document.getElementById('r_obs') || {}).value || '',
+    signataire: (((document.getElementById('sig_prenom') || {}).value || '') + ' ' + ((document.getElementById('sig_nom') || {}).value || '')).trim(),
     produits: []
   };
   // V83 — Chercher TOUS les produits, peu importe leur conteneur
