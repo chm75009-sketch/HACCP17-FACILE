@@ -13,6 +13,7 @@ node run_tests4.js   # DLC étiquettes, huiles, refroidissement, cloisonnement
 node run_tests5.js   # Hors-ligne / anti-perte : éviction, réconciliation cloud
 node run_tests6.js   # Signatures obligatoires + propagation payload cloud
 node run_tests7.js   # Pack DDPP / rapports par période (sélection des contrôles)
+node run_tests8.js   # Traçabilité (lots/fournisseurs) + gestion d'équipe (anti-écrasement)
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -21,4 +22,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 377 scénarios, 0 échec.
+Couverture actuelle : 409 scénarios, 0 échec.
