@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v147';
+var APP_BUILD = 'v148';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -19747,6 +19747,14 @@ function testEffacerDonnees() {
         });
       }
 
+      // Valeur destinée à être placée à la fois DANS une chaîne JS (apostrophes)
+      // ET dans un attribut HTML onclick="...". On échappe d'abord pour le JS
+      // (\\ et '), puis pour le HTML. Indispensable pour les noms contenant une
+      // apostrophe (« Chez L'Ami »), sinon le onclick casse / ouvre une injection.
+      function attrJs(s) {
+        return escapeHtml(String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+      }
+
       function loadAdminDemandes() {
         var c = document.getElementById('adminContent');
         if (!c || !window._supabase) { return; }
@@ -19873,7 +19881,7 @@ function testEffacerDonnees() {
             }
             html += '<div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">';
             html += '<button onclick="modifierClient(\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(59,130,246,0.12);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);padding:7px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">✏️ Modifier</button>';
-            html += '<button onclick="supprimerClient(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\',\'' + escapeHtml(r.etablissement) + '\')" style="background:rgba(220,38,38,0.12);color:#fca5a5;border:1px solid rgba(220,38,38,0.3);padding:7px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">🗑️ Supprimer</button>';
+            html += '<button onclick="supprimerClient(\'' + attrJs(r.id) + '\',\'' + attrJs(r.code_acces) + '\',\'' + attrJs(r.etablissement) + '\')" style="background:rgba(220,38,38,0.12);color:#fca5a5;border:1px solid rgba(220,38,38,0.3);padding:7px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">🗑️ Supprimer</button>';
             html += '</div>';
             html += '</div>';
           });
