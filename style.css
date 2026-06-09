@@ -18,6 +18,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--dark);min-
 .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white;cursor:pointer;border:2px solid rgba(255,255,255,.15)}
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .page{display:none}
+.page:not(.active){display:none!important}
 .page.active{display:block;animation:fadeUp .28s cubic-bezier(.16,1,.3,1);position:relative;top:0}
 .onb-secteur-btn{width:100%;display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:14px;color:white;cursor:pointer;text-align:left;font-family:'Outfit',sans-serif;transition:background .15s,border-color .15s}
 .onb-secteur-btn:hover,.onb-secteur-btn:active{background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.5)}
