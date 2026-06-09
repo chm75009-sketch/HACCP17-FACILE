@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v124';
+var APP_BUILD = 'v125';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -732,6 +732,23 @@ async function sbSauvegarderEtab(etabData) {
           });
         }
       } catch(eAuthListen) {}
+      // SEC-1 — AMORCER le jeton tout de suite (lecture de la session persistée),
+      // pour que les premières lectures cloud présentent bien la session sécurisée
+      // (sinon elles partiraient en anonyme → invisibles si le cloisonnement est actif).
+      try {
+        if (window._supabase && window._supabase.auth && window._supabase.auth.getSession) {
+          window._supabase.auth.getSession().then(function(res){
+            try {
+              var sess = res && res.data && res.data.session;
+              if (sess && sess.access_token) {
+                _SB_ACCESS_TOKEN = sess.access_token;
+                var p = JSON.parse(atob(_SB_ACCESS_TOKEN.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+                _SB_AUTH_ETAB = (p.app_metadata && p.app_metadata.establishment_id) || _SB_AUTH_ETAB;
+              }
+            } catch(e){}
+          }).catch(function(){});
+        }
+      } catch(ePrime) {}
       if (window.emailjs && window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY) {
         window.emailjs.init(window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY);
         console.log('[V95] EmailJS initialisé');
@@ -14429,9 +14446,23 @@ function _installerFiletSignaturePhotos() {
   }, true); // capture : l'événement 'error' des <img> ne remonte pas (ne bouillonne pas)
 }
 
+// SEC-1 — attend que le jeton de session soit prêt (max ~3 s) avant de lire le cloud,
+// pour ne JAMAIS lire en anonyme (sinon données invisibles sous cloisonnement).
+function _attendreJeton(maxMs) {
+  return new Promise(function(resolve){
+    var t0 = Date.now();
+    (function check(){
+      if (typeof _SB_ACCESS_TOKEN !== 'undefined' && _SB_ACCESS_TOKEN) return resolve(true);
+      if (Date.now() - t0 > (maxMs || 3000)) return resolve(false);
+      setTimeout(check, 120);
+    })();
+  });
+}
+
 async function chargerControlesCloudCache() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return null;
+    try { if (String(ETAB_ID).indexOf('local-') !== 0) await _attendreJeton(3000); } catch(eAtt) {}
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return null;
     // PDF-3 — pagination : on ne tronque plus à 1000. On récupère TOUS les contrôles
     // par pages successives (sinon les plus anciens disparaissent des rapports/Pack
