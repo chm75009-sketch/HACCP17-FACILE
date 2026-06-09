@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v145';
+var APP_BUILD = 'v146';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -19799,24 +19799,50 @@ function testEffacerDonnees() {
         });
       }
 
+      function _formCreerClient() {
+        var inp = 'width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif;box-sizing:border-box;margin-bottom:8px';
+        return '<div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:12px;padding:16px;margin-bottom:18px">' +
+          '<div style="font-size:14px;font-weight:800;color:#4ade80;margin-bottom:12px">➕ Créer un compte client (sans demande)</div>' +
+          '<input id="nc_etab" placeholder="Nom de l\'établissement *" style="' + inp + '">' +
+          '<input id="nc_resp" placeholder="Nom et prénom du contact" style="' + inp + '">' +
+          '<input id="nc_tel" placeholder="Téléphone" style="' + inp + '">' +
+          '<input id="nc_email" placeholder="E-mail *" style="' + inp + '">' +
+          '<input id="nc_adresse" placeholder="Adresse" style="' + inp + '">' +
+          '<select id="nc_secteur" style="' + inp + '">' +
+            '<option value="">— Secteur d\'activité * —</option>' +
+            '<option value="resto">Restauration traditionnelle</option>' +
+            '<option value="bp">Boulangerie &amp; Pâtisserie</option>' +
+            '<option value="rapide">Restauration rapide</option>' +
+            '<option value="boucherie">Boucherie &amp; Charcuterie</option>' +
+            '<option value="collective">Restauration collective</option>' +
+          '</select>' +
+          '<div style="display:flex;align-items:center;gap:10px;margin:4px 0 12px"><span style="font-size:13px;color:rgba(255,255,255,0.8)">Abonnement :</span>' +
+          '<select id="nc_duree" style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif">' +
+            '<option value="12" selected>1 an</option><option value="24">2 ans</option><option value="6">6 mois</option><option value="3">3 mois</option>' +
+          '</select></div>' +
+          '<button id="btnCreerClient" onclick="creerClientDirect()" style="width:100%;background:linear-gradient(135deg,#4ade80,#22c55e);color:#0a0e1a;border:none;padding:12px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;font-family:Outfit,sans-serif">👥 Créer le compte client</button>' +
+          '</div>';
+      }
+
       function loadAdminClients() {
         var c = document.getElementById('adminContent');
         if (!c || !window._supabase) return;
         c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Chargement…</div>';
 
         window._supabase.from('comptes_clients').select('*').order('date_debut', { ascending: false }).then(function(res) {
-          if (res.error) { c.innerHTML = '<div style="color:#fca5a5;padding:20px">Erreur: ' + escapeHtml(res.error.message) + '</div>'; return; }
+          if (res.error) { c.innerHTML = _formCreerClient() + '<div style="color:#fca5a5;padding:20px">Erreur: ' + escapeHtml(res.error.message) + '</div>'; return; }
           var rows = res.data || [];
           var actifs = rows.filter(function(r) { return r.actif; });
           var cnt = document.getElementById('cntClients');
           if (cnt) cnt.textContent = actifs.length;
 
           if (rows.length === 0) {
-            c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Aucun client pour l\'instant.</div>';
+            c.innerHTML = _formCreerClient() + '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Aucun client pour l\'instant.</div>';
             return;
           }
 
-          var html = '';
+          var html = _formCreerClient();
+          html += '<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:10px">' + rows.length + ' client(s)</div>';
           rows.forEach(function(r) {
             var statutColor = r.actif ? '#4ade80' : '#dc2626';
             var statutLabel = r.actif ? '✅ ACTIF' : '⛔ DÉSACTIVÉ';
@@ -19839,6 +19865,10 @@ function testEffacerDonnees() {
               if (r.motif_desactivation) html += '<div style="font-size:11px;color:rgba(255,255,255,0.55);font-style:italic">Motif: ' + escapeHtml(r.motif_desactivation) + '</div>';
               html += '<button onclick="reactiverClient(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(74,222,128,0.12);color:#4ade80;border:1px solid rgba(74,222,128,0.3);padding:8px 16px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;margin-top:6px">✅ Réactiver</button>';
             }
+            html += '<div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">';
+            html += '<button onclick="modifierClient(\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(59,130,246,0.12);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);padding:7px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">✏️ Modifier</button>';
+            html += '<button onclick="supprimerClient(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\',\'' + escapeHtml(r.etablissement) + '\')" style="background:rgba(220,38,38,0.12);color:#fca5a5;border:1px solid rgba(220,38,38,0.3);padding:7px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">🗑️ Supprimer</button>';
+            html += '</div>';
             html += '</div>';
           });
           c.innerHTML = html;
@@ -20401,6 +20431,138 @@ function testEffacerDonnees() {
           }]).then(function(){});
           alert('✅ Abonnement prolongé.\nNouvelle date d\'expiration : ' + new Date(nouvelleExp).toLocaleDateString('fr-FR'));
           loadAdminClients();
+        });
+      };
+
+      // ── Créer un compte client directement (sans passer par une demande) ──
+      // Crée la ligne dans comptes_clients (fiche) ET dans etablissements (accès),
+      // avec le SECTEUR choisi et une date d'expiration = aujourd'hui + N mois.
+      window.creerClientDirect = function() {
+        if (!window._supabase) { alert('Connexion \u00e0 la base impossible.'); return; }
+        var etab = ((document.getElementById('nc_etab')||{}).value||'').trim();
+        var resp = ((document.getElementById('nc_resp')||{}).value||'').trim();
+        var tel  = ((document.getElementById('nc_tel')||{}).value||'').trim();
+        var mail = ((document.getElementById('nc_email')||{}).value||'').trim();
+        var adr  = ((document.getElementById('nc_adresse')||{}).value||'').trim();
+        var sect = ((document.getElementById('nc_secteur')||{}).value||'').trim();
+        var mois = parseInt((document.getElementById('nc_duree')||{}).value||'12', 10);
+        if (!etab || !mail) { alert('Merci de renseigner au minimum :\n\u2022 Nom de l\'\u00e9tablissement\n\u2022 E-mail'); return; }
+        if (!sect) { alert('Merci de choisir le SECTEUR d\'activit\u00e9.'); return; }
+
+        var code = genererCodeAcces();
+        var pwd = genererMotDePasse();
+        var dateDebut = new Date().toISOString().slice(0,10);
+        var d = new Date(); d.setMonth(d.getMonth() + (mois>0?mois:12));
+        var dateExp = d.toISOString().slice(0,10);
+
+        var btn = document.getElementById('btnCreerClient');
+        if (btn) { btn.disabled = true; btn.textContent = '\u23f3 Cr\u00e9ation\u2026'; }
+
+        var compte = {
+          code_acces: code, mot_de_passe: pwd, etablissement: etab, email: mail,
+          formule: 'Standard', engagement: (mois>=12?'Annuel':'Mensuel'),
+          date_debut: dateDebut, actif: true
+        };
+        var etabBase = {
+          code_acces: code, mot_de_passe: pwd, nom: etab, secteur: sect,
+          adresse: adr, actif: true, date_debut: dateDebut, date_expiration: dateExp
+        };
+        var etabRow = Object.assign({}, etabBase, { responsable: resp, telephone: tel, email: mail });
+
+        function finir() {
+          window._supabase.from('historique_admin').insert([{
+            action: 'Cr\u00e9ation client direct',
+            code_concerne: code,
+            motif: etab + ' \u2014 ' + mail + ' \u2014 exp. ' + dateExp
+          }]).then(function(){});
+          if (btn) { btn.disabled = false; btn.textContent = '\ud83d\udc65 Cr\u00e9er le compte client'; }
+          alert('\u2705 Client cr\u00e9\u00e9 !\n\n\u00c9tablissement : ' + etab + '\nCode d\'acc\u00e8s : ' + code + '\nMot de passe : ' + pwd + '\nExpire le : ' + new Date(dateExp).toLocaleDateString('fr-FR') + '\n\nCommuniquez le code et le mot de passe au client.');
+          loadAdminClients();
+        }
+
+        // 1) Accès (etablissements) — indispensable pour la connexion
+        window._supabase.from('etablissements').insert([etabRow]).then(function(re) {
+          if (re.error) {
+            var m = (re.error && re.error.message) || '';
+            if (/column|responsable|telephone|email|schema cache|PGRST/i.test(m)) {
+              window._supabase.from('etablissements').insert([etabBase]).then(function(re2){
+                if (re2.error) { alert('Erreur cr\u00e9ation acc\u00e8s : ' + re2.error.message); if (btn){btn.disabled=false;btn.textContent='\ud83d\udc65 Cr\u00e9er le compte client';} return; }
+                window._supabase.from('comptes_clients').insert([compte]).then(function(rc){
+                  if (rc.error) { alert('Compte cr\u00e9\u00e9 pour la connexion mais erreur fiche : ' + rc.error.message); }
+                  finir();
+                });
+              });
+              return;
+            }
+            alert('Erreur cr\u00e9ation acc\u00e8s : ' + m);
+            if (btn) { btn.disabled = false; btn.textContent = '\ud83d\udc65 Cr\u00e9er le compte client'; }
+            return;
+          }
+          // 2) Fiche (comptes_clients) — pour l'affichage dans l'onglet Clients
+          window._supabase.from('comptes_clients').insert([compte]).then(function(rc){
+            if (rc.error) { alert('Compte cr\u00e9\u00e9 pour la connexion mais erreur fiche : ' + rc.error.message); }
+            finir();
+          });
+        });
+      };
+
+      // ── Modifier un client : nom + secteur (+ mot de passe optionnel). ──
+      // On lit/écrit dans etablissements par code_acces (jamais le mot de passe
+      // existant n'est relu), et on synchronise le nom dans comptes_clients.
+      window.modifierClient = function(code) {
+        if (!window._supabase) return;
+        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,date_expiration,actif').eq('code_acces', code).limit(1).then(function(res){
+          if (res.error || !res.data || !res.data.length) { alert('Fiche d\'acc\u00e8s introuvable pour ' + code + (res.error ? ' (' + res.error.message + ')' : '')); return; }
+          var r = res.data[0];
+          var nom = prompt('Nom de l\'\u00e9tablissement :', r.nom || '');
+          if (nom === null) return;
+          nom = nom.trim();
+          if (!nom) { alert('Le nom ne peut pas \u00eatre vide.'); return; }
+          var secActuel = r.secteur || '';
+          var sect = prompt('Secteur (resto, bp, rapide, boucherie, collective) :', secActuel);
+          if (sect === null) return;
+          sect = sect.trim().toLowerCase();
+          var ok = ['resto','bp','rapide','boucherie','collective'];
+          if (ok.indexOf(sect) === -1) { alert('Secteur invalide. Valeurs possibles : ' + ok.join(', ')); return; }
+          var npwd = prompt('Nouveau mot de passe ? (laisser vide = inchang\u00e9)', '');
+          if (npwd === null) return;
+          npwd = npwd.trim();
+
+          var patch = { nom: nom, secteur: sect };
+          if (npwd) patch.mot_de_passe = npwd;
+          window._supabase.from('etablissements').update(patch).eq('code_acces', code).then(function(u){
+            if (u.error) { alert('Erreur modification : ' + u.error.message); return; }
+            // Synchroniser le nom affiché dans la fiche
+            window._supabase.from('comptes_clients').update({ etablissement: nom }).eq('code_acces', code).then(function(){});
+            window._supabase.from('historique_admin').insert([{
+              action: 'Modification client', code_concerne: code,
+              motif: 'Nom : ' + nom + ' \u2014 secteur : ' + sect + (npwd ? ' \u2014 mot de passe chang\u00e9' : '')
+            }]).then(function(){});
+            alert('\u2705 Client modifi\u00e9.' + (npwd ? '\n\nNouveau mot de passe : ' + npwd : ''));
+            loadAdminClients();
+          });
+        });
+      };
+
+      // ── Supprimer un client : retire la fiche ET l'accès (les deux tables). ──
+      // Les CONTRÔLES du client ne sont jamais touchés (autre table) : aucune
+      // donnée de relevé n'est perdue par cette action.
+      window.supprimerClient = function(id, code, nom) {
+        if (!window._supabase) return;
+        if (!confirm('Supprimer d\u00e9finitivement le client \u00ab ' + (nom || code) + ' \u00bb ?\n\nCela supprime sa fiche et son acc\u00e8s (il ne pourra plus se connecter).\nSes contr\u00f4les d\u00e9j\u00e0 enregistr\u00e9s ne sont PAS supprim\u00e9s.')) return;
+        if (!confirm('Confirmez une seconde fois : suppression d\u00e9finitive de ' + code + ' ?')) return;
+        // 1) Fiche
+        window._supabase.from('comptes_clients').delete().eq('id', id).then(function(rc){
+          if (rc.error) { alert('Erreur suppression fiche : ' + rc.error.message); return; }
+          // 2) Accès (connexion)
+          window._supabase.from('etablissements').delete().eq('code_acces', code).then(function(re){
+            if (re.error) { console.warn('Suppression acc\u00e8s :', re.error.message); }
+            window._supabase.from('historique_admin').insert([{
+              action: 'Suppression client', code_concerne: code, motif: (nom || '') + ' \u2014 fiche + acc\u00e8s supprim\u00e9s'
+            }]).then(function(){});
+            alert('\u2705 Client supprim\u00e9.');
+            loadAdminClients();
+          });
         });
       };
 
