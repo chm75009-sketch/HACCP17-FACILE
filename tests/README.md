@@ -24,6 +24,7 @@ node run_tests15.js  # Config enceintes (anti-écrasement) + validation inscript
 node run_tests16.js  # Virgule décimale FR (3,5) + catalogues déchets (Loi AGEC)
 node run_tests17.js  # Catalogue des modules + contenu du PDF de réception
 node run_tests18.js  # PDF légaux huiles de friture + refroidissement rapide
+node run_tests19.js  # Robustesse / fuzzing : entrées hostiles sur les contrôles
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -32,4 +33,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 656 scénarios, 0 échec.
+Couverture actuelle : 674 scénarios, 0 échec.
