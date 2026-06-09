@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v134';
+var APP_BUILD = 'v135';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -19665,6 +19665,7 @@ function testEffacerDonnees() {
           var dash = document.getElementById('adminDashboard');
           if (box) box.style.display = 'none';
           if (dash) dash.style.display = 'block';
+          try { var av = document.getElementById('adminVersion'); if (av) av.textContent = (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?'); } catch(e){}
           adminTab('demandes');
         } else {
           if (err) {
