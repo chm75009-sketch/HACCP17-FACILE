@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v120';
+var APP_BUILD = 'v121';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -19912,6 +19912,15 @@ function testEffacerDonnees() {
             } else {
               html += '<div style="font-size:11px;color:rgba(255,255,255,0.4);font-style:italic;margin-bottom:10px">Contact non renseigné sur la fiche (voir Historique admin).</div>';
             }
+            html += (function(){
+              var dc = r.derniere_connexion;
+              if (!dc) return '<div style="font-size:11px;color:#fca5a5;margin-bottom:8px;font-weight:700">🔴 Jamais connecté</div>';
+              var d = new Date(dc); if (isNaN(d.getTime())) return '';
+              var j = Math.floor((Date.now()-d.getTime())/86400000);
+              var col = j<=3?'#4ade80':(j<=14?'#fbbf24':'#fca5a5');
+              var txt = j===0?"aujourd'hui":(j===1?'hier':'il y a '+j+' jours');
+              return '<div style="font-size:11px;color:'+col+';margin-bottom:8px">🕒 Dernière connexion : '+txt+' ('+d.toLocaleDateString('fr-FR')+')</div>';
+            })();
             // Actions : suspendre / réactiver + prolonger
             var bs = 'border:none;padding:7px 13px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;margin-right:6px;margin-top:4px';
             html += '<div>';
@@ -19921,6 +19930,7 @@ function testEffacerDonnees() {
               html += '<button onclick="reactiverEssai(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(74,222,128,0.15);color:#4ade80;' + bs + '">✅ Réactiver</button>';
             }
             html += '<button onclick="prolongerEssai(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\',\'' + (r.date_expiration || '') + '\')" style="background:rgba(59,130,246,0.15);color:#93c5fd;' + bs + '">➕ Prolonger</button>';
+            html += '<button onclick="supprimerEtab(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(127,29,29,0.3);color:#fca5a5;' + bs + '">🗑️ Supprimer</button>';
             html += '</div>';
             html += '</div>';
           });
@@ -19970,6 +19980,19 @@ function testEffacerDonnees() {
             motif: 'Nouvelle expiration : ' + nouvelleExp
           }]).then(function(){});
           alert('✅ Essai prolongé.\nNouvelle date d\'expiration : ' + new Date(nouvelleExp).toLocaleDateString('fr-FR'));
+          loadAdminEssais();
+        });
+      };
+
+      // — SUPPRESSION DÉFINITIVE d'un compte (essai ou client) —
+      window.supprimerEtab = function(id, code) {
+        if (!window._supabase) return;
+        if (!confirm('⚠️ SUPPRIMER DÉFINITIVEMENT le compte ' + code + ' ?\n\nAction IRRÉVERSIBLE : le compte et son accès sont effacés.\n(Les contrôles déjà enregistrés ne sont pas supprimés ici.)')) return;
+        if (!confirm('Dernière confirmation : supprimer ' + code + ' pour de bon ?')) return;
+        window._supabase.from('etablissements').delete().eq('id', id).then(function(res) {
+          if (res.error) { alert('Erreur suppression : ' + res.error.message); return; }
+          try { window._supabase.from('historique_admin').insert([{ action: 'Suppression compte', code_concerne: code }]).then(function(){}); } catch(e){}
+          alert('🗑️ Compte ' + code + ' supprimé.');
           loadAdminEssais();
         });
       };
