@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v119';
+var APP_BUILD = 'v120';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -549,6 +549,15 @@ async function sbLoginTentative(codeAcces, pwd) {
       return { ok: false, msg: 'Votre abonnement a expiré le ' + exp.toLocaleDateString('fr-FR') + '. Contactez HACCP Pro pour le renouveler.' };
     }
   }
+  // SUIVI ADMIN — horodate la dernière connexion réussie (fire&forget, n'impacte
+  // jamais la connexion). Permet à l'admin de voir qui utilise / n'utilise pas.
+  try {
+    fetch(SUPABASE_URL + '/rest/v1/etablissements?code_acces=eq.' + encodeURIComponent(codeAcces.toUpperCase()), {
+      method: 'PATCH',
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ derniere_connexion: new Date().toISOString() })
+    }).catch(function(){});
+  } catch(eDc) {}
   return { ok: true, data: etab };
 }
 
