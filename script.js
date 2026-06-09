@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v122';
+var APP_BUILD = 'v123';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -19938,6 +19938,7 @@ function testEffacerDonnees() {
               html += '<button onclick="reactiverEssai(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(74,222,128,0.15);color:#4ade80;' + bs + '">✅ Réactiver</button>';
             }
             html += '<button onclick="prolongerEssai(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\',\'' + (r.date_expiration || '') + '\')" style="background:rgba(59,130,246,0.15);color:#93c5fd;' + bs + '">➕ Prolonger</button>';
+            html += '<button onclick="modifierEtab(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(168,85,247,0.18);color:#d8b4fe;' + bs + '">✏️ Modifier</button>';
             html += '<button onclick="supprimerEtab(\'' + r.id + '\',\'' + escapeHtml(r.code_acces) + '\')" style="background:rgba(127,29,29,0.3);color:#fca5a5;' + bs + '">🗑️ Supprimer</button>';
             html += '</div>';
             html += '</div>';
@@ -20001,6 +20002,52 @@ function testEffacerDonnees() {
           if (res.error) { alert('Erreur suppression : ' + res.error.message); return; }
           try { window._supabase.from('historique_admin').insert([{ action: 'Suppression compte', code_concerne: code }]).then(function(){}); } catch(e){}
           alert('🗑️ Compte ' + code + ' supprimé.');
+          loadAdminEssais();
+        });
+      };
+
+      // — MODIFICATION d'un compte (nom, secteur, mot de passe, expiration, verrouillage) —
+      window.modifierEtab = function(id, code) {
+        if (!window._supabase) return;
+        window._supabase.from('etablissements').select('*').eq('id', id).limit(1).then(function(res){
+          if (res.error || !res.data || !res.data[0]) { alert('Impossible de charger le compte.'); return; }
+          var r = res.data[0];
+          var ex = document.getElementById('modifEtabOverlay'); if (ex) ex.remove();
+          var ov = document.createElement('div');
+          ov.id = 'modifEtabOverlay';
+          ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,26,.7);z-index:99999;overflow:auto;padding:16px;box-sizing:border-box';
+          var SEC = [['resto','Restauration'],['bp','Boulangerie / Pâtisserie'],['rapide','Restauration rapide'],['boucherie','Boucherie'],['collective','Restauration collective']];
+          var opts = SEC.map(function(o){ return '<option value="'+o[0]+'"'+(r.secteur===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+          var inp = 'width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;margin-bottom:10px';
+          ov.innerHTML = '<div style="max-width:460px;margin:28px auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.4)">'
+            + '<h3 style="margin:0 0 2px;color:#0f172a">✏️ Modifier ' + escapeHtml(code) + '</h3>'
+            + '<div style="font-size:12px;color:#64748b;margin-bottom:14px">Modifiez les champs puis enregistrez.</div>'
+            + '<label style="font-size:12px;color:#334155;font-weight:600">Nom de l\'établissement</label><input id="mod_nom" value="' + escapeHtml(r.nom || '') + '" style="' + inp + '">'
+            + '<label style="font-size:12px;color:#334155;font-weight:600">Secteur</label><select id="mod_secteur" style="' + inp + '">' + opts + '</select>'
+            + '<label style="font-size:12px;color:#334155;font-weight:600">Mot de passe</label><input id="mod_pwd" value="' + escapeHtml(r.mot_de_passe || '') + '" style="' + inp + '">'
+            + '<label style="font-size:12px;color:#334155;font-weight:600">Date d\'expiration</label><input id="mod_exp" type="date" value="' + (r.date_expiration || '') + '" style="' + inp + '">'
+            + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;margin:4px 0 14px;cursor:pointer"><input type="checkbox" id="mod_multi" ' + (r.multi_secteur ? 'checked' : '') + ' style="width:16px;height:16px"> Accès à TOUS les secteurs (compte test)</label>'
+            + '<div style="display:flex;gap:8px"><button onclick="sauverModifEtab(\'' + id + '\',\'' + escapeHtml(code) + '\')" style="flex:1;background:#16a34a;color:#fff;border:none;padding:11px;border-radius:9px;font-weight:700;cursor:pointer">💾 Enregistrer</button>'
+            + '<button onclick="document.getElementById(\'modifEtabOverlay\').remove()" style="flex:1;background:#e2e8f0;color:#0f172a;border:none;padding:11px;border-radius:9px;cursor:pointer">Annuler</button></div>'
+            + '</div>';
+          document.body.appendChild(ov);
+        });
+      };
+      window.sauverModifEtab = function(id, code) {
+        if (!window._supabase) return;
+        var nom = ((document.getElementById('mod_nom') || {}).value || '').trim();
+        var secteur = (document.getElementById('mod_secteur') || {}).value || 'resto';
+        var pwd = ((document.getElementById('mod_pwd') || {}).value || '').trim();
+        var exp = (document.getElementById('mod_exp') || {}).value || '';
+        var multi = !!((document.getElementById('mod_multi') || {}).checked);
+        if (!nom) { alert('Le nom ne peut pas être vide.'); return; }
+        var patch = { nom: nom, secteur: secteur, mot_de_passe: pwd, multi_secteur: multi };
+        if (exp) patch.date_expiration = exp;
+        window._supabase.from('etablissements').update(patch).eq('id', id).then(function(res){
+          if (res.error) { alert('Erreur : ' + res.error.message); return; }
+          try { window._supabase.from('historique_admin').insert([{ action: 'Modification compte', code_concerne: code }]).then(function(){}); } catch(e){}
+          var ov = document.getElementById('modifEtabOverlay'); if (ov) ov.remove();
+          alert('✅ Compte ' + code + ' modifié.');
           loadAdminEssais();
         });
       };
