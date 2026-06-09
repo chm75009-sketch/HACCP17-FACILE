@@ -10,6 +10,8 @@ node run_tests.js    # Gestion clients (admin) : créer/modifier/supprimer/séle
 node run_tests2.js   # Secteurs, températures, photos, dictée vocale
 node run_tests3.js   # Catalogues, fmtTemp, actions correctives, impressions
 node run_tests4.js   # DLC étiquettes, huiles, refroidissement, cloisonnement
+node run_tests5.js   # Hors-ligne / anti-perte : éviction, réconciliation cloud
+node run_tests6.js   # Signatures obligatoires + propagation payload cloud
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -18,4 +20,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : ~300 scénarios, 0 échec.
+Couverture actuelle : 354 scénarios, 0 échec.
