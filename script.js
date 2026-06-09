@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v150';
+var APP_BUILD = 'v151';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -1724,7 +1724,10 @@ window.validerEssaiUniversel = async function() {
       reset(); return;
     }
     // 1 essai par e-mail (l'e-mail est rangé dans adresse : "... | mail")
-    var dejaVu = rows.some(function(r){ return (r.adresse||'').toLowerCase().indexOf('|' + mail) > -1; });
+    // L'e-mail est rangé entre des séparateurs « | » AVEC espaces (« ... | mail | ... »).
+    // On normalise les espaces autour des « | » avant la recherche, sinon le contrôle
+    // « 1 essai par e-mail » ne matchait jamais (il cherchait « |mail » sans espace).
+    var dejaVu = rows.some(function(r){ return (r.adresse||'').toLowerCase().replace(/\s*\|\s*/g, '|').indexOf('|' + mail) > -1; });
     if (dejaVu) {
       show('Un essai a déjà été activé avec cet e-mail.');
       reset(); return;
