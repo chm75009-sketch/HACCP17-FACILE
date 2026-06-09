@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v123';
+var APP_BUILD = 'v124';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1911,7 +1911,10 @@ async function connexion() {
   ETAB_ID = d.id;
   // SEC — ouvrir la session Auth en parallèle (additif, non bloquant). Permettra
   // le cloisonnement RLS une fois activé. N'échoue jamais la connexion existante.
-  try { if (!result.local && !result.offline) _ouvrirSessionAuth(code, pwd); } catch(eAuth) {}
+  // SEC-1 Étape A — ouverture de session ATTENDUE : le jeton est prêt AVANT les
+  // premières lectures cloud (prérequis du cloisonnement). Si l'Auth échoue, on
+  // n'empêche pas la connexion (repli inchangé).
+  try { if (!result.local && !result.offline) await _ouvrirSessionAuth(code, pwd); } catch(eAuth) {}
   SECTEUR_ACTIF = d.secteur || 'resto';
   ETAB.nom = d.nom || '';
   ETAB.siret = d.siret || '';
