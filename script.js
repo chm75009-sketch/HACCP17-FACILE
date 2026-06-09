@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v118';
+var APP_BUILD = 'v119';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -1981,7 +1981,7 @@ async function connexion() {
   }
   // Mémoriser l'état de verrouillage pour pouvoir le restaurer à l'identique lors
   // d'une reprise de session après mise à jour (voir initApp).
-  try { lsSet('haccp_client_mode', CLIENT_MODE ? '1' : '0'); } catch(e) {}
+  try { lsSet('haccp_client_mode', CLIENT_MODE ? '1' : '0'); try { lsSet('haccp_multi_secteur', (d && d.multi_secteur === true) ? '1' : '0'); } catch(eMs){} } catch(e) {}
   // V101 — Appliquer le grisage immédiatement après l'affichage du choix secteur
   setTimeout(appliquerClientMode, 50);
   var sa=document.getElementById('scrollArea'); if(sa) sa.scrollTop=0; window.scrollTo(0,0);
@@ -3523,7 +3523,7 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
         ETAB = JSON.parse(_estr);
         ETAB_ID = _eid;
         SECTEUR_ACTIF = (ETAB && ETAB.secteur) || lsGet('haccp_secteur_actif_' + _eid) || 'resto';
-        CLIENT_MODE = (lsGet('haccp_client_mode') === '1');
+        CLIENT_MODE = (lsGet('haccp_client_mode') === '1'); if (lsGet('haccp_multi_secteur') === '1' || String(_eid).indexOf('local-') === 0) CLIENT_MODE = false;
         SB_READY = true;
         if (typeof MODE_LOCAL !== 'undefined' && String(_eid).indexOf('local-') === 0) MODE_LOCAL = true;
         var _expert = (lsGet('haccp_mode') === 'expert');
