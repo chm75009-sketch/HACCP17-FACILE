@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v136';
+var APP_BUILD = 'v137';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -3559,6 +3559,24 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
 (function initApp() {
   try { _trace('initApp — session=' + (!!sessionRead()) + ' marker=' + lsGet('haccp_deconnecte') + ' trialPwd=' + (!!lsGet('haccp_trial_pwd'))); } catch(e){}
   try { _installerFiletSignaturePhotos(); } catch(e){} // SEC-3 — filet de re-signature des photos
+  // Reprise de la session ADMIN : si l'admin était connecté, on revient DIRECTEMENT dans
+  // son tableau de bord (fini la page d'accueil + re-scroll + re-saisie du mot de passe).
+  try {
+    if (lsGet('haccp_admin_ok') === '1' && sessionStorage.getItem('haccp_maj_reprise') !== '1') {
+      if (typeof showPage === 'function') showPage('page-admin');
+      setTimeout(function(){
+        try {
+          var _b = document.getElementById('adminLoginBox'); var _d = document.getElementById('adminDashboard');
+          if (_b) _b.style.display = 'none';
+          if (_d) _d.style.display = 'block';
+          var _av = document.getElementById('adminVersion'); if (_av) _av.textContent = (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?');
+          if (typeof adminTab === 'function') adminTab('demandes');
+          window.scrollTo(0, 0);
+        } catch(e){}
+      }, 120);
+      return;
+    }
+  } catch(e){}
   // V89 — Au démarrage, afficher la page de présentation (commerciale).
   // Le bouton "Se connecter" mène vers page-login.
   // Si une session existe, on saute la présentation et on va au login (avec champs pré-remplis).
@@ -19666,6 +19684,8 @@ function testEffacerDonnees() {
           if (box) box.style.display = 'none';
           if (dash) dash.style.display = 'block';
           try { var av = document.getElementById('adminVersion'); if (av) av.textContent = (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?'); } catch(e){}
+          try { lsSet('haccp_admin_ok', '1'); } catch(e){}
+          try { window.scrollTo(0, 0); } catch(e){}
           adminTab('demandes');
         } else {
           if (err) {
@@ -19682,6 +19702,7 @@ function testEffacerDonnees() {
         if (box) box.style.display = 'block';
         if (dash) dash.style.display = 'none';
         if (pwd) pwd.value = '';
+        try { lsRemove('haccp_admin_ok'); } catch(e){}
         showPage('page-presentation');
       };
 
