@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v149';
+var APP_BUILD = 'v150';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -8776,12 +8776,15 @@ function seuilEnceinteDepuisLabel(label) {
   var fmt = function(x){ return (x.charAt(0)==='-'||x.charAt(0)==='+' ? '' : '+') + x + '°C'; };
   if (mMax) return fmt(mMax[1]) + ' max';
   if (mMin) return fmt(mMin[1]) + ' min';
-  // 3) Dernier recours : mots-clés génériques
-  if (L.indexOf('congel')>-1||L.indexOf('surgel')>-1||L.indexOf('néga')>-1||L.indexOf('nega')>-1) return '-18°C max';
-  if (L.indexOf('chaud')>-1) return '+63°C min';
-  if (L.indexOf('cellule')>-1) return '+10°C en 2h max';
-  if (L.indexOf('ultra')>-1) return '+2°C max';
-  if (L.indexOf('frigo')>-1||L.indexOf('réfrig')>-1||L.indexOf('refrig')>-1||L.indexOf('frais')>-1||L.indexOf('posit')>-1||L.indexOf('froide')>-1) return '+4°C max';
+  // 3) Dernier recours : mots-clés génériques.
+  // On retire les accents pour reconnaître aussi « congélateur », « réfrigérée »,
+  // « négatif », « fraîche »… (sinon un nom personnalisé accentué n'était pas reconnu).
+  var Ln = L.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (Ln.indexOf('congel')>-1||Ln.indexOf('surgel')>-1||Ln.indexOf('nega')>-1) return '-18°C max';
+  if (Ln.indexOf('chaud')>-1) return '+63°C min';
+  if (Ln.indexOf('cellule')>-1) return '+10°C en 2h max';
+  if (Ln.indexOf('ultra')>-1) return '+2°C max';
+  if (Ln.indexOf('frigo')>-1||Ln.indexOf('refrig')>-1||Ln.indexOf('frais')>-1||Ln.indexOf('posit')>-1||Ln.indexOf('froide')>-1) return '+4°C max';
   return '';
 }
 

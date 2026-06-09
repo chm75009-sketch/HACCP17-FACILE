@@ -16,6 +16,7 @@ node run_tests7.js   # Pack DDPP / rapports par période (sélection des contrô
 node run_tests8.js   # Traçabilité (lots/fournisseurs) + gestion d'équipe (anti-écrasement)
 node run_tests9.js   # Connexion (local + hors-ligne 7j) + quota stockage (preuves protégées)
 node run_tests10.js  # Réception véhicule (compartiments) + reprise de session
+node run_tests11.js  # Seuils enceintes (libellés) + contenu du PDF légal
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -24,4 +25,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 455 scénarios, 0 échec.
+Couverture actuelle : 482 scénarios, 0 échec.
