@@ -22,6 +22,7 @@ node run_tests13.js  # Réception produit + 14 allergènes + plat témoin (J+5)
 node run_tests14.js  # Liaison thermique + audit des seuils réglementaires
 node run_tests15.js  # Config enceintes (anti-écrasement) + validation inscription
 node run_tests16.js  # Virgule décimale FR (3,5) + catalogues déchets (Loi AGEC)
+node run_tests17.js  # Catalogue des modules + contenu du PDF de réception
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -30,4 +31,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 607 scénarios, 0 échec.
+Couverture actuelle : 636 scénarios, 0 échec.
