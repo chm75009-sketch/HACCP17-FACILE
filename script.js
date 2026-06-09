@@ -2,7 +2,32 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v130';
+var APP_BUILD = 'v131';
+// MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
+// déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
+// l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
+// recharge en FRAIS → fini les appareils bloqués sur un ancien build. Session préservée.
+(function _verifVersionReelle(){
+  try {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    fetch('ver.txt?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.text() : null; })
+      .then(function(v){
+        if (!v) return;
+        v = String(v).trim();
+        var courante = (typeof APP_BUILD !== 'undefined') ? String(APP_BUILD).replace(/^v/, '') : '';
+        if (!v || !courante || v === courante) return;
+        try { if (sessionStorage.getItem('_majForce') === v) return; sessionStorage.setItem('_majForce', v); } catch(e){}
+        try { if (localStorage.getItem('haccp_etab_id') && localStorage.getItem('haccp_deconnecte') !== '1') sessionStorage.setItem('haccp_maj_reprise', '1'); } catch(e){}
+        var done = function(){ try { location.reload(); } catch(e){} };
+        try {
+          if (window.caches && caches.keys) {
+            caches.keys().then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); }).then(done).catch(done);
+          } else { done(); }
+        } catch(e){ done(); }
+      }).catch(function(){});
+  } catch(e){}
+})();
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
