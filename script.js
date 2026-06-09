@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v146';
+var APP_BUILD = 'v147';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -19842,7 +19842,13 @@ function testEffacerDonnees() {
           }
 
           var html = _formCreerClient();
-          html += '<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:10px">' + rows.length + ' client(s)</div>';
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;margin-bottom:12px">';
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.8);cursor:pointer"><input type="checkbox" id="chkTousClients" onclick="toggleTousClients(this)" style="width:16px;height:16px"> Tout s\u00e9lectionner</label>';
+          html += '<span style="font-size:12px;color:rgba(255,255,255,0.55)"><span id="cntSelClients">0</span>/' + rows.length + ' s\u00e9lectionn\u00e9(s)</span>';
+          html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+          html += '<button onclick="supprimerSelectionClients()" style="background:rgba(220,38,38,0.15);color:#fca5a5;border:1px solid rgba(220,38,38,0.35);padding:7px 12px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">\ud83d\uddd1\ufe0f Supprimer la s\u00e9lection</button>';
+          html += '<button onclick="supprimerTousClients()" style="background:rgba(220,38,38,0.25);color:#fecaca;border:1px solid rgba(220,38,38,0.5);padding:7px 12px;border-radius:7px;font-weight:800;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">\u26a0\ufe0f Tout supprimer</button>';
+          html += '</div></div>';
           rows.forEach(function(r) {
             var statutColor = r.actif ? '#4ade80' : '#dc2626';
             var statutLabel = r.actif ? '✅ ACTIF' : '⛔ DÉSACTIVÉ';
@@ -19850,7 +19856,7 @@ function testEffacerDonnees() {
 
             html += '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;margin-bottom:10px">';
             html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:8px">';
-            html += '<div><div style="font-size:14px;font-weight:800;color:white">' + escapeHtml(r.etablissement) + '</div><div style="font-size:11px;color:#4ade80;font-weight:700">🔑 ' + escapeHtml(r.code_acces) + '</div></div>';
+            html += '<div style="display:flex;align-items:flex-start;gap:10px"><input type="checkbox" class="chkClient" onclick="majCompteurSelClients()" data-id="' + escapeHtml(r.id) + '" data-code="' + escapeHtml(r.code_acces) + '" data-nom="' + escapeHtml(r.etablissement) + '" style="width:17px;height:17px;margin-top:2px;flex-shrink:0"><div><div style="font-size:14px;font-weight:800;color:white">' + escapeHtml(r.etablissement) + '</div><div style="font-size:11px;color:#4ade80;font-weight:700">🔑 ' + escapeHtml(r.code_acces) + '</div></div></div>';
             html += '<div style="font-size:10px;font-weight:800;color:' + statutColor + '">' + statutLabel + '</div>';
             html += '</div>';
             html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-size:12px;color:rgba(255,255,255,0.75);margin-bottom:10px">';
@@ -20564,6 +20570,64 @@ function testEffacerDonnees() {
             loadAdminClients();
           });
         });
+      };
+
+      // ── Sélection multiple de clients ──
+      function _chkClients() {
+        return Array.prototype.slice.call(document.querySelectorAll('.chkClient'));
+      }
+      window.majCompteurSelClients = function() {
+        var n = _chkClients().filter(function(x){ return x.checked; }).length;
+        var el = document.getElementById('cntSelClients'); if (el) el.textContent = n;
+        var tout = document.getElementById('chkTousClients');
+        var all = _chkClients();
+        if (tout) tout.checked = (all.length > 0 && n === all.length);
+      };
+      window.toggleTousClients = function(cb) {
+        _chkClients().forEach(function(x){ x.checked = cb.checked; });
+        majCompteurSelClients();
+      };
+
+      function _supprimerLotClients(items, libelle) {
+        // items : [{id, code, nom}]  — supprime fiche + accès en une seule requête.
+        var ids = items.map(function(x){ return x.id; });
+        var codes = items.map(function(x){ return x.code; });
+        window._supabase.from('comptes_clients').delete().in('id', ids).then(function(rc){
+          if (rc.error) { alert('Erreur suppression : ' + rc.error.message); return; }
+          window._supabase.from('etablissements').delete().in('code_acces', codes).then(function(re){
+            if (re.error) { console.warn('Suppression acc\u00e8s (lot) :', re.error.message); }
+            window._supabase.from('historique_admin').insert([{
+              action: 'Suppression group\u00e9e clients',
+              motif: libelle + ' \u2014 ' + items.length + ' compte(s) : ' + codes.join(', ')
+            }]).then(function(){});
+            alert('\u2705 ' + items.length + ' client(s) supprim\u00e9(s).');
+            loadAdminClients();
+          });
+        });
+      }
+
+      // Supprimer uniquement les comptes cochés
+      window.supprimerSelectionClients = function() {
+        if (!window._supabase) return;
+        var sel = _chkClients().filter(function(x){ return x.checked; });
+        if (!sel.length) { alert('Aucun client s\u00e9lectionn\u00e9.\n\nCochez les comptes \u00e0 supprimer, ou utilisez \u00ab Tout s\u00e9lectionner \u00bb.'); return; }
+        var items = sel.map(function(x){ return { id: x.getAttribute('data-id'), code: x.getAttribute('data-code'), nom: x.getAttribute('data-nom') }; });
+        if (!confirm('Supprimer d\u00e9finitivement ' + items.length + ' client(s) s\u00e9lectionn\u00e9(s) ?\n\nLeur fiche et leur acc\u00e8s seront supprim\u00e9s. Leurs contr\u00f4les d\u00e9j\u00e0 enregistr\u00e9s ne sont PAS supprim\u00e9s.')) return;
+        if (!confirm('Confirmez une seconde fois : suppression d\u00e9finitive de ' + items.length + ' compte(s) ?')) return;
+        _supprimerLotClients(items, 'S\u00e9lection');
+      };
+
+      // Supprimer TOUS les clients de la liste
+      window.supprimerTousClients = function() {
+        if (!window._supabase) return;
+        var all = _chkClients();
+        if (!all.length) { alert('Aucun client \u00e0 supprimer.'); return; }
+        var items = all.map(function(x){ return { id: x.getAttribute('data-id'), code: x.getAttribute('data-code'), nom: x.getAttribute('data-nom') }; });
+        if (!confirm('\u26a0\ufe0f ATTENTION : supprimer la TOTALIT\u00c9 des ' + items.length + ' clients ?\n\nTous les comptes (fiche + acc\u00e8s) seront effac\u00e9s. Leurs contr\u00f4les ne sont PAS supprim\u00e9s.')) return;
+        var rep = prompt('Pour confirmer la suppression de TOUS les clients, tapez : SUPPRIMER');
+        if (rep === null) return;
+        if (rep.trim().toUpperCase() !== 'SUPPRIMER') { alert('Annul\u00e9 (texte de confirmation incorrect).'); return; }
+        _supprimerLotClients(items, 'Tout supprimer');
       };
 
       // ── V102 : Mise à jour bandeau du haut avec infos client ──
