@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v142';
+var APP_BUILD = 'v143';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -8231,6 +8231,7 @@ function showPage(id, noReset) {
     var _connecte = (typeof ETAB_ID !== 'undefined' && ETAB_ID) && !_deco;
     if (!_connecte) {
       try { _trace('showPage(' + id + ') BLOQUE (deconnecte) -> login'); } catch(e) {}
+      try { alert('DIAG A : garde showPage a bloqué « ' + id + ' » -> login (deconnecte)'); } catch(eD){}
       id = 'page-login';
     }
   }
@@ -18039,6 +18040,7 @@ function _estPagePublique(id) {
 }
 
 function _navAfficherPage(id) {
+  try { if (id === 'page-login') alert('DIAG B : navigation -> page-login (ecran courant : ' + (typeof _idPageActive==='function'?_idPageActive():'?') + ')'); } catch(eB){}
   var el = document.getElementById(id) || document.getElementById('page-login');
   if (!el) return;
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
