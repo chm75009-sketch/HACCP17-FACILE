@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v129';
+var APP_BUILD = 'v130';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -14465,6 +14465,9 @@ async function chargerControlesCloudCache() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return null;
     try { if (String(ETAB_ID).indexOf('local-') !== 0) await _attendreJeton(3000); } catch(eAtt) {}
+    // SEC-1 — rafraîchir le jeton depuis la session persistée JUSTE avant de lire
+    // (au cas où la copie mémoire aurait été effacée par un rechargement/bascule).
+    try { if (window._supabase && window._supabase.auth && window._supabase.auth.getSession) { var _ssR = await window._supabase.auth.getSession(); var _tkR = _ssR && _ssR.data && _ssR.data.session && _ssR.data.session.access_token; if (_tkR) _SB_ACCESS_TOKEN = _tkR; } } catch(eGSR) {}
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return null;
     // PDF-3 — pagination : on ne tronque plus à 1000. On récupère TOUS les contrôles
     // par pages successives (sinon les plus anciens disparaissent des rapports/Pack
