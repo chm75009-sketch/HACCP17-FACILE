@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v125';
+var APP_BUILD = 'v126';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -22751,6 +22751,29 @@ try {
   window.rafraichirTemperaturesBeta = rafraichirTemperaturesBeta;
   window.enregistrerCleUbibot = enregistrerCleUbibot;
   function _capteursVerifHash() { try { if (location.hash === '#capteurs') ouvrirCapteursBeta(); } catch (e) {} }
+  // DIAG SÉCURITÉ — affiche l'état réel du jeton au moment voulu (accès caché #diagsec).
+  function _diagSecurite() {
+    var tok = (typeof _SB_ACCESS_TOKEN !== 'undefined' && _SB_ACCESS_TOKEN) ? _SB_ACCESS_TOKEN : '';
+    var estab = '-', exp = '-';
+    if (tok) {
+      try {
+        var pj = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        estab = (pj.app_metadata && pj.app_metadata.establishment_id) || '(absent du jeton)';
+        exp = pj.exp ? new Date(pj.exp*1000).toLocaleString('fr-FR') : '?';
+      } catch(e) { estab = '(jeton illisible)'; }
+    }
+    var bearer = (typeof _sbBearer === 'function') ? _sbBearer() : '';
+    var renvoie = (typeof SUPABASE_ANON !== 'undefined' && bearer === SUPABASE_ANON) ? 'ANON (cle publique)' : (bearer ? 'JETON utilisateur' : '(vide)');
+    alert('DIAG SECURITE\n\n'
+      + '1) Jeton en memoire : ' + (tok ? 'OUI' : 'NON') + '\n'
+      + '2) establishment_id du jeton : ' + estab + '\n'
+      + '3) expire le : ' + exp + '\n'
+      + '4) ETAB_ID (code_client envoye) : ' + (typeof ETAB_ID!=='undefined'?ETAB_ID:'-') + '\n'
+      + '5) _sbBearer() renvoie : ' + renvoie + '\n\n'
+      + '(2 doit = 4, et 5 doit etre JETON)');
+  }
+  window._diagSecurite = _diagSecurite;
+  window.addEventListener('hashchange', function(){ try { if (location.hash === '#diagsec') _diagSecurite(); } catch(e){} });
   window.addEventListener('hashchange', _capteursVerifHash);
   if (document.readyState !== 'loading') setTimeout(_capteursVerifHash, 300);
   else document.addEventListener('DOMContentLoaded', function () { setTimeout(_capteursVerifHash, 300); });
