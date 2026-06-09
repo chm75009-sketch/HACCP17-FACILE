@@ -93,6 +93,7 @@ function buildContext(opts) {
     fetch: fetchMock,
     atob(s) { return Buffer.from(s, 'base64').toString('binary'); },
     btoa(s) { return Buffer.from(s, 'binary').toString('base64'); },
+    TextEncoder: globalThis.TextEncoder, TextDecoder: globalThis.TextDecoder,
     Blob: function (parts, opt) { this.size = (parts && parts[0] && parts[0].length) || 0; this.type = (opt && opt.type) || ''; },
     File: function () {}, FileReader: function () { this.readAsDataURL = function () { if (this.onload) this.onload({ target: { result: 'data:image/jpeg;base64,AAAA' } }); }; this.readAsText = function () { if (this.onload) this.onload({ target: { result: '' } }); }; },
     Image: function () { const self = this; setTimeout(function () { if (self.onload) self.onload(); }, 0); },
