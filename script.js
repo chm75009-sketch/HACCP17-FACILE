@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v131';
+var APP_BUILD = 'v132';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -8009,6 +8009,31 @@ function initHeuresAuto(pageId) {
     if (!el.value) el.value = heureNow;
   });
 }
+// Remplit l'HEURE des blocs de correction (action corrective) qui apparaissent APRÈS
+// l'ouverture de la page (ex. « non conforme » → éviction). Sans ça, l'heure restait
+// vide et il fallait la saisir à la main.
+function _remplirHeuresNCVides() {
+  try {
+    var now = new Date();
+    var hn = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    document.querySelectorAll('.page.active .nc-action input[type=time], .page.active input[type=time][id*="nc_act_heure"], .page.active input[type=time][id*="nc_heure"]').forEach(function(el){
+      if (!el.value) el.value = hn;
+    });
+  } catch(e){}
+}
+try {
+  // Dès qu'on clique un bouton de statut (conforme/non conforme) → on (re)remplit
+  // les heures des corrections qui viennent d'apparaître.
+  document.addEventListener('click', function(e){
+    try {
+      var t = e.target;
+      if (!t) return;
+      if ((t.classList && t.classList.contains('status-btn')) || (t.closest && t.closest('.nc-action'))) {
+        setTimeout(_remplirHeuresNCVides, 90);
+      }
+    } catch(err){}
+  }, true);
+} catch(e){}
 function resetModule(pageId) {
   var page = document.getElementById(pageId);
   if (!page) return;
