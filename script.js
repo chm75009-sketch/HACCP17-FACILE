@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v121';
+var APP_BUILD = 'v122';
 
 // ── SHIM CONSOLE — compatibilité Safari iOS ancien & WebView ──
 // Garantit que console.info, console.warn, console.error existent toujou
@@ -19770,6 +19770,8 @@ function testEffacerDonnees() {
         var adr  = (document.getElementById('essai_adresse') || {}).value || '';
         var secteurEssai = ((document.getElementById('essai_secteur') || {}).value || '').trim();
         var duree = parseInt((document.getElementById('essai_duree') || {}).value || '0', 10);
+        var estClient = !!((document.getElementById('essai_client') || {}).checked);
+        var multiSect = !!((document.getElementById('essai_multi') || {}).checked);
 
         etab = etab.trim(); resp = resp.trim(); tel = tel.trim(); mail = mail.trim(); adr = adr.trim();
         if (!etab || !resp || !tel || !mail || !adr) {
@@ -19777,20 +19779,24 @@ function testEffacerDonnees() {
           return;
         }
         if (!secteurEssai) { alert('Merci de choisir le SECTEUR d\'activité (le compte essai sera verrouillé dessus).'); return; }
-        if (!(duree >= 1 && duree <= 15)) { alert('La durée doit être comprise entre 1 et 15 jours.'); return; }
+        if (!estClient && !(duree >= 1 && duree <= 15)) { alert('La durée doit être comprise entre 1 et 15 jours.'); return; }
 
         var code = genererCodeEssai();
+        if (estClient) code = code.replace('ESSAI-', 'CLIENT-');
         var pwd = '';
         for (var i = 0; i < 6; i++) pwd += Math.floor(Math.random() * 10);
         var maintenant = new Date();
         var dateDebut = maintenant.toISOString().slice(0, 10);
-        var dateExp = new Date(maintenant.getTime() + duree * 86400000).toISOString().slice(0, 10);
+        var dateExp = estClient
+          ? new Date(maintenant.getFullYear() + 1, maintenant.getMonth(), maintenant.getDate()).toISOString().slice(0, 10)
+          : new Date(maintenant.getTime() + duree * 86400000).toISOString().slice(0, 10);
 
         var etabBase = {
           code_acces: code,
           mot_de_passe: pwd,
           nom: etab,
-          secteur: secteurEssai, // verrouillé sur le secteur choisi (essai = NON multi-secteur)
+          secteur: secteurEssai, // verrouillé sur le secteur choisi
+          multi_secteur: multiSect, // case admin : true = accès à tous les secteurs (test)
           adresse: adr,
           actif: true,
           date_debut: dateDebut,
@@ -19868,6 +19874,8 @@ function testEffacerDonnees() {
           '<select id="essai_duree" style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif">' +
           [1,2,3,5,7,10,14,15].map(function(n){ return '<option value="'+n+'"'+(n===7?' selected':'')+'>'+n+' jour'+(n>1?'s':'')+'</option>'; }).join('') +
           '</select></div>' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin:6px 0 6px;font-size:12px;color:rgba(255,255,255,0.75);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_client" style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Compte <strong>CLIENT payant</strong> (valable <strong>1 an</strong>, code CLIENT-) au lieu d\'un essai</span></label>' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin:2px 0 12px;font-size:12px;color:rgba(255,255,255,0.6);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_multi" style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Compte <strong>test</strong> &mdash; acc&egrave;s &agrave; <strong>tous les secteurs</strong> (sinon verrouill&eacute; sur le secteur choisi)</span></label>' +
           '<button id="btnCreerEssai" onclick="creerEssai()" style="width:100%;background:linear-gradient(135deg,#16a34a,#4ade80);color:#0a0e1a;border:none;padding:12px;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;font-family:Outfit,sans-serif">🎁 Créer le code d\'essai</button>' +
           '</div>' +
           '<div id="essaisListe"><div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Chargement des essais…</div></div>';
@@ -19877,7 +19885,7 @@ function testEffacerDonnees() {
           document.getElementById('essaisListe').innerHTML = '<div style="color:#fca5a5;padding:12px">Base indisponible.</div>';
           return;
         }
-        window._supabase.from('etablissements').select('*').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%').then(function(res) {
+        window._supabase.from('etablissements').select('*').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%,code_acces.like.CLIENT-%').then(function(res) {
           var liste = document.getElementById('essaisListe');
           if (!liste) return;
           if (res.error) { liste.innerHTML = '<div style="color:#fca5a5;padding:12px">Erreur : ' + escapeHtml(res.error.message) + '</div>'; return; }
