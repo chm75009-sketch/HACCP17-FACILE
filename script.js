@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v137';
+var APP_BUILD = 'v138';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -19722,7 +19722,7 @@ function testEffacerDonnees() {
           }
         });
         if (tab === 'demandes') loadAdminDemandes();
-        else if (tab === 'clients') loadAdminEssais('clients');
+        else if (tab === 'clients') loadAdminClients();
         else if (tab === 'historique') loadAdminHistorique();
         else if (tab === 'essais') _refreshAdminListe();
       };
@@ -19994,7 +19994,7 @@ function testEffacerDonnees() {
           document.getElementById('essaisListe').innerHTML = '<div style="color:#fca5a5;padding:12px">Base indisponible.</div>';
           return;
         }
-        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,adresse,actif,date_debut,date_expiration,responsable,telephone,email,derniere_connexion').or(estClients ? 'code_acces.like.CLIENT-%' : 'code_acces.like.ESSAI-%,code_acces.like.EU3J-%').then(function(res) {
+        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,adresse,actif,date_debut,date_expiration,responsable,telephone,email,derniere_connexion').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%,code_acces.like.CLIENT-%').then(function(res) {
           var liste = document.getElementById('essaisListe');
           if (!liste) return;
           if (res.error) { liste.innerHTML = '<div style="color:#fca5a5;padding:12px">Erreur : ' + escapeHtml(res.error.message) + '</div>'; return; }
