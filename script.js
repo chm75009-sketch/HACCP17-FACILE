@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v152';
+var APP_BUILD = 'v153';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3917,6 +3917,8 @@ function modeTest() {
 function ouvrirReglages() {
   // Afficher infos établissement dans les réglages
   showPage('page-settings');
+  // Affiche la version réelle de l'app (au lieu d'un numéro figé).
+  try { var _sv = document.getElementById('settingsVersionTxt'); if (_sv) _sv.textContent = (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '—'); } catch(e){}
   // V80 — Rafraîchir l'indicateur de stockage à l'ouverture
   setTimeout(function(){ if (typeof rafraichirIndicateurStockage === 'function') rafraichirIndicateurStockage(); }, 100);
 }

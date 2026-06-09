@@ -3458,7 +3458,12 @@
           <button class="btn-s" style="color:#dc2626;border-color:#dc2626;width:100%" onclick="if(confirm('Réinitialiser toutes les données ?')){localStorage.clear();location.reload();}">🗑️ Réinitialiser toutes les données</button>
         </div>
         <div style="text-align:center;padding:12px;color:#9ca3af;font-size:11px">
-          HACCP Pro — Version V111 · Données stockées localement
+          HACCP Pro — Version <span id="settingsVersionTxt">—</span> · Données stockées localement
+          <div style="margin-top:8px">
+            <a href="#" onclick="event.preventDefault();ouvrirInfosLegales('confidentialite')" style="color:#6b7280;text-decoration:underline;cursor:pointer">Confidentialité</a>
+            <span style="margin:0 6px;color:#d1d5db">·</span>
+            <a href="#" onclick="event.preventDefault();ouvrirInfosLegales('mentions')" style="color:#6b7280;text-decoration:underline;cursor:pointer">Mentions légales</a>
+          </div>
         </div>
       </div>
     </div>

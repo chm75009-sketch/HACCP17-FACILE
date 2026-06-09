@@ -27,6 +27,7 @@ node run_tests18.js  # PDF légaux huiles de friture + refroidissement rapide
 node run_tests19.js  # Robustesse / fuzzing : entrées hostiles sur les contrôles
 node run_tests20.js  # Audit de sécurité (clé anon, RPC login, zéro fuite mdp)
 node run_tests21.js  # Affichage réglementaire + liste des modules NC
+node run_tests22.js  # RGPD + mentions légales (accessibilité + contenu)
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -35,4 +36,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 725 scénarios, 0 échec.
+Couverture actuelle : 750 scénarios, 0 échec.
