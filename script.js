@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v141';
+var APP_BUILD = 'v142';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -20,12 +20,12 @@ try { if (window.history && 'scrollRestoration' in window.history) window.histor
         if (!v || !courante || v === courante) return;
         try { if (sessionStorage.getItem('_majForce') === v) return; sessionStorage.setItem('_majForce', v); } catch(e){}
         try { if (localStorage.getItem('haccp_etab_id') && localStorage.getItem('haccp_deconnecte') !== '1') sessionStorage.setItem('haccp_maj_reprise', '1'); } catch(e){}
-        var done = function(){ try { location.reload(); } catch(e){} };
-        try {
-          if (window.caches && caches.keys) {
-            caches.keys().then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); }).then(done).catch(done);
-          } else { done(); }
-        } catch(e){ done(); }
+        var _reloadFrais = function(){ try { if (window.caches && caches.keys) { caches.keys().then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); }).then(function(){ try{location.reload();}catch(_){} }).catch(function(){ try{location.reload();}catch(_){} }); } else { location.reload(); } } catch(e){ try{location.reload();}catch(_){} } };
+        // Ne recharge QUE sur un écran NEUTRE (jamais en plein admin/module/saisie) → plus de
+        // clignotement. Sinon on réessaie dès qu'on revient sur un écran neutre.
+        var _estNeutre = function(){ try { var a=(document.querySelector('.page.active')||{}).id||''; return a===''||a==='page-presentation'||a==='page-login'||a==='page-guide'||a==='page-home'||a==='page-onboarding'||a==='page-choix'; } catch(e){ return true; } };
+        var _tenter = function(){ if (_estNeutre()) { _reloadFrais(); return true; } return false; };
+        if (!_tenter()) { var _itMaj = setInterval(function(){ if (_tenter()) clearInterval(_itMaj); }, 1500); }
       }).catch(function(){});
   } catch(e){}
 })();
