@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v135';
+var APP_BUILD = 'v136';
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
 // l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
@@ -19701,9 +19701,9 @@ function testEffacerDonnees() {
           }
         });
         if (tab === 'demandes') loadAdminDemandes();
-        else if (tab === 'clients') loadAdminClients();
+        else if (tab === 'clients') loadAdminEssais('clients');
         else if (tab === 'historique') loadAdminHistorique();
-        else if (tab === 'essais') loadAdminEssais();
+        else if (tab === 'essais') _refreshAdminListe();
       };
 
       function escapeHtml(s) {
@@ -19908,7 +19908,7 @@ function testEffacerDonnees() {
           ['essai_etab','essai_resp','essai_tel','essai_email','essai_adresse'].forEach(function(idf){
             var el = document.getElementById(idf); if (el) el.value = '';
           });
-          loadAdminEssais();
+          _refreshAdminListe();
         }
 
         window._supabase.from('etablissements').insert([etabRow]).then(function(res) {
@@ -19935,14 +19935,16 @@ function testEffacerDonnees() {
         });
       };
 
-      function loadAdminEssais() {
+      function _refreshAdminListe(){ try { loadAdminEssais(adminCurrentTab === 'clients' ? 'clients' : 'essais'); } catch(e){} }
+      function loadAdminEssais(mode) {
+        var estClients = (mode === 'clients');
         var c = document.getElementById('adminContent');
         if (!c) return;
         var inputStyle = 'width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif;box-sizing:border-box;margin-bottom:8px';
         var form =
-          '<div id="euCampagneBox" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:16px;margin-bottom:14px"><div style="font-size:13px;color:rgba(255,255,255,0.6)">Chargement de la campagne flyer…</div></div>' +
+          (estClients ? '' : '<div id="euCampagneBox" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:16px;margin-bottom:14px"><div style="font-size:13px;color:rgba(255,255,255,0.6)">Chargement de la campagne flyer…</div></div>') +
           '<div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:12px;padding:16px;margin-bottom:18px">' +
-          '<div style="font-size:14px;font-weight:800;color:#4ade80;margin-bottom:12px">🎁 Créer un code d\'essai gratuit</div>' +
+          '<div style="font-size:14px;font-weight:800;color:#4ade80;margin-bottom:12px">' + (estClients ? '👥 Créer un compte client (1 an)' : '🎁 Créer un code d\'essai gratuit') + '</div>' +
           '<input id="essai_etab" placeholder="Nom de l\'établissement *" style="' + inputStyle + '">' +
           '<input id="essai_resp" placeholder="Nom et prénom du contact *" style="' + inputStyle + '">' +
           '<input id="essai_adresse" placeholder="Adresse complète *" style="' + inputStyle + '">' +
@@ -19960,9 +19962,9 @@ function testEffacerDonnees() {
           '<select id="essai_duree" style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:13px;font-family:Outfit,sans-serif">' +
           [1,2,3,5,7,10,14,15].map(function(n){ return '<option value="'+n+'"'+(n===7?' selected':'')+'>'+n+' jour'+(n>1?'s':'')+'</option>'; }).join('') +
           '</select></div>' +
-          '<label style="display:flex;align-items:flex-start;gap:8px;margin:6px 0 6px;font-size:12px;color:rgba(255,255,255,0.75);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_client" style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Compte <strong>CLIENT payant</strong> (valable <strong>1 an</strong>, code CLIENT-) au lieu d\'un essai</span></label>' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin:6px 0 6px;font-size:12px;color:rgba(255,255,255,0.75);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_client"' + (estClients ? ' checked' : '') + ' style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Compte <strong>CLIENT payant</strong> (valable <strong>1 an</strong>, code CLIENT-) au lieu d\'un essai</span></label>' +
           '<label style="display:flex;align-items:flex-start;gap:8px;margin:2px 0 12px;font-size:12px;color:rgba(255,255,255,0.6);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_multi" style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Compte <strong>test</strong> &mdash; acc&egrave;s &agrave; <strong>tous les secteurs</strong> (sinon verrouill&eacute; sur le secteur choisi)</span></label>' +
-          '<button id="btnCreerEssai" onclick="creerEssai()" style="width:100%;background:linear-gradient(135deg,#16a34a,#4ade80);color:#0a0e1a;border:none;padding:12px;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;font-family:Outfit,sans-serif">🎁 Créer le code d\'essai</button>' +
+          '<button id="btnCreerEssai" onclick="creerEssai()" style="width:100%;background:linear-gradient(135deg,#16a34a,#4ade80);color:#0a0e1a;border:none;padding:12px;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;font-family:Outfit,sans-serif">' + (estClients ? '👥 Créer le compte client' : '🎁 Créer le code d\'essai') + '</button>' +
           '</div>' +
           '<div id="essaisListe"><div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Chargement des essais…</div></div>';
         c.innerHTML = form;
@@ -19971,17 +19973,18 @@ function testEffacerDonnees() {
           document.getElementById('essaisListe').innerHTML = '<div style="color:#fca5a5;padding:12px">Base indisponible.</div>';
           return;
         }
-        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,adresse,actif,date_debut,date_expiration,responsable,telephone,email,derniere_connexion').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%,code_acces.like.CLIENT-%').then(function(res) {
+        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,adresse,actif,date_debut,date_expiration,responsable,telephone,email,derniere_connexion').or(estClients ? 'code_acces.like.CLIENT-%' : 'code_acces.like.ESSAI-%,code_acces.like.EU3J-%').then(function(res) {
           var liste = document.getElementById('essaisListe');
           if (!liste) return;
           if (res.error) { liste.innerHTML = '<div style="color:#fca5a5;padding:12px">Erreur : ' + escapeHtml(res.error.message) + '</div>'; return; }
           var rows = (res.data || []).sort(function(a,b){ return (b.date_debut||'').localeCompare(a.date_debut||''); });
           if (rows.length === 0) {
-            liste.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Aucun essai créé pour l\'instant.</div>';
+            liste.innerHTML = (estClients ? '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Aucun client pour l\'instant.</div>' : '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Aucun essai créé pour l\'instant.</div>');
             return;
           }
           var auj = new Date(); auj.setHours(0,0,0,0);
-          var html = '<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:10px">' + rows.length + ' essai(s)</div>';
+          var html = '<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:10px">' + rows.length + (estClients ? ' client(s)' : ' essai(s)') + '</div>';
+          if (estClients) { var _cc = document.getElementById('cntClients'); if (_cc) _cc.textContent = rows.filter(function(x){return x.actif;}).length; }
           rows.forEach(function(r) {
             var exp = r.date_expiration ? new Date(r.date_expiration) : null;
             var expire = exp && exp < auj;
@@ -20032,8 +20035,8 @@ function testEffacerDonnees() {
           liste.innerHTML = html;
         });
 
-        // Panneau de pilotage de la campagne flyer (code universel)
-        renderEuCampagne();
+        // Panneau de pilotage de la campagne flyer (code universel) — essais uniquement
+        if (!estClients) renderEuCampagne();
       }
 
       // ── Actions sur un essai précis (etablissements) ──
@@ -20043,7 +20046,7 @@ function testEffacerDonnees() {
         window._supabase.from('etablissements').update({ actif: false }).eq('id', id).then(function(res) {
           if (res.error) { alert('Erreur : ' + res.error.message); return; }
           window._supabase.from('historique_admin').insert([{ action: 'Suspension essai', code_concerne: code }]).then(function(){});
-          loadAdminEssais();
+          _refreshAdminListe();
         });
       };
 
@@ -20053,7 +20056,7 @@ function testEffacerDonnees() {
         window._supabase.from('etablissements').update({ actif: true }).eq('id', id).then(function(res) {
           if (res.error) { alert('Erreur : ' + res.error.message); return; }
           window._supabase.from('historique_admin').insert([{ action: 'Réactivation essai', code_concerne: code }]).then(function(){});
-          loadAdminEssais();
+          _refreshAdminListe();
         });
       };
 
@@ -20075,7 +20078,7 @@ function testEffacerDonnees() {
             motif: 'Nouvelle expiration : ' + nouvelleExp
           }]).then(function(){});
           alert('✅ Essai prolongé.\nNouvelle date d\'expiration : ' + new Date(nouvelleExp).toLocaleDateString('fr-FR'));
-          loadAdminEssais();
+          _refreshAdminListe();
         });
       };
 
@@ -20088,7 +20091,7 @@ function testEffacerDonnees() {
           if (res.error) { alert('Erreur suppression : ' + res.error.message); return; }
           try { window._supabase.from('historique_admin').insert([{ action: 'Suppression compte', code_concerne: code }]).then(function(){}); } catch(e){}
           alert('🗑️ Compte ' + code + ' supprimé.');
-          loadAdminEssais();
+          _refreshAdminListe();
         });
       };
 
@@ -20135,7 +20138,7 @@ function testEffacerDonnees() {
           try { window._supabase.from('historique_admin').insert([{ action: 'Modification compte', code_concerne: code }]).then(function(){}); } catch(e){}
           var ov = document.getElementById('modifEtabOverlay'); if (ov) ov.remove();
           alert('✅ Compte ' + code + ' modifié.');
-          loadAdminEssais();
+          _refreshAdminListe();
         });
       };
 
