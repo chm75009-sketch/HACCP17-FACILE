@@ -20,6 +20,7 @@ node run_tests11.js  # Seuils enceintes (libellés) + contenu du PDF légal
 node run_tests12.js  # Registre NC (catalogue) + codes d'essai gratuits (règles)
 node run_tests13.js  # Réception produit + 14 allergènes + plat témoin (J+5)
 node run_tests14.js  # Liaison thermique + audit des seuils réglementaires
+node run_tests15.js  # Config enceintes (anti-écrasement) + validation inscription
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -28,4 +29,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 562 scénarios, 0 échec.
+Couverture actuelle : 580 scénarios, 0 échec.
