@@ -1,0 +1,23 @@
+'use strict';
+const { loadApp } = require('./load_app.js');
+let pass = 0, fail = 0; const failures = [];
+function ok(c, n) { if (c) pass++; else { fail++; failures.push(n); console.log('  ✗ FAIL: ' + n); } }
+const ctx = loadApp();
+if (ctx._loadErrors.length) { console.log('LOAD ERRORS:', ctx._loadErrors.map(e => e.message)); process.exit(2); }
+const J = ctx._joursCalendaire;
+// le bug : connexion hier 20h, vue ce matin 10h -> doit être "hier" (1), pas "aujourd'hui" (0)
+ok(J(new Date(2026,5,9,20,0,0), new Date(2026,5,10,10,0,0)) === 1, 'dernière connexion: hier soir vue ce matin -> 1 jour ("hier")');
+ok(J(new Date(2026,5,10,0,30,0), new Date(2026,5,10,23,30,0)) === 0, 'même jour (matin tôt -> soir) -> 0 ("aujourd\'hui")');
+ok(J(new Date(2026,5,10,12,0,0), new Date(2026,5,10,12,0,0)) === 0, 'même instant -> 0');
+ok(J(new Date(2026,5,5,12,0,0), new Date(2026,5,10,8,0,0)) === 5, '5 jours calendaires');
+ok(J(new Date(2026,4,31,23,0,0), new Date(2026,5,1,1,0,0)) === 1, 'passage de mois (31 mai -> 1 juin) -> 1');
+ok(J(new Date(2025,11,31,22,0,0), new Date(2026,0,1,3,0,0)) === 1, 'passage d\'année (31 déc -> 1 jan) -> 1');
+// libellé cohérent
+function lbl(a,b){ var j=Math.max(0,J(a,b)); return j===0?"aujourd'hui":(j===1?'hier':'il y a '+j+' jours'); }
+ok(lbl(new Date(2026,5,9,20,0,0), new Date(2026,5,10,10,0,0))==='hier', 'libellé: "hier" pour connexion de la veille');
+ok(lbl(new Date(2026,5,8,9,0,0), new Date(2026,5,10,10,0,0))==='il y a 2 jours', 'libellé: "il y a 2 jours"');
+console.log('\n══════════════════════════════════════');
+console.log('ROUND 23 (admin — dernière connexion) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
+if (failures.length) { failures.forEach(f => console.log('  - ' + f)); }
+console.log('══════════════════════════════════════');
+process.exit(fail ? 1 : 0);

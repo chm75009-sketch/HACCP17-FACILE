@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v169';
+var APP_BUILD = 'v170';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3702,6 +3702,14 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
 function getNowStr() {
   var d = new Date();
   return d.toLocaleDateString('fr-FR') + ' a ' + String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0');
+}
+
+// Nombre de JOURS CALENDAIRES (locaux) entre deux dates — pour que « aujourd'hui /
+// hier » soit cohérent avec la date affichée (et non un compte de 24 h glissantes).
+function _joursCalendaire(a, b) {
+  var x = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  var y = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((y.getTime() - x.getTime()) / 86400000);
 }
 
 // ── ACTION CORRECTIVE IMMÉDIATE ──
@@ -20104,7 +20112,7 @@ function testEffacerDonnees() {
               var dc = r.derniere_connexion;
               if (!dc) return '<div style="font-size:11px;color:#fca5a5;margin-bottom:8px;font-weight:700">🔴 Jamais connecté</div>';
               var d = new Date(dc); if (isNaN(d.getTime())) return '';
-              var j = Math.floor((Date.now()-d.getTime())/86400000);
+              var j = Math.max(0, _joursCalendaire(d, new Date()));
               var col = j<=3?'#4ade80':(j<=14?'#fbbf24':'#fca5a5');
               var txt = j===0?"aujourd'hui":(j===1?'hier':'il y a '+j+' jours');
               return '<div style="font-size:11px;color:'+col+';margin-bottom:8px">🕒 Dernière connexion : '+txt+' ('+d.toLocaleDateString('fr-FR')+')</div>';
