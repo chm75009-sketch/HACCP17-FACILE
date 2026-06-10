@@ -110,8 +110,14 @@
     '.toc ul{list-style:none;margin:0 0 4px;padding:0}.toc li{padding:3px 0;border-bottom:1px dotted #d1d5db;font-size:11.5px;color:#374151}' +
     '@media screen{.toolbar{position:sticky;top:0;z-index:9;background:#1e1b4b;color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}' +
     '.toolbar .t{font-weight:700;font-size:14px}.toolbar button{background:#fff;color:#1e1b4b;border:none;border-radius:8px;font-weight:700;font-size:13px;padding:8px 16px;cursor:pointer}}' +
-    '@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none;margin:0;padding:0}.noprint{display:none!important}' +
-    '.page-break{break-before:page}.part,.sec,table,tr,.callout,.flow{break-inside:avoid}thead{display:table-header-group}h3{break-after:avoid}}';
+    /* Pages A4 paginées (paginateur maison, borné) */
+    '.pages{padding:10px 0}' +
+    '.pg{width:210mm;min-height:296mm;background:#fff;margin:0 auto 9px;box-shadow:0 1px 10px rgba(0,0,0,.15);padding:15mm 15mm 20mm;position:relative}' +
+    '.pgft{position:absolute;left:15mm;right:15mm;bottom:8mm;text-align:center;font:9px Arial;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:4px}' +
+    '.tocpg{display:inline-block;min-width:26px;font-weight:800;color:#4338ca;margin-right:6px}' +
+    '@media print{@page{margin:0}body{background:#fff}.noprint{display:none!important}' +
+    '.pages{padding:0}.pg{margin:0;box-shadow:none;height:296mm;break-after:page;page-break-after:always}' +
+    '.part,.sec,table,tr,.callout,.flow,.apage,.poster{break-inside:avoid}thead{display:table-header-group}h3{break-after:avoid}}';
 
   // ── Briques de mise en forme ──
   function infoRow(label, valeur) {
@@ -439,10 +445,29 @@
     var toolbar = opts.noToolbar ? '' :
       '<div class="toolbar noprint"><span class="t">📄 Plan de Maîtrise Sanitaire — ' + esc(S.label) + '</span>' +
       '<button onclick="window.print()">🖨️ Imprimer / PDF</button></div>';
+    // Paginateur MAISON, borné : range les blocs de .sheet dans des pages A4 et
+    // tamponne « Page X / Y ». Ne peut PAS exploser (un bloc = placé une fois ;
+    // nb de pages ≤ nb de blocs). Aucun clip → pas de perte de contenu.
+    var paginator = '<script>(function(){function P(){var s=document.querySelector(".sheet");' +
+      'if(!s||s.getAttribute("data-paged"))return;s.setAttribute("data-paged","1");' +
+      'var ks=[],i;for(i=0;i<s.childNodes.length;i++)ks.push(s.childNodes[i]);' +
+      'var W=document.createElement("div");W.className="pages";s.parentNode.insertBefore(W,s);' +
+      'var pg,bd,n=0,MAX=1000;function np(){n++;pg=document.createElement("div");pg.className="pg";' +
+      'bd=document.createElement("div");pg.appendChild(bd);var f=document.createElement("div");' +
+      'f.className="pgft";pg.appendChild(f);pg._f=f;W.appendChild(pg);}np();' +
+      'for(var j=0;j<ks.length;j++){var b=ks[j];var c=(b.nodeType===1&&b.className)?(""+b.className):"";' +
+      'if(c.indexOf("page-break")>=0){if(bd.childNodes.length)np();continue;}' +
+      'var force=/(\\bcover\\b|\\bpart\\b|\\bapage\\b|\\bposter\\b)/.test(c);' +
+      'if(force&&bd.childNodes.length)np();bd.appendChild(b);' +
+      'if(bd.offsetHeight>MAX&&bd.childNodes.length>1){bd.removeChild(b);np();bd.appendChild(b);}}' +
+      's.parentNode.removeChild(s);var ps=W.querySelectorAll(".pg"),T=ps.length;' +
+      'for(var k=0;k<ps.length;k++)ps[k]._f.textContent="Page "+(k+1)+" / "+T;}' +
+      'if(document.readyState!=="loading")setTimeout(P,30);' +
+      'else document.addEventListener("DOMContentLoaded",function(){setTimeout(P,30);});})();<\/script>';
     return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<title>' + esc(titre) + '</title><style>' + PMS_CSS + '</style></head><body>' +
-      toolbar + '<div class="sheet">' + corpsPMS(S, E) + '</div></body></html>';
+      toolbar + '<div class="sheet">' + corpsPMS(S, E) + '</div>' + paginator + '</body></html>';
   }
 
   // ── Point d'entrée navigateur : ouvre le PMS imprimable du secteur actif ──
