@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v168';
+var APP_BUILD = 'v169';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21293,7 +21293,7 @@ function ouvrirInfosLegales(section) {
   if (existing) existing.remove();
 
   var confidentialite =
-    '<h2 style="margin:0 0 10px;font-size:19px">Politique de confidentialité</h2>' +
+    '<h2 style="margin:0 0 10px;font-size:19px">Politique de confidentialité (RGPD)</h2>' +
     '<p style="color:#475569;font-size:13px">HACCP Pro, édité par RTH NETGOCE, est un outil d’aide à l’autocontrôle sanitaire pour les professionnels des métiers de bouche. Nous ne vendons jamais vos données et ne les utilisons à aucune fin publicitaire. Le client reste seul responsable du respect de la réglementation dans son établissement.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Responsable du traitement</h3>' +
     '<p style="color:#475569;font-size:13px">RTH NETGOCE — SARL, 49 rue de Douai, 75009 Paris. Contact : r.t.h@orange.fr.</p>' +
@@ -21394,7 +21394,7 @@ function ouvrirInfosLegales(section) {
     '<h3 style="font-size:14px;margin:16px 0 6px">Effacer ce stockage</h3>' +
     '<p style="color:#475569;font-size:13px">Vous pouvez à tout moment vider le cache local via Réglages → « Libérer de l’espace », ou via les réglages de votre navigateur. Vos contrôles doivent être sauvegardés par vos soins (export PDF, impression) sur votre propre support (disque dur, etc.) : leur conservation relève de votre responsabilité.</p>';
 
-  var _legalSecs = { confidentialite:{label:'Confidentialité', html:confidentialite}, mentions:{label:'Mentions légales', html:mentions}, cgv:{label:'CGV', html:cgv}, cookies:{label:'Cookies', html:cookies} };
+  var _legalSecs = { confidentialite:{label:'Données personnelles (RGPD)', html:confidentialite}, mentions:{label:'Mentions légales', html:mentions}, cgv:{label:'CGV', html:cgv}, cookies:{label:'Cookies', html:cookies} };
   if (!_legalSecs[section]) section = 'confidentialite';
   var corps = _legalSecs[section].html;
   var nav = Object.keys(_legalSecs).map(function(k){ var on=(k===section); return '<button onclick="ouvrirInfosLegales(\'' + k + '\')" style="background:' + (on?'#4338ca':'#eef2ff') + ';border:none;color:' + (on?'#fff':'#4338ca') + ';padding:7px 11px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">' + _legalSecs[k].label + '</button>'; }).join('');
