@@ -63,6 +63,7 @@ ok(/Conformité RGPD|données.*conservées|3 ans/i.test(HTML), 'inscription: men
 // ════════════ E) IDENTITÉ ÉDITEUR — mentions complètes (RTH NETGOCE) ════════════
 ok(/RTH NETGOCE/.test(ment), 'mentions: raison sociale RTH NETGOCE');
 ok(/SARL/.test(ment), 'mentions: forme juridique SARL');
+ok(/au capital de 8 000 €/.test(ment), 'mentions: capital social SARL');
 ok(/444 ?244 ?776 ?00019/.test(ment), 'mentions: SIRET renseigné');
 ok(/RCS Paris/.test(ment), 'mentions: RCS Paris');
 ok(/FR27 ?444 ?244 ?776/.test(ment), 'mentions: TVA intracommunautaire');
