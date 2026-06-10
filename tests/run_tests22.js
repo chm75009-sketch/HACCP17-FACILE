@@ -37,7 +37,7 @@ ok(/Mentions légales/.test(ment), 'mentions: titre présent');
 [['Éditeur', /Éditeur/], ['Hébergement', /Hébergement/], ['Responsabilité', /Responsabilité/], ['Droit applicable', /Droit applicable/]].forEach(function (p) {
   ok(p[1].test(ment), 'mentions: section "' + p[0] + '" présente');
 });
-ok(/SIRET/.test(ment) && /Directeur de la publication/.test(ment), 'mentions: champs obligatoires LCEN (SIRET, directeur publication)');
+ok(/SIRET/.test(ment) && /Directrice? de la publication/.test(ment), 'mentions: champs obligatoires LCEN (SIRET, directeur publication)');
 
 // navigation croisée + fermeture
 ok(/ouvrirInfosLegales\('mentions'\)/.test(conf) && /ouvrirInfosLegales\('confidentialite'\)/.test(ment), 'légal: navigation croisée entre les deux pages');
@@ -60,14 +60,22 @@ ok(!/Version V111/.test(HTML), 'version: ancien numéro figé "V111" supprimé')
 ok(/id="insc_rgpd"/.test(HTML) && /required/.test(HTML.slice(HTML.indexOf('insc_rgpd') - 80, HTML.indexOf('insc_rgpd') + 40)), 'inscription: case RGPD obligatoire (required)');
 ok(/Conformité RGPD|données.*conservées|3 ans/i.test(HTML), 'inscription: mention durée de conservation');
 
-// ════════════ E) RAPPEL — champs d'identité à compléter (informatif, non bloquant) ════════════
-const placeholders = (ment.match(/\{\{[^}]+\}\}/g) || []).concat(conf.match(/\{\{[^}]+\}\}/g) || []);
-const uniq = Array.from(new Set(placeholders));
-ok(true, 'INFO: ' + uniq.length + ' champ(s) d\'identité éditeur à compléter par le client : ' + uniq.join(', '));
+// ════════════ E) IDENTITÉ ÉDITEUR — mentions complètes (RTH NETGOCE) ════════════
+ok(/RTH NETGOCE/.test(ment), 'mentions: raison sociale RTH NETGOCE');
+ok(/SARL/.test(ment), 'mentions: forme juridique SARL');
+ok(/444 ?244 ?776 ?00019/.test(ment), 'mentions: SIRET renseigné');
+ok(/RCS Paris/.test(ment), 'mentions: RCS Paris');
+ok(/FR27 ?444 ?244 ?776/.test(ment), 'mentions: TVA intracommunautaire');
+ok(/46\.51Z/.test(ment), 'mentions: code APE');
+ok(/49 rue de Douai, 75009 Paris/.test(ment), 'mentions: siège social');
+ok(/Léa Chikhaoui-Auguste/.test(ment), 'mentions: directrice de la publication');
+ok(/tribunaux compétents de Paris/.test(ment), 'mentions: juridiction Paris');
+ok(/chikhaoui\.lea@gmail\.com/.test(conf), 'RGPD: e-mail de contact des droits renseigné');
+const restants = (ment + conf).match(/\{\{[A-ZÀ-Üa-z][^}]*\}\}/g) || [];
+ok(restants.length === 0, 'légal: plus aucun champ à compléter' + (restants.length ? ' [' + restants.join(', ') + ']' : ''));
 
 console.log('\n══════════════════════════════════════');
 console.log('ROUND 22 (RGPD + mentions légales) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
-if (uniq.length) console.log('⚠️  À COMPLÉTER (identité éditeur) : ' + uniq.join(', '));
 if (failures.length) { console.log('FAILURES:'); failures.forEach(function (f) { console.log('  - ' + f); }); }
 console.log('══════════════════════════════════════');
 process.exit(fail ? 1 : 0);

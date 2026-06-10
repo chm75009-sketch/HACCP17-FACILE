@@ -36,4 +36,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 750 scénarios, 0 échec.
+Couverture actuelle : 760 scénarios, 0 échec.

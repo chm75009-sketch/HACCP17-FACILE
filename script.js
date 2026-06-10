@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v153';
+var APP_BUILD = 'v154';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21303,20 +21303,20 @@ function ouvrirInfosLegales(section) {
     '<h3 style="font-size:14px;margin:16px 0 6px">Hébergement & sous-traitants</h3>' +
     '<p style="color:#475569;font-size:13px">Données hébergées chez Supabase (région UE). Aucun cookie publicitaire ni pistage tiers. L\'application utilise le stockage local de votre navigateur pour fonctionner hors-ligne.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Vos droits</h3>' +
-    '<p style="color:#475569;font-size:13px">Accès, rectification, effacement, limitation, opposition, portabilité — par e-mail à <strong>{{EMAIL CONTACT RGPD}}</strong> (réponse sous 1 mois). Réclamation possible auprès de la CNIL (cnil.fr).</p>' +
+    '<p style="color:#475569;font-size:13px">Accès, rectification, effacement, limitation, opposition, portabilité — par e-mail à <strong>chikhaoui.lea@gmail.com</strong> (réponse sous 1 mois). Réclamation possible auprès de la CNIL (cnil.fr).</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Conservation</h3>' +
     '<p style="color:#475569;font-size:13px">Les contrôles sont conservés le temps nécessaire à la preuve réglementaire, puis purgés. Compte résilié : suppression définitive sous 30 jours (hors obligation légale de conservation).</p>';
 
   var mentions =
     '<h2 style="margin:0 0 10px;font-size:19px">Mentions légales</h2>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Éditeur</h3>' +
-    '<p style="color:#475569;font-size:13px">{{RAISON SOCIALE}} — {{FORME JURIDIQUE}}<br>SIRET {{SIRET}} — RCS {{VILLE}}<br>Siège : {{ADRESSE}}<br>Contact : {{EMAIL}} — {{TÉLÉPHONE}}<br>Directeur de la publication : {{NOM}}</p>' +
+    '<p style="color:#475569;font-size:13px">RTH NETGOCE — SARL<br>SIRET 444 244 776 00019 — RCS Paris 444 244 776<br>TVA intracommunautaire : FR27 444 244 776 — Code APE 46.51Z<br>Siège social : 49 rue de Douai, 75009 Paris<br>Contact : chikhaoui.lea@gmail.com — 06 61 47 61 65<br>Directrice de la publication : Léa Chikhaoui-Auguste</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Hébergement</h3>' +
     '<p style="color:#475569;font-size:13px">Application : GitHub Pages (GitHub Inc.).<br>Données & médias : Supabase (région UE).</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Responsabilité</h3>' +
     '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d\'aide à l\'autocontrôle ; il ne se substitue pas à la responsabilité de l\'exploitant quant au respect de ses obligations sanitaires.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Droit applicable</h3>' +
-    '<p style="color:#475569;font-size:13px">Droit français. Litiges : tribunaux compétents de {{VILLE}}.</p>';
+    '<p style="color:#475569;font-size:13px">Droit français. Litiges : tribunaux compétents de Paris.</p>';
 
   var corps = (section === 'mentions') ? mentions : confidentialite;
   var autreLbl = (section === 'mentions') ? 'Confidentialité' : 'Mentions légales';
