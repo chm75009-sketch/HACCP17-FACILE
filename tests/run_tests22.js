@@ -89,6 +89,7 @@ ok(/Gestion des cookies/.test(cookies) && /aucun cookie publicitaire/i.test(cook
 ok(/ouvrirInfosLegales\('cgv'\)/.test(conf) && /ouvrirInfosLegales\('cookies'\)/.test(conf), 'légal: navigation vers les 4 pages (CGV + Cookies inclus)');
 ok(/ouvrirInfosLegales\('cgv'\)/.test(HTML), 'accès: lien CGV dans le pied de page');
 
+ok(/_modalOuvert/.test(require('fs').readFileSync(require('path').join(__dirname,'..','script.js'),'utf8')), 'maj auto: aucun rechargement tant qu’une fenêtre légale/modal est ouverte');
 console.log('\n══════════════════════════════════════');
 console.log('ROUND 22 (RGPD + mentions légales) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 if (failures.length) { console.log('FAILURES:'); failures.forEach(function (f) { console.log('  - ' + f); }); }

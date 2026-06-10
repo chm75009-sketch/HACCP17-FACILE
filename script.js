@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v162';
+var APP_BUILD = 'v163';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -24,7 +24,10 @@ try { if (window.history && 'scrollRestoration' in window.history) window.histor
         // Ne recharge QUE sur un écran NEUTRE (jamais en plein admin/module/saisie) → plus de
         // clignotement. Sinon on réessaie dès qu'on revient sur un écran neutre.
         var _estNeutre = function(){ try { var a=(document.querySelector('.page.active')||{}).id||''; return a===''||a==='page-presentation'||a==='page-login'||a==='page-guide'||a==='page-home'||a==='page-onboarding'||a==='page-choix'; } catch(e){ return true; } };
-        var _tenter = function(){ if (_estNeutre()) { _reloadFrais(); return true; } return false; };
+        // Ne pas recharger tant qu'une fenêtre est ouverte par-dessus (pages légales,
+        // aperçu PDF, modal) : sinon la mise à jour fermerait la fenêtre en pleine lecture.
+        var _modalOuvert = function(){ try { return !!(document.getElementById('infosLegalesOverlay') || document.getElementById('printOverlay') || document.querySelector('.modal.visible')); } catch(e){ return false; } };
+        var _tenter = function(){ if (_estNeutre() && !_modalOuvert()) { _reloadFrais(); return true; } return false; };
         if (!_tenter()) { var _itMaj = setInterval(function(){ if (_tenter()) clearInterval(_itMaj); }, 1500); }
       }).catch(function(){});
   } catch(e){}
