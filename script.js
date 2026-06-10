@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v165';
+var APP_BUILD = 'v166';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21370,7 +21370,7 @@ function ouvrirInfosLegales(section) {
       '<li>Résiliation par e-mail à r.t.h@orange.fr. Les sommes dues au titre de la période d’engagement restent exigibles.</li>' +
     '</ul>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">7. Droit de rétractation</h3>' +
-    '<p style="color:#475569;font-size:13px">Bien que la loi ne l’impose pas aux contrats conclus entre professionnels (art. L221-3 du Code de la consommation), RTH NETGOCE accorde commercialement à l’Abonné un droit de rétractation de 14 jours à compter de la souscription : sur simple demande par e-mail à r.t.h@orange.fr dans ce délai, l’abonnement est résilié et les sommes éventuellement versées sont intégralement remboursées. Un essai gratuit peut par ailleurs être accordé sur demande.</p>' +
+    '<p style="color:#475569;font-size:13px">Bien que la loi ne l’impose pas aux contrats conclus entre professionnels (art. L221-3 du Code de la consommation), RTH NETGOCE accorde commercialement à l’Abonné un droit de rétractation de 14 jours à compter de la souscription : sur demande par lettre recommandée avec accusé de réception et par e-mail à r.t.h@orange.fr dans ce délai, l’abonnement est résilié et les sommes éventuellement versées sont intégralement remboursées.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">8. Disponibilité</h3>' +
     '<p style="color:#475569;font-size:13px">RTH NETGOCE met en œuvre les moyens raisonnables pour assurer la disponibilité du service. Le mode hors-ligne permet de continuer à saisir des contrôles sans réseau, avec synchronisation au retour de la connexion. Des interruptions pour maintenance peuvent survenir.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">9. Données et propriété</h3>' +
