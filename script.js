@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v177';
+var APP_BUILD = 'v178';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3704,6 +3704,25 @@ function getNowStr() {
   return d.toLocaleDateString('fr-FR') + ' a ' + String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0');
 }
 
+// FIX TACTILE (tablettes Windows / Edge) — certains appareils ne déclenchent pas le
+// 'click' de façon fiable sur les tuiles de modules. On ajoute un tap tactile propre :
+// déclenche openModule au relâchement SI le doigt n'a pas bougé (vrai tap, pas un
+// défilement), et on annule le click suivant (preventDefault) pour éviter le double.
+// N'affecte ni la souris (PC) ni le défilement.
+(function(){
+  if (typeof document === 'undefined') return;
+  var sx = 0, sy = 0, moved = false, tracking = false;
+  function elemMod(el){ while (el && el !== document) { if (el.getAttribute && el.getAttribute('data-mod')) return el.getAttribute('data-mod'); el = el.parentNode; } return null; }
+  document.addEventListener('touchstart', function(e){ var t = e.touches && e.touches[0]; if (!t) return; sx = t.clientX; sy = t.clientY; moved = false; tracking = !!elemMod(e.target); }, { passive: true });
+  document.addEventListener('touchmove', function(e){ if (!tracking) return; var t = e.touches && e.touches[0]; if (t && (Math.abs(t.clientX - sx) > 12 || Math.abs(t.clientY - sy) > 12)) moved = true; }, { passive: true });
+  document.addEventListener('touchend', function(e){
+    if (!tracking || moved) { tracking = false; return; }
+    tracking = false;
+    var id = elemMod(e.target);
+    if (id) { try { e.preventDefault(); } catch(_) {} if (typeof openModule === 'function') openModule(id); }
+  }, false);
+})();
+
 // Nombre de JOURS CALENDAIRES (locaux) entre deux dates — pour que « aujourd'hui /
 // hier » soit cohérent avec la date affichée (et non un compte de 24 h glissantes).
 function _joursCalendaire(a, b) {
@@ -7243,7 +7262,7 @@ function renderMods(cat) {
     return true;
   });
   grid.innerHTML = mods.map(function(m, i) {
-    return '<button class="mod ' + m.color + '" onclick="openModule(\'' + m.id + '\')" style="animation-delay:' + (i*0.04) + 's">' +
+    return '<button class="mod ' + m.color + '" data-mod="' + m.id + '" onclick="openModule(\'' + m.id + '\')" style="animation-delay:' + (i*0.04) + 's">' +
       '<div class="mod-ico">' + m.ico + '</div>' +
       '<div class="mod-name">' + m.name + '</div>' +
       (m.fn ? '<div class="mod-fn">' + m.fn + '</div>' : '') +
