@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v180';
+var APP_BUILD = 'v181';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3711,25 +3711,39 @@ function getNowStr() {
 // N'affecte ni la souris (PC) ni le défilement.
 (function(){
   if (typeof document === 'undefined') return;
-  var sx = 0, sy = 0, moved = false;
-  document.addEventListener('touchstart', function(e){ var t = e.touches && e.touches[0]; if (!t) return; sx = t.clientX; sy = t.clientY; moved = false; }, { passive: true });
-  document.addEventListener('touchmove', function(e){ var t = e.touches && e.touches[0]; if (t && (Math.abs(t.clientX - sx) > 12 || Math.abs(t.clientY - sy) > 12)) moved = true; }, { passive: true });
-  document.addEventListener('touchend', function(e){
-    if (moved) return;
-    var el = e.target;
+  var sx = 0, sy = 0, moved = false, dernierClick = 0;
+  // Element cliquable le plus proche (en laissant les champs de saisie au comportement natif).
+  function cible(el){
     while (el && el !== document) {
       var tag = el.tagName;
-      // Champs de saisie : on laisse le comportement natif (focus, clavier, liste deroulante).
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable) return;
-      // Tout element cliquable : on declenche son clic de façon fiable (et on supprime le click natif pour eviter le double).
-      if (tag === 'BUTTON' || tag === 'A' || (el.getAttribute && (el.getAttribute('onclick') || el.getAttribute('data-mod') || el.getAttribute('role') === 'button'))) {
-        try { e.preventDefault(); } catch(_) {}
-        if (typeof el.click === 'function') el.click();
-        return;
-      }
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable) return null;
+      if (tag === 'BUTTON' || tag === 'A' || (el.getAttribute && (el.getAttribute('onclick') || el.getAttribute('data-mod') || el.getAttribute('role') === 'button'))) return el;
       el = el.parentNode;
     }
-  }, false);
+    return null;
+  }
+  // Tout vrai 'click' du navigateur est noté : on ne synthetisera alors PAS de doublon.
+  document.addEventListener('click', function(){ dernierClick = Date.now(); }, true);
+  function debut(x, y){ sx = x; sy = y; moved = false; }
+  function bouge(x, y){ if (Math.abs(x - sx) > 12 || Math.abs(y - sy) > 12) moved = true; }
+  function fin(targetEl){
+    if (moved) return;
+    var c = cible(targetEl);
+    if (!c) return;
+    // Court delai : si le navigateur a declenche son propre click, on ne fait rien.
+    // Sinon (cas des tablettes ou le click n'arrive jamais), on le declenche nous-meme.
+    setTimeout(function(){ if (Date.now() - dernierClick < 400) return; try { c.click(); } catch(_) {} }, 70);
+  }
+  if (window.PointerEvent) {
+    // Tablettes Windows / Edge : Pointer Events (le tactile y passe par la).
+    document.addEventListener('pointerdown', function(e){ if (e.pointerType === 'mouse') return; debut(e.clientX, e.clientY); }, { passive: true });
+    document.addEventListener('pointermove', function(e){ if (e.pointerType === 'mouse') return; bouge(e.clientX, e.clientY); }, { passive: true });
+    document.addEventListener('pointerup', function(e){ if (e.pointerType === 'mouse') return; fin(e.target); }, false);
+  } else {
+    document.addEventListener('touchstart', function(e){ var t = e.touches && e.touches[0]; if (t) debut(t.clientX, t.clientY); }, { passive: true });
+    document.addEventListener('touchmove', function(e){ var t = e.touches && e.touches[0]; if (t) bouge(t.clientX, t.clientY); }, { passive: true });
+    document.addEventListener('touchend', function(e){ fin(e.target); }, false);
+  }
 })();
 
 // Nombre de JOURS CALENDAIRES (locaux) entre deux dates — pour que « aujourd'hui /
