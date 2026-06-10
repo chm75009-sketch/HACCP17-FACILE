@@ -454,10 +454,12 @@
     activite: 'restauration collective à caractère social (scolaire, petite enfance, EHPAD, hôpital, entreprise, cuisine centrale, portage)',
     references: [
       'Règlement (CE) n° 852/2004 — hygiène des denrées alimentaires',
+      'Règlement (CE) n° 853/2004 — températures des denrées d\'origine animale',
       'Arrêté du 21 décembre 2009 — températures, plats témoins, remise en température',
-      'Règlement (CE) n° 2073/2005 — critères microbiologiques',
-      'Règlement (UE) n° 1169/2011 — allergènes',
+      'Règlement (CE) n° 2073/2005 — critères microbiologiques (articles 3 et 4)',
+      'Règlement (UE) n° 1169/2011 (INCO) — allergènes',
       'GBPH « Restauration collective à caractère social » (guide validé)',
+      'GEM-RCN — recommandations de grammages et fréquences de service',
       'Arrêté du 8 juin 2006 / dispositions sur l\'agrément (cuisine centrale livrant des tiers)'
     ],
     bph: {
@@ -518,7 +520,8 @@
       { denree: 'Viandes hachées et préparations de viandes', valeur: '+2 °C' },
       { denree: 'Volailles', valeur: '+4 °C' },
       { denree: 'Produits laitiers, desserts lactés', valeur: '+4 °C' },
-      { denree: 'Surgelés', valeur: '-18 °C' },
+      { denree: 'Surgelés (viandes, hachés, produits de la pêche)', valeur: '-18 °C maximum' },
+      { denree: 'Autres denrées congelées', valeur: '-12 °C maximum' },
       { denree: 'Cuisson à cœur', valeur: '≥ +63 °C (volaille ≥ +74 °C, haché ≥ +65 °C)' },
       { denree: 'Refroidissement rapide', valeur: '+63 → +10 °C en < 2 h' },
       { denree: 'Liaison froide (stockage + transport)', valeur: '≤ +3 °C' },
@@ -535,11 +538,19 @@
       'Remise en température (≥ 63 °C à cœur)',
       'Maintien en distribution',
       'Prélèvement et conservation des plats témoins (5 jours, ≤ +3 °C)',
+      'Gestion des excédents de fin de service (jeter / conserver — voir procédure)',
       'Plan de maîtrise des allergènes / PAI',
-      'Analyses microbiologiques périodiques (selon volume / convives sensibles)',
+      'Prélèvements de surface (couteau, planche…) + analyses microbiologiques sur préparations — fréquence définie avec un laboratoire agréé (la réglementation n\'impose pas de fréquence ; art. 3 et 4 du Règl. 2073/2005)',
+      'Contrôle à réception : T° du camion (sans y pénétrer), tenue du livreur, DLC/DDM, estampille des viandes, état des emballages, T° des denrées',
       'Plan de nettoyage et de désinfection émargé',
       'Nettoyage et contrôle T° des véhicules de liaison'
-    ]
+    ],
+    gestionExcedents: {
+      principe: 'En fin de service, le devenir des excédents suit des règles strictes (limiter le gaspillage tout en garantissant la sécurité). Produire en quantité juste (s\'appuyer sur le GEM-RCN pour les grammages).',
+      froides: 'Préparations FROIDES — À JETER : toute préparation présentée aux convives sans film de protection, assaisonnée ou sensible. À CONSERVER : les préparations non présentées (ou présentées sous film) maintenues entre 0 et +3 °C, étiquetées (nature + date de fabrication), à consommer sous 24 h.',
+      chaudes: 'Préparations CHAUDES — À JETER : toute préparation présentée aux convives, les produits mixés, et toute préparation ayant déjà subi une remise en température après refroidissement. À CONSERVER : les préparations non présentées maintenues à +63 °C → refroidissement rapide, étiquetées, conservées entre 0 et +3 °C, à consommer sous 24 h.',
+      satellite: 'En restaurant satellite : jeter les préparations remises en température le jour de réception ; les excédents restés protégés et conservés entre 0 et +3 °C sont consommés selon la DLC indiquée par la cuisine centrale.'
+    }
   };
 
   // ── Assemblage final + parties communes (III) attachées à chaque secteur ──

@@ -79,6 +79,14 @@ ok(/5 jours/.test(PMS_SECTEURS.collective.platsTemoins || ''), 'collective: plat
 ok(PMS_SECTEURS.collective.haccp.ccp.some(function (c) { return /remise en température/i.test(c.nom); }), 'collective: CCP remise en température');
 ok(PMS_SECTEURS.collective.haccp.ccp.some(function (c) { return /≤ ?\+?3 ?°C/.test(c.limite); }), 'collective: liaison froide ≤ +3 °C');
 ok(PMS_SECTEURS.collective.haccp.ccp.length >= 5, 'collective: au moins 5 CCP (liaison froide/chaude)');
+// Enrichissements guide CDG76 :
+ok(PMS_SECTEURS.collective.references.some(function (r) { return /853\/2004/.test(r); }), 'collective: référence 853/2004 (températures DAOA)');
+ok(PMS_SECTEURS.collective.references.some(function (r) { return /GEM-RCN/.test(r); }), 'collective: référence GEM-RCN (grammages)');
+ok(PMS_SECTEURS.collective.temperatures.some(function (t) { return /-12 ?°C/.test(t.valeur); }), 'collective: autres congelés -12 °C');
+ok(PMS_SECTEURS.collective.gestionExcedents && /24 ?h/.test(PMS_SECTEURS.collective.gestionExcedents.froides), 'collective: gestion excédents froids (24 h)');
+ok(/refroidissement rapide/i.test(PMS_SECTEURS.collective.gestionExcedents.chaudes), 'collective: gestion excédents chauds (refroidissement rapide)');
+ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /laboratoire agréé/i.test(a); }), 'collective: analyses micro — fréquence définie avec labo agréé');
+ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/i.test(a); }), 'collective: contrôle réception — estampille des viandes');
 
 // ════════════ C) GÉNÉRATEUR — produit un document HTML pré-rempli ════════════
 (function () {
@@ -102,6 +110,7 @@ ok(PMS_SECTEURS.collective.haccp.ccp.length >= 5, 'collective: au moins 5 CCP (l
   ok(/44424477600019/.test(written), 'générateur: SIRET injecté');
   ok(/PARTIE I/.test(written) && /PARTIE II/.test(written) && /PARTIE III/.test(written), 'générateur: 3 parties (BPH/HACCP/Gestion)');
   ok(/plats? témoins?/i.test(written), 'générateur (collective): section plats témoins');
+  ok(/excédents de fin de service/i.test(written), 'générateur (collective): section gestion des excédents');
   ok(/852\/2004/.test(written), 'générateur: référence réglementaire affichée');
   ok(/Imprimer/.test(written), 'générateur: bouton Imprimer/PDF');
   ok(/Modèle|responsable de sa mise à jour|seul responsable/i.test(written), 'générateur: clause de responsabilité (modèle)');

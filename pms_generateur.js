@@ -177,6 +177,16 @@
       html += bloc('Plats témoins (obligatoires)', '<p style="font:12px/1.5 Arial;margin:0;background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:8px 10px">' + esc(S.platsTemoins) + '</p>');
     }
 
+    // Gestion des excédents de fin de service (collective uniquement)
+    if (S.gestionExcedents) {
+      var ge = S.gestionExcedents;
+      html += bloc('Gestion des excédents de fin de service',
+        '<p style="font:12px/1.5 Arial;margin:0 0 8px">' + esc(ge.principe) + '</p>' +
+        '<p style="font:12px/1.5 Arial;margin:0 0 6px;background:#eff6ff;border-left:3px solid #3b82f6;padding:7px 10px;border-radius:4px">' + esc(ge.froides) + '</p>' +
+        '<p style="font:12px/1.5 Arial;margin:0 0 6px;background:#fff7ed;border-left:3px solid #f97316;padding:7px 10px;border-radius:4px">' + esc(ge.chaudes) + '</p>' +
+        '<p style="font:12px/1.5 Arial;margin:0;background:#f8fafc;border-left:3px solid #94a3b8;padding:7px 10px;border-radius:4px">' + esc(ge.satellite) + '</p>');
+    }
+
     // Allergènes
     html += bloc('Maîtrise des allergènes (14 allergènes réglementaires)',
       '<p style="font:12px/1.4 Arial;margin:0 0 6px">Information du consommateur obligatoire (Règlement UE 1169/2011). Identification dans chaque recette et prévention des contaminations croisées :</p>' +
