@@ -31,6 +31,7 @@ node run_tests22.js  # RGPD + mentions légales (accessibilité + contenu)
 node run_tests23.js  # Admin — dernière connexion (jours calendaires)
 node run_tests24.js  # Panneau admin — création essai/client (secteurs, multi, durées)
 node run_tests25.js  # Panneau admin complet (connexion, onglets, demandes, refus, historique)
+node run_tests26.js  # Admin — validation demande (5 secteurs) + campagne essais (plafond)
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -39,4 +40,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 841 scénarios, 0 échec.
+Couverture actuelle : 888 scénarios, 0 échec.
