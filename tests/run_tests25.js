@@ -17,7 +17,7 @@ function env(opts) {
     alert: function (m) { alerts.push(String(m)); }, confirm: function () { return opts.confirm !== undefined ? opts.confirm : true; },
     prompt: function () { return opts.prompt !== undefined ? opts.prompt : null; },
     lsSet: function () {}, lsGet: function () { return null; }, lsRemove: function () {},
-    _scrollHaut: function () {}, showPage: function () { e._showed = true; }, APP_BUILD: 'v187', renderEuCampagne: function () {},
+    _scrollHaut: function () {}, showPage: function () { e._showed = true; }, APP_BUILD: 'v188', renderEuCampagne: function () {},
     console: { log: function () {}, warn: function () {}, error: function () {}, info: function () {} },
     setTimeout: function (fn) { try { fn(); } catch (_) {} return 0; }
   };
@@ -46,7 +46,7 @@ function dom(doc) {
     t.mod.loginAdmin(); await flush();
     ok(t.doc._registry['adminDashboard'].style.display === 'block', 'admin login: bon mot de passe -> tableau de bord affiché');
     ok(t.doc._registry['adminLoginBox'].style.display === 'none', 'admin login: écran de saisie masqué');
-    ok(t.doc._registry['adminVersion'].textContent === 'v187', 'admin login: version affichée');
+    ok(t.doc._registry['adminVersion'].textContent === 'v188', 'admin login: version affichée');
   }
   // ════════════ B) DÉCONNEXION ADMIN ════════════
   {
