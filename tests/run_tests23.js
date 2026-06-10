@@ -27,6 +27,15 @@ ok(B(-18) && B(-18).max===-18 && B(-18).min===-25, 'capteurs: congélateur -18 -
 ok(B(2) && B(2).min===0 && B(2).max===2, 'capteurs: chambre +2 -> 0 / +2 auto');
 ok(B(0) && B(0).min===-7 && B(0).max===0, 'capteurs: seuil 0 -> -7 / 0 auto');
 ok(B('abc')===null && B(null)===null, 'capteurs: seuil non numérique -> pas de remplissage');
+ctx.localStorage.clear();
+var R=ctx.getRelevesConfig();
+ok(R.nb===2 && R.heures.length===2 && R.heures[0]==='08:00' && R.heures[1]==='18:00', 'relevés: défaut = 2/jour (08:00 + 18:00)');
+ctx.setRelevesConfig(3,['07:00','13:00','19:00']);
+var R2=ctx.getRelevesConfig();
+ok(R2.nb===3 && R2.heures.length===3 && R2.heures[2]==='19:00', 'relevés: configuration sauvegardée (3/jour)');
+ctx.localStorage.setItem('haccp_releves_config', JSON.stringify({nb:99,heures:[]}));
+ok(ctx.getRelevesConfig().nb===2, 'relevés: nb hors plage (1–6) -> retombe sur 2');
+ok(typeof ctx._relevesBlockHtml==='function' && /rel_nb/.test(ctx._relevesBlockHtml()) && /rel_heure_0/.test(ctx._relevesBlockHtml()), 'relevés: bloc UI généré (sélecteur + heures)');
 console.log('\n══════════════════════════════════════');
 console.log('ROUND 23 (admin — dernière connexion) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 if (failures.length) { failures.forEach(f => console.log('  - ' + f)); }

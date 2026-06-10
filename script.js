@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v175';
+var APP_BUILD = 'v176';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -22980,6 +22980,40 @@ function getSondesConfig() {
 function _saveSondesRaw(arr) { try { lsSet(SONDES_LS_KEY, JSON.stringify(arr || [])); } catch (e) {} }
 function getUbibotKey() { try { return lsGet(UBIBOT_KEY_LS) || ''; } catch (e) { return ''; } }
 function setUbibotKey(k) { try { lsSet(UBIBOT_KEY_LS, String(k || '')); } catch (e) {} }
+var RELEVES_LS_KEY = 'haccp_releves_config';
+function getRelevesConfig() {
+  try { var c = JSON.parse(lsGet(RELEVES_LS_KEY) || 'null'); if (c && typeof c === 'object') { return { nb: (c.nb >= 1 && c.nb <= 6) ? c.nb : 2, heures: Array.isArray(c.heures) ? c.heures : ['08:00', '18:00'] }; } } catch (e) {}
+  return { nb: 2, heures: ['08:00', '18:00'] };
+}
+function setRelevesConfig(nb, heures) { try { lsSet(RELEVES_LS_KEY, JSON.stringify({ nb: nb, heures: heures })); } catch (e) {} scheduleSondesPush(); }
+function _relevesBlockHtml() {
+  var cfg = getRelevesConfig();
+  var nbOpts = ''; for (var k = 1; k <= 6; k++) { nbOpts += '<option value="' + k + '"' + (k === cfg.nb ? ' selected' : '') + '>' + k + ' releve' + (k > 1 ? 's' : '') + ' / jour</option>'; }
+  var hh = ''; for (var h = 0; h < cfg.nb; h++) { hh += '<input type="time" id="rel_heure_' + h + '" value="' + _echap(cfg.heures[h] || '') + '" style="padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin:0 6px 6px 0">'; }
+  return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">&#9200; Releves automatiques</div>'
+    + '<div style="color:#6b7280;font-size:11px;margin-bottom:8px;line-height:1.4">Le serveur enregistrera la temperature tout seul, aux heures choisies (meme app fermee). Par defaut : matin + fin de journee.</div>'
+    + '<select id="rel_nb" onchange="onRelevesNbChange()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:8px">' + nbOpts + '</select>'
+    + '<div style="font-size:12px;color:#475569;margin-bottom:4px">Heures des releves :</div>'
+    + '<div style="display:flex;flex-wrap:wrap;align-items:center">' + hh + '</div>'
+    + '<button onclick="enregistrerReleves()" style="width:100%;border:none;background:#0f766e;color:#fff;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px">Enregistrer les horaires</button>'
+    + '<div style="color:#94a3b8;font-size:11px;margin-top:6px">&#9888;&#65039; Enregistrement automatique active apres branchement serveur (test capteur vendredi).</div>'
+    + '</div>';
+}
+function onRelevesNbChange() {
+  var sel = document.getElementById('rel_nb'); if (!sel) return;
+  var nb = parseInt(sel.value, 10) || 2;
+  var cfg = getRelevesConfig(); var heures = cfg.heures.slice(0, nb);
+  var def = ['08:00', '18:00', '12:00', '15:00', '22:00', '06:00'];
+  while (heures.length < nb) heures.push(def[heures.length] || '12:00');
+  setRelevesConfig(nb, heures); _renderCapteursBeta();
+}
+function enregistrerReleves() {
+  var sel = document.getElementById('rel_nb'); var nb = sel ? (parseInt(sel.value, 10) || 2) : 2;
+  var heures = []; for (var h = 0; h < nb; h++) { var el = document.getElementById('rel_heure_' + h); heures.push(el && el.value ? el.value : ''); }
+  setRelevesConfig(nb, heures);
+  if (typeof showToast === 'function') showToast('Horaires de releves enregistres.', 'ok', 2000);
+}
 
 function saveSondesConfig(arr) { _saveSondesRaw(arr); scheduleSondesPush(); }
 function scheduleSondesPush() {
@@ -22992,7 +23026,7 @@ function pushSondesCloud() {
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return;
     var payload = {
       code_client: String(ETAB_ID), module: SONDES_CFG_MODULE,
-      contenu: { sondes: getSondesConfig(), ubibotKey: getUbibotKey(), maj: Date.now() },
+      contenu: { sondes: getSondesConfig(), ubibotKey: getUbibotKey(), releves: getRelevesConfig(), maj: Date.now() },
       signature: null, photos: [], date_controle: new Date().toISOString()
     };
     fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
@@ -23016,6 +23050,7 @@ function pullSondesCloud(cb) {
           var c = rows[0].contenu; if (typeof c === 'string') { try { c = JSON.parse(c); } catch (e) { c = null; } }
           if (c && Array.isArray(c.sondes)) _saveSondesRaw(c.sondes);
           if (c && c.ubibotKey && !getUbibotKey()) setUbibotKey(c.ubibotKey);
+          if (c && c.releves) { try { lsSet(RELEVES_LS_KEY, JSON.stringify(c.releves)); } catch (e) {} }
         }
         if (cb) cb();
       }).catch(function () { if (cb) cb(); });
@@ -23104,6 +23139,7 @@ function _renderCapteursBeta() {
     + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
     + '<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#0f172a">3. Sondes associées</div>' + listeHtml + '</div>'
 
+    + _relevesBlockHtml()
     + '<button onclick="rafraichirTemperaturesBeta()" style="width:100%;border:none;background:#0ea5e9;color:#fff;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer">🔄 Lire les températures maintenant</button>'
     + '<div id="cap_resultats" style="margin-top:12px"></div>'
     + '</div>';
@@ -23195,6 +23231,8 @@ try {
   window.supprimerSondeBeta = supprimerSondeBeta;
   window.rafraichirTemperaturesBeta = rafraichirTemperaturesBeta;
   window.enregistrerCleUbibot = enregistrerCleUbibot;
+  window.onRelevesNbChange = onRelevesNbChange;
+  window.enregistrerReleves = enregistrerReleves;
   window.onCapEnceinteChange = onCapEnceinteChange;
   function _capteursVerifHash() { try { if (location.hash === '#capteurs') ouvrirCapteursBeta(); } catch (e) {} }
   // DIAG SÉCURITÉ — affiche l'état réel du jeton au moment voulu (accès caché #diagsec).
