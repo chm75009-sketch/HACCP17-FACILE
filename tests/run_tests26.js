@@ -15,7 +15,7 @@ function adminEnv(demande) {
   const e = {
     window: win, document: doc, alert: function (m) { alerts.push(String(m)); }, confirm: function () { return true; }, prompt: function () { return null; },
     lsSet: function () {}, lsGet: function () { return null; }, lsRemove: function () {}, _scrollHaut: function () {}, showPage: function () {},
-    APP_BUILD: 'v190', renderEuCampagne: function () {}, console: { log: function () {}, warn: function () {}, error: function () {}, info: function () {} },
+    APP_BUILD: 'v191', renderEuCampagne: function () {}, console: { log: function () {}, warn: function () {}, error: function () {}, info: function () {} },
     setTimeout: function (fn) { try { fn(); } catch (_) {} return 0; }
   };
   doc._registry['adminContent'] = H.makeEl('div'); doc._registry['cntDemandes'] = H.makeEl('div');

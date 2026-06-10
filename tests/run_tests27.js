@@ -101,10 +101,12 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   };
   global.window = fakeWin;
   global.SECTEUR_ACTIF = 'collective';
-  require(path.join(__dirname, '..', 'pms_generateur.js'));
+  const G = require(path.join(__dirname, '..', 'pms_generateur.js'));
   ok(typeof fakeWin.genererPMS === 'function', 'générateur: genererPMS() exposé');
+  ok(typeof G.buildPMSDocument === 'function', 'générateur: buildPMSDocument exporté (réutilisable)');
 
-  fakeWin.genererPMS('collective');
+  // On teste directement le constructeur de document (sans DOM)
+  written = G.buildPMSDocument('collective', fakeWin.ETAB);
   ok(/Plan de Maîtrise Sanitaire/i.test(written), 'générateur: titre PMS présent');
   ok(/Cuisine Test/.test(written), 'générateur: nom de l\'établissement injecté');
   ok(/44424477600019/.test(written), 'générateur: SIRET injecté');
@@ -145,9 +147,7 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   ok(/seul responsable/i.test(written), 'générateur: clause de responsabilité (modèle)');
 
   // secteur différent => contenu différent
-  let w2 = '';
-  fakeWin.open = function () { return { document: { open: function () {}, close: function () {}, write: function (h) { w2 = h; } } }; };
-  fakeWin.genererPMS('boucherie');
+  let w2 = G.buildPMSDocument('boucherie', fakeWin.ETAB);
   ok(/853\/2004/.test(w2), 'générateur (boucherie): référence 853/2004 présente');
   ok(/Annexe 9/.test(w2), 'générateur (boucherie): annexes présentes aussi');
   ok(!/Plats témoins \(obligatoires\)/.test(w2), 'générateur (boucherie): pas de section dédiée plats témoins (spécifique collective)');

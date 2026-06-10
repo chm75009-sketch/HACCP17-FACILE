@@ -430,18 +430,19 @@
 
   // ── Construit le document HTML complet (autonome, imprimable en PDF) ──
   // Réutilisé par l'application (fenêtre) ET par les scripts Node (fichiers).
-  function buildPMSDocument(cle, E) {
+  function buildPMSDocument(cle, E, opts) {
     var PMS = getPMS();
     if (!PMS) return '';
     var S = PMS[cle] || PMS.resto;
-    E = E || {};
+    E = E || {}; opts = opts || {};
     var titre = 'PMS — ' + (E.nom || S.label);
+    var toolbar = opts.noToolbar ? '' :
+      '<div class="toolbar noprint"><span class="t">📄 Plan de Maîtrise Sanitaire — ' + esc(S.label) + '</span>' +
+      '<button onclick="window.print()">🖨️ Imprimer / PDF</button></div>';
     return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<title>' + esc(titre) + '</title><style>' + PMS_CSS + '</style></head><body>' +
-      '<div class="toolbar noprint"><span class="t">📄 Plan de Maîtrise Sanitaire — ' + esc(S.label) + '</span>' +
-      '<button onclick="window.print()">🖨️ Imprimer / PDF</button></div>' +
-      '<div class="sheet">' + corpsPMS(S, E) + '</div></body></html>';
+      toolbar + '<div class="sheet">' + corpsPMS(S, E) + '</div></body></html>';
   }
 
   // ── Point d'entrée navigateur : ouvre le PMS imprimable du secteur actif ──
@@ -454,15 +455,35 @@
         return;
       }
       var cle = secteurForce || secteurActif();
-      var w = window.open('', '_blank');
-      if (!w) {
-        if (typeof showToast === 'function') showToast('Autorisez les fenêtres pop-up pour générer le PMS', 'warn', 4000);
-        else alert('Autorisez les fenêtres pop-up pour générer le PMS.');
-        return;
+      // Vue INTÉGRÉE à l'app (overlay plein écran + iframe isolé), avec un vrai
+      // bouton « ← Retour ». Évite l'onglet orphelin / le « plus que Quitter »
+      // qu'on avait avec window.open sur l'iPhone (PWA).
+      var anc = document.getElementById('pmsOverlay');
+      if (anc && anc.parentNode) anc.parentNode.removeChild(anc);
+      var ov = document.createElement('div');
+      ov.id = 'pmsOverlay';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#e5e7eb;display:flex;flex-direction:column';
+      var bar = document.createElement('div');
+      bar.style.cssText = 'flex:0 0 auto;background:#1e1b4b;color:#fff;padding:calc(8px + env(safe-area-inset-top,0px)) 14px 8px;display:flex;gap:10px;align-items:center;justify-content:space-between';
+      bar.innerHTML =
+        '<button id="pmsBack" style="background:rgba(255,255,255,.16);color:#fff;border:none;border-radius:9px;font:700 14px Arial;padding:9px 16px;cursor:pointer">← Retour</button>' +
+        '<span style="font:700 13px Arial;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plan de Maîtrise Sanitaire</span>' +
+        '<button id="pmsPrint" style="background:#fff;color:#1e1b4b;border:none;border-radius:9px;font:700 14px Arial;padding:9px 16px;cursor:pointer">🖨️ PDF</button>';
+      var ifr = document.createElement('iframe');
+      ifr.style.cssText = 'flex:1;width:100%;border:none;background:#fff';
+      ov.appendChild(bar); ov.appendChild(ifr);
+      document.body.appendChild(ov);
+      try {
+        var idoc = ifr.contentWindow.document;
+        idoc.open(); idoc.write(buildPMSDocument(cle, etab(), { noToolbar: true })); idoc.close();
+      } catch (e) {
+        ifr.setAttribute('srcdoc', buildPMSDocument(cle, etab(), { noToolbar: true }));
       }
-      w.document.open();
-      w.document.write(buildPMSDocument(cle, etab()));
-      w.document.close();
+      var fermer = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
+      document.getElementById('pmsBack').onclick = fermer;
+      document.getElementById('pmsPrint').onclick = function () {
+        try { ifr.contentWindow.focus(); ifr.contentWindow.print(); } catch (e2) { try { window.print(); } catch (e3) {} }
+      };
     };
 
     // Choix du secteur avant génération (depuis l'admin / multi-secteurs)
