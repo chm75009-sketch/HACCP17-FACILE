@@ -81,7 +81,7 @@ const cgv = renduLegal('cgv'); const cookies = renduLegal('cookies');
 ok(/Conditions Générales de Vente/.test(cgv), 'CGV: page présente');
 ok(/sans engagement/.test(cgv) && /12.{0,3}mois/i.test(cgv), 'CGV: deux formules (sans engagement / 12 mois)');
 ok(/affichés lors de l’inscription/.test(cgv), 'CGV: tarifs renvoyés à l’inscription');
-ok(/hors taxes|TVA 20/.test(cgv), 'CGV: tarifs HT + TVA');
+ok(/hors taxes/.test(cgv) && /TVA applicable/.test(cgv), 'CGV: tarifs HT + TVA applicable en sus');
 ok(/rétractation de 14 jours/.test(cgv) && /rembours/i.test(cgv), 'CGV: droit de rétractation 14 jours accordé (remboursement)');
 ok(/résiliable|résiliation/i.test(cgv), 'CGV: clauses de résiliation');
 ok(/tribunaux de Paris/.test(cgv), 'CGV: juridiction Paris');
