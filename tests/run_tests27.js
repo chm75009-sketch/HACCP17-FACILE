@@ -108,6 +108,9 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   ok(/Plan de Maîtrise Sanitaire/i.test(written), 'générateur: titre PMS présent');
   ok(/Cuisine Test/.test(written), 'générateur: nom de l\'établissement injecté');
   ok(/44424477600019/.test(written), 'générateur: SIRET injecté');
+  ok(/Léa C\./.test(written), 'générateur: responsable (fiche inscription) injecté');
+  ok(/0102030405/.test(written), 'générateur: téléphone (fiche inscription) injecté');
+  ok(/t@t\.fr/.test(written), 'générateur: e-mail (fiche inscription) injecté');
   // Trame du modèle de référence : sections numérotées 1 à 7 + validation + annexes
   ok(/1\. Présentation/.test(written), 'générateur: chapitre 1 Présentation');
   ok(/2\. Les Bonnes Pratiques d.Hygiène/.test(written), 'générateur: chapitre 2 BPH');

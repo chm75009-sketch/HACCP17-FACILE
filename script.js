@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v188';
+var APP_BUILD = 'v189';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -1966,6 +1966,11 @@ async function connexion() {
   ETAB.nom = d.nom || '';
   ETAB.siret = d.siret || '';
   ETAB.adresse = d.adresse || '';
+  // Coordonnées saisies à l'inscription (pour pré-remplir le PMS, les rapports, etc.).
+  // On préserve une valeur déjà présente localement si la base ne la renvoie pas.
+  ETAB.responsable = d.responsable || ETAB.responsable || '';
+  ETAB.tel = d.telephone || ETAB.tel || '';
+  ETAB.email = d.email || ETAB.email || '';
   ETAB.secteur = d.secteur || 'resto';
   // Restaurer le dernier secteur choisi UNIQUEMENT pour les comptes multi-secteurs
   // (test/démo). Pour un client VERROUILLÉ (multi_secteur != true), on impose
@@ -20346,6 +20351,10 @@ function testEffacerDonnees() {
               secteur: secteurInterne,
               adresse: d.adresse || '',
               siret: d.siret || '',
+              // Coordonnées de la fiche d'inscription, reprises dans le PMS du client
+              responsable: d.responsable || '',
+              telephone: d.telephone || '',
+              email: d.email || '',
               actif: true
             };
             window._supabase.from('etablissements').insert([etabRow]).then(function(ie) {
