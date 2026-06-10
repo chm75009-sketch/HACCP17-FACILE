@@ -81,7 +81,7 @@ ok(/Conditions Générales de Vente/.test(cgv), 'CGV: page présente');
 ok(/sans engagement/.test(cgv) && /12.{0,3}mois/i.test(cgv), 'CGV: deux formules (sans engagement / 12 mois)');
 ok(/affichés lors de l’inscription/.test(cgv), 'CGV: tarifs renvoyés à l’inscription');
 ok(/hors taxes|TVA 20/.test(cgv), 'CGV: tarifs HT + TVA');
-ok(/rétractation/i.test(cgv) && /professionnel/i.test(cgv), 'CGV: clause rétractation (statut professionnel)');
+ok(/rétractation de 14 jours/.test(cgv) && /rembours/i.test(cgv), 'CGV: droit de rétractation 14 jours accordé (remboursement)');
 ok(/résiliable|résiliation/i.test(cgv), 'CGV: clauses de résiliation');
 ok(/tribunaux de Paris/.test(cgv), 'CGV: juridiction Paris');
 ok(/Gestion des cookies/.test(cookies) && /aucun cookie publicitaire/i.test(cookies), 'Cookies: page présente, sans traceur publicitaire');

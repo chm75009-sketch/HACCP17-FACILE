@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v158';
+var APP_BUILD = 'v159';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3566,7 +3566,8 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
   // Reprise de la session ADMIN : si l'admin était connecté, on revient DIRECTEMENT dans
   // son tableau de bord (fini la page d'accueil + re-scroll + re-saisie du mot de passe).
   try {
-    if (lsGet('haccp_admin_ok') === '1' && sessionStorage.getItem('haccp_maj_reprise') !== '1') {
+    try { lsRemove('haccp_admin_ok'); } catch(e){}
+    if (sessionStorage.getItem('haccp_admin_ok') === '1' && sessionStorage.getItem('haccp_maj_reprise') !== '1') {
       if (typeof showPage === 'function') showPage('page-admin');
       setTimeout(function(){
         try {
@@ -19706,7 +19707,7 @@ function testEffacerDonnees() {
           if (box) box.style.display = 'none';
           if (dash) dash.style.display = 'block';
           try { var av = document.getElementById('adminVersion'); if (av) av.textContent = (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?'); } catch(e){}
-          try { lsSet('haccp_admin_ok', '1'); } catch(e){}
+          try { sessionStorage.setItem('haccp_admin_ok', '1'); } catch(e){}
           setTimeout(function(){ try { _scrollHaut(document.getElementById('adminDashboard')); } catch(e){} }, 60);
           adminTab('demandes');
         } else {
@@ -19724,7 +19725,7 @@ function testEffacerDonnees() {
         if (box) box.style.display = 'block';
         if (dash) dash.style.display = 'none';
         if (pwd) pwd.value = '';
-        try { lsRemove('haccp_admin_ok'); } catch(e){}
+        try { sessionStorage.removeItem('haccp_admin_ok'); lsRemove('haccp_admin_ok'); } catch(e){}
         showPage('page-presentation');
       };
 
@@ -21354,7 +21355,7 @@ function ouvrirInfosLegales(section) {
     '<h3 style="font-size:14px;margin:16px 0 6px">2. Souscription et compte</h3>' +
     '<p style="color:#475569;font-size:13px">L’accès se fait par un code et un mot de passe personnels, après inscription. L’Abonné garantit l’exactitude des informations fournies et préserve la confidentialité de ses identifiants.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">3. Essai gratuit</h3>' +
-    '<p style="color:#475569;font-size:13px">Un essai gratuit de 3 jours permet de tester le service, sans engagement, avant toute souscription.</p>' +
+    '<p style="color:#475569;font-size:13px">Un essai gratuit de 3 jours peut être accordé sur demande (il n’est pas automatique), sans engagement, afin d’évaluer le service avant souscription.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">4. Formules et tarifs</h3>' +
     '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
       '<li><strong>Formule sans engagement</strong> : abonnement mensuel, sans durée minimale, résiliable à tout moment.</li>' +
@@ -21370,7 +21371,7 @@ function ouvrirInfosLegales(section) {
       '<li>Résiliation par e-mail à r.t.h@orange.fr. Les sommes dues au titre de la période d’engagement restent exigibles.</li>' +
     '</ul>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">7. Droit de rétractation</h3>' +
-    '<p style="color:#475569;font-size:13px">L’Abonné agissant en qualité de professionnel, dans le cadre de son activité, ne bénéficie pas du droit de rétractation de 14 jours (art. L221-3 du Code de la consommation). L’essai gratuit de 3 jours permet d’évaluer le service avant tout engagement.</p>' +
+    '<p style="color:#475569;font-size:13px">Bien que la loi ne l’impose pas aux contrats conclus entre professionnels (art. L221-3 du Code de la consommation), RTH NETGOCE accorde commercialement à l’Abonné un droit de rétractation de 14 jours à compter de la souscription : sur simple demande par e-mail à r.t.h@orange.fr dans ce délai, l’abonnement est résilié et les sommes éventuellement versées sont intégralement remboursées. Un essai gratuit peut par ailleurs être accordé sur demande.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">8. Disponibilité</h3>' +
     '<p style="color:#475569;font-size:13px">RTH NETGOCE met en œuvre les moyens raisonnables pour assurer la disponibilité du service. Le mode hors-ligne permet de continuer à saisir des contrôles sans réseau, avec synchronisation au retour de la connexion. Des interruptions pour maintenance peuvent survenir.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">9. Données et propriété</h3>' +

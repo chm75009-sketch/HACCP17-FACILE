@@ -66,7 +66,13 @@ ok(!/code:[^\n]*pwd|pwd:[^\n]*pwd|mot_de_passe:\s*pwd/.test(saveOff), 'sécurit�
   const nomB = ctx.construireNomFichierPhoto({ source: 'x', controleId: '1', base64: 'data:image/jpeg;base64,AAAA' });
   ok(nomA.indexOf('client-A-uuid') === 0 && nomB.indexOf('client-B-uuid') === 0, 'sécurité: photos préfixées par l\'identité du client (cloisonnement storage)');
 
-  console.log('\n══════════════════════════════════════');
+  // ════════════ F) SESSION ADMIN — non persistante (re-auth après fermeture) ════════════
+ok(!/lsSet\('haccp_admin_ok'/.test(SRC), 'sécurité: la session admin n\'est PAS stockée en permanence (localStorage)');
+ok(/sessionStorage.setItem\('haccp_admin_ok'/.test(SRC), 'sécurité: session admin en sessionStorage (vidée à la fermeture)');
+ok(/sessionStorage.getItem\('haccp_admin_ok'\)/.test(SRC), 'sécurité: restauration admin lue depuis sessionStorage uniquement');
+ok(/lsRemove\('haccp_admin_ok'\)/.test(SRC), 'sécurité: nettoyage de l\'ancien flag admin persistant (migration)');
+
+console.log('\n══════════════════════════════════════');
   console.log('ROUND 20 (audit de sécurité) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
   if (failures.length) { console.log('FAILURES:'); failures.forEach(function (f) { console.log('  - ' + f); }); }
   console.log('══════════════════════════════════════');
