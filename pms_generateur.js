@@ -37,22 +37,79 @@
     return {};
   }
 
-  function ligneInfo(label, valeur) {
-    return '<tr><td style="font-weight:700;width:38%;padding:5px 8px;border:1px solid #d1d5db;background:#f8fafc">' +
-      esc(label) + '</td><td style="padding:5px 8px;border:1px solid #d1d5db">' +
+  // ── Feuille de styles du document (mise en forme propre, format A4) ──
+  var PMS_CSS =
+    '@page{size:A4;margin:16mm 15mm 18mm}' +
+    '*{box-sizing:border-box}' +
+    'body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;color:#1f2937;font-size:11.5px;line-height:1.55;margin:0;background:#e5e7eb}' +
+    '.sheet{background:#fff;max-width:800px;margin:0 auto;padding:26px 30px 40px;box-shadow:0 1px 14px rgba(0,0,0,.14)}' +
+    'h1,h2,h3,h4{font-family:"Segoe UI",Arial,sans-serif;margin:0}' +
+    'p{margin:0 0 8px}' +
+    '.part{display:flex;align-items:center;gap:10px;background:#1e1b4b;color:#fff;padding:10px 14px;border-radius:8px;margin:26px 0 14px;font-size:15px;font-weight:800;letter-spacing:.2px}' +
+    '.part .pn{background:rgba(255,255,255,.18);border-radius:6px;padding:2px 9px;font-size:13px}' +
+    '.sec{margin:0 0 16px}' +
+    '.sec>h3{display:flex;gap:8px;align-items:baseline;font-size:13px;font-weight:700;color:#1e1b4b;border-left:4px solid #4338ca;background:#eef2ff;padding:7px 11px;border-radius:0 6px 6px 0;margin:0 0 9px}' +
+    '.sec>h3 .num{color:#4338ca;font-weight:800}' +
+    '.body{padding:0 2px}' +
+    'table{width:100%;border-collapse:collapse;font-size:11px;margin:4px 0 6px}' +
+    'th{background:#1e1b4b;color:#fff;text-align:left;padding:6px 8px;border:1px solid #cbd5e1;font-weight:700;font-size:10.5px}' +
+    'td{padding:5px 8px;border:1px solid #d7dce3;vertical-align:top}' +
+    'tbody tr:nth-child(even){background:#f8fafc}' +
+    'table.info td:first-child{font-weight:700;width:34%;background:#f1f5f9;color:#374151}' +
+    'table.ccp th{background:#b91c1c}table.ccp tbody tr:nth-child(even){background:#fef4f4}' +
+    'table.temp th{background:#0f766e}table.temp tbody tr:nth-child(even){background:#f0fdfa}' +
+    'table.temp td:last-child{font-weight:700;white-space:nowrap;color:#0f766e}' +
+    'ul.l{margin:4px 0 8px;padding-left:18px}ul.l li{margin-bottom:4px}' +
+    '.flow{line-height:2.1}.flow .st{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:4px 9px;margin:2px;font-size:11px;font-weight:600;color:#1e1b4b}.flow .ar{color:#94a3b8;margin:0 1px;font-weight:700}' +
+    '.callout{border-radius:6px;padding:9px 12px;margin:0 0 8px}' +
+    '.cy{background:#fef9c3;border:1px solid #fde047}' +
+    '.cb{background:#eff6ff;border-left:4px solid #3b82f6}' +
+    '.co{background:#fff7ed;border-left:4px solid #f97316}' +
+    '.cg{background:#f8fafc;border-left:4px solid #94a3b8}' +
+    '.muted{color:#6b7280;font-size:10.5px}' +
+    '.disclaimer{margin:24px 0 0;padding:12px 14px;background:#f1f5f9;border-left:4px solid #4338ca;border-radius:4px;font-size:11px;color:#475569}' +
+    /* page de garde plein format */
+    '.cover{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;min-height:235mm;padding:0 10mm}' +
+    '.cover .kicker{font-size:13px;letter-spacing:3px;color:#6b7280;font-weight:700}' +
+    '.cover h1{font-size:34px;line-height:1.15;color:#1e1b4b;margin:14px 0 6px;font-weight:800}' +
+    '.cover .emoji{font-size:54px;margin:6px 0 10px}' +
+    '.cover .secteur{font-size:20px;color:#4338ca;font-weight:700;margin-bottom:26px}' +
+    '.cover .etab{font-size:16px;color:#111827;font-weight:600}' +
+    '.cover .rule{width:120px;height:3px;background:#4338ca;border-radius:2px;margin:22px auto}' +
+    '.cover .base{font-size:12px;color:#6b7280;max-width:460px}' +
+    '.cover .foot{margin-top:auto;padding-top:24px;font-size:11px;color:#94a3b8}' +
+    /* sommaire */
+    '.toc{margin:0 0 8px}.toc .toc-part{font-weight:800;color:#1e1b4b;margin:12px 0 4px;font-size:13px}' +
+    '.toc ul{list-style:none;margin:0 0 4px;padding:0}.toc li{padding:3px 0;border-bottom:1px dotted #d1d5db;font-size:11.5px;color:#374151}' +
+    '@media screen{.toolbar{position:sticky;top:0;z-index:9;background:#1e1b4b;color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}' +
+    '.toolbar .t{font-weight:700;font-size:14px}.toolbar button{background:#fff;color:#1e1b4b;border:none;border-radius:8px;font-weight:700;font-size:13px;padding:8px 16px;cursor:pointer}}' +
+    '@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none;margin:0;padding:0}.noprint{display:none!important}' +
+    '.page-break{break-before:page}.part,.sec,table,tr,.callout,.flow{break-inside:avoid}thead{display:table-header-group}h3{break-after:avoid}}';
+
+  // ── Briques de mise en forme ──
+  function infoRow(label, valeur) {
+    return '<tr><td>' + esc(label) + '</td><td>' +
       (valeur ? esc(valeur) : '<span style="color:#9ca3af">à compléter</span>') + '</td></tr>';
   }
-
   function liste(arr) {
     if (!arr || !arr.length) return '';
-    return '<ul style="margin:6px 0 12px;padding-left:20px">' +
-      arr.map(function (x) { return '<li style="margin-bottom:4px">' + esc(x) + '</li>'; }).join('') + '</ul>';
+    return '<ul class="l">' + arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
   }
+  function part(num, titre) {
+    return '<h2 class="part"><span class="pn">PARTIE ' + esc(num) + '</span>' + esc(titre) + '</h2>';
+  }
+  function sec(num, titre, contenuHtml) {
+    return '<section class="sec"><h3>' + (num ? '<span class="num">' + esc(num) + '</span>' : '') +
+      '<span>' + esc(titre) + '</span></h3><div class="body">' + contenuHtml + '</div></section>';
+  }
+  function para(txt) { return '<p>' + esc(txt) + '</p>'; }
 
-  function bloc(titre, contenuHtml) {
-    return '<section style="margin:0 0 18px;break-inside:avoid">' +
-      '<h3 style="font:700 14px/1.3 Arial,sans-serif;color:#1e1b4b;background:#eef2ff;padding:7px 10px;border-radius:6px;margin:0 0 8px">' +
-      esc(titre) + '</h3>' + contenuHtml + '</section>';
+  function tableauTemperatures(S) {
+    var t = '<table class="temp"><thead><tr><th>Denrée / opération</th><th>Température réglementaire</th></tr></thead><tbody>';
+    (S.temperatures || []).forEach(function (r) {
+      t += '<tr><td>' + esc(r.denree) + '</td><td>' + esc(r.valeur) + '</td></tr>';
+    });
+    return t + '</tbody></table>';
   }
 
   // Construit le corps HTML du PMS pour un secteur donné
@@ -60,178 +117,135 @@
     var nom = E.nom || '';
     var adr = [E.adresse, [E.cp, E.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     var dateStr = new Date().toLocaleDateString('fr-FR');
-
     var html = '';
 
-    // ── Page de garde / identification ──
-    html += '<div style="text-align:center;margin:0 0 22px;padding-bottom:14px;border-bottom:3px solid #4338ca">' +
-      '<div style="font:700 13px Arial;color:#6b7280;letter-spacing:1px">PLAN DE MAÎTRISE SANITAIRE (PMS)</div>' +
-      '<div style="font:800 22px/1.2 Arial;color:#1e1b4b;margin:6px 0">' + S.emoji + ' ' + esc(S.label) + '</div>' +
-      '<div style="font:600 14px Arial;color:#374151">' + (nom ? esc(nom) : 'Votre établissement') + '</div>' +
-      '<div style="font:12px Arial;color:#6b7280;margin-top:6px">Établi le ' + dateStr +
-      ' — d\'après le Règlement (CE) n° 852/2004 et le GBPH du secteur</div>' +
+    // ════ PAGE DE GARDE ════
+    html += '<div class="cover">' +
+      '<div class="kicker">PLAN DE MAÎTRISE SANITAIRE</div>' +
+      '<div class="emoji">' + S.emoji + '</div>' +
+      '<h1>Plan de Maîtrise<br>Sanitaire</h1>' +
+      '<div class="secteur">' + esc(S.label) + '</div>' +
+      '<div class="etab">' + (nom ? esc(nom) : '<span style="color:#9ca3af">[ Nom de l\'établissement ]</span>') + '</div>' +
+      '<div class="rule"></div>' +
+      '<div class="base">Document établi d\'après le Règlement (CE) n° 852/2004 et le Guide de Bonnes Pratiques d\'Hygiène (GBPH) du secteur.</div>' +
+      '<div class="foot">Établi le ' + dateStr + ' · Généré avec HACCP Pro</div>' +
       '</div>';
 
-    // ── Identification de l'établissement ──
-    html += bloc('Identification de l\'établissement',
-      '<table style="width:100%;border-collapse:collapse;font:12px Arial">' +
-      ligneInfo('Raison sociale', E.nom) +
-      ligneInfo('Adresse', adr) +
-      ligneInfo('SIRET', E.siret) +
-      ligneInfo('Téléphone', E.tel) +
-      ligneInfo('E-mail', E.email) +
-      ligneInfo('Responsable (gérant du PMS)', E.responsable) +
-      ligneInfo('Secteur d\'activité', S.label) +
-      '</table>');
+    // ════ SOMMAIRE ════
+    html += '<div class="page-break"></div>';
+    html += sec('', 'Sommaire',
+      '<div class="toc">' +
+      '<div class="toc-part">Présentation</div><ul><li>Identification de l\'établissement</li><li>Textes réglementaires de référence</li></ul>' +
+      '<div class="toc-part">Partie I — Bonnes Pratiques d\'Hygiène (prérequis)</div>' +
+      '<ul><li>I.1 — Personnel (formation, hygiène, santé)</li><li>I.2 — Locaux, équipements et maintenance</li>' +
+      '<li>I.3 — Plan de nettoyage et de désinfection</li><li>I.4 — Lutte contre les nuisibles</li>' +
+      '<li>I.5 — Approvisionnement en eau</li><li>I.6 — Gestion des déchets</li><li>I.7 — Maîtrise des températures</li></ul>' +
+      '<div class="toc-part">Partie II — Plan HACCP (7 principes)</div>' +
+      '<ul><li>II.1 — Champ d\'application &amp; équipe</li><li>II.2 — Description des produits</li>' +
+      '<li>II.3 — Diagramme de fabrication</li><li>II.4 — Analyse des dangers</li>' +
+      '<li>II.5 — Points critiques (CCP)</li>' + (S.platsTemoins ? '<li>II.6 — Plats témoins &amp; excédents</li>' : '') +
+      '<li>II.' + (S.platsTemoins ? '7' : '6') + ' — Maîtrise des allergènes</li></ul>' +
+      '<div class="toc-part">Partie III — Mesures de gestion</div>' +
+      '<ul><li>III.1 — Traçabilité</li><li>III.2 — Gestion des non-conformités</li>' +
+      '<li>III.3 — Procédure de retrait / rappel</li><li>III.4 — Synthèse des autocontrôles</li></ul>' +
+      '</div>');
 
-    // ── Sommaire / textes de référence ──
-    html += bloc('Textes réglementaires de référence', liste(S.references));
+    // ════ PRÉSENTATION ════
+    html += '<div class="page-break"></div>';
+    html += sec('', 'Identification de l\'établissement',
+      '<table class="info">' +
+      infoRow('Raison sociale', E.nom) + infoRow('Adresse', adr) + infoRow('SIRET', E.siret) +
+      infoRow('Téléphone', E.tel) + infoRow('E-mail', E.email) +
+      infoRow('Responsable (gérant du PMS)', E.responsable) + infoRow('Secteur d\'activité', S.label) +
+      infoRow('Date d\'établissement', dateStr) + '</table>');
+
+    html += sec('', 'Textes réglementaires de référence', liste(S.references));
 
     // ════ PARTIE I — BPH ════
-    html += '<h2 style="font:800 16px Arial;color:#fff;background:#1e1b4b;padding:9px 12px;border-radius:6px;margin:22px 0 14px">' +
-      'PARTIE I — Bonnes Pratiques d\'Hygiène (prérequis)</h2>';
-
+    html += part('I', 'Bonnes Pratiques d\'Hygiène (prérequis)');
     var p = S.bph.personnel;
-    html += bloc('1. Personnel — formation, hygiène, santé',
-      '<table style="width:100%;border-collapse:collapse;font:12px Arial">' +
-      ligneInfo('Formation', p.formation) +
-      ligneInfo('Tenue de travail', p.tenue) +
-      ligneInfo('Bijoux, ongles, plaies', p.bijoux) +
-      ligneInfo('Suivi médical / santé', p.sante) +
-      ligneInfo('Hygiène des mains', p.mains) +
-      ligneInfo('Visiteurs / livreurs', p.visiteurs) +
-      (p.notes ? ligneInfo('Spécificité du secteur', p.notes) : '') +
-      '</table>');
+    html += sec('I.1', 'Personnel — formation, hygiène, santé',
+      '<table class="info">' +
+      infoRow('Formation', p.formation) + infoRow('Tenue de travail', p.tenue) +
+      infoRow('Bijoux, ongles, plaies', p.bijoux) + infoRow('Suivi médical / santé', p.sante) +
+      infoRow('Hygiène des mains', p.mains) + infoRow('Visiteurs / livreurs', p.visiteurs) +
+      (p.notes ? infoRow('Spécificité du secteur', p.notes) : '') + '</table>');
 
-    html += bloc('2. Locaux, équipements et maintenance',
-      '<p style="font:12px/1.5 Arial;margin:0 0 8px">' + esc(S.bph.locaux) + '</p>');
+    html += sec('I.2', 'Locaux, équipements et maintenance', para(S.bph.locaux));
 
-    var pn = '<table style="width:100%;border-collapse:collapse;font:11.5px Arial"><thead><tr style="background:#1e1b4b;color:#fff">' +
-      '<th style="padding:6px 8px;border:1px solid #cbd5e1;text-align:left">Zone / matériel</th>' +
-      '<th style="padding:6px 8px;border:1px solid #cbd5e1;text-align:left">Fréquence</th>' +
-      '<th style="padding:6px 8px;border:1px solid #cbd5e1;text-align:left">Produit</th>' +
-      '<th style="padding:6px 8px;border:1px solid #cbd5e1;text-align:left">Méthode</th></tr></thead><tbody>';
-    (S.bph.nettoyage || []).forEach(function (n, i) {
-      pn += '<tr style="background:' + (i % 2 ? '#f8fafc' : '#fff') + '">' +
-        '<td style="padding:5px 8px;border:1px solid #d1d5db;font-weight:600">' + esc(n.zone) + '</td>' +
-        '<td style="padding:5px 8px;border:1px solid #d1d5db">' + esc(n.freq) + '</td>' +
-        '<td style="padding:5px 8px;border:1px solid #d1d5db">' + esc(n.produit) + '</td>' +
-        '<td style="padding:5px 8px;border:1px solid #d1d5db">' + esc(n.methode) + '</td></tr>';
+    var pn = '<table><thead><tr><th>Zone / matériel</th><th>Fréquence</th><th>Produit</th><th>Méthode</th></tr></thead><tbody>';
+    (S.bph.nettoyage || []).forEach(function (n) {
+      pn += '<tr><td style="font-weight:600">' + esc(n.zone) + '</td><td>' + esc(n.freq) +
+        '</td><td>' + esc(n.produit) + '</td><td>' + esc(n.methode) + '</td></tr>';
     });
     pn += '</tbody></table>';
-    html += bloc('3. Plan de nettoyage et de désinfection', pn);
+    html += sec('I.3', 'Plan de nettoyage et de désinfection', pn);
 
-    html += bloc('4. Lutte contre les nuisibles', '<p style="font:12px/1.5 Arial;margin:0">' + esc(S.bph.nuisibles) + '</p>');
-    html += bloc('5. Approvisionnement en eau', '<p style="font:12px/1.5 Arial;margin:0">' + esc(S.bph.eau) + '</p>');
-    html += bloc('6. Gestion des déchets', '<p style="font:12px/1.5 Arial;margin:0">' + esc(S.bph.dechets) + '</p>');
-    html += bloc('7. Maîtrise des températures (froid / chaud)',
-      '<p style="font:12px/1.5 Arial;margin:0 0 8px">' + esc(S.bph.froidChaud) + '</p>' + tableauTemperatures(S));
+    html += sec('I.4', 'Lutte contre les nuisibles', para(S.bph.nuisibles));
+    html += sec('I.5', 'Approvisionnement en eau', para(S.bph.eau));
+    html += sec('I.6', 'Gestion des déchets', para(S.bph.dechets));
+    html += sec('I.7', 'Maîtrise des températures (froid / chaud)', para(S.bph.froidChaud) + tableauTemperatures(S));
 
     // ════ PARTIE II — HACCP ════
-    html += '<h2 style="font:800 16px Arial;color:#fff;background:#1e1b4b;padding:9px 12px;border-radius:6px;margin:22px 0 14px">' +
-      'PARTIE II — Plan HACCP (7 principes)</h2>';
+    html += part('II', 'Plan HACCP (7 principes — Codex Alimentarius)');
+    html += sec('II.1', 'Champ d\'application & équipe HACCP', para(S.haccp.champ) + liste(S.haccp.equipe));
+    html += sec('II.2', 'Description des produits', liste(S.haccp.produits));
 
-    html += bloc('Champ d\'application', '<p style="font:12px/1.5 Arial;margin:0">' + esc(S.haccp.champ) + '</p>');
-    html += bloc('Équipe HACCP', liste(S.haccp.equipe));
-    html += bloc('Description des produits', liste(S.haccp.produits));
+    var diag = '<div class="flow">' + (S.haccp.diagramme || []).map(function (e, i) {
+      return '<span class="st">' + (i + 1) + '. ' + esc(e) + '</span>';
+    }).join('<span class="ar">→</span>') + '</div>';
+    html += sec('II.3', 'Diagramme de fabrication', diag);
 
-    // Diagramme de fabrication (étapes)
-    var diag = (S.haccp.diagramme || []).map(function (e, i) {
-      return '<div style="display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:5px 10px;margin:3px;font:600 11.5px Arial;color:#1e1b4b">' +
-        (i + 1) + '. ' + esc(e) + '</div>';
-    }).join('<span style="color:#94a3b8;margin:0 2px">→</span>');
-    html += bloc('Diagramme de fabrication', '<div style="line-height:2">' + diag + '</div>');
-
-    // Tableau d'analyse des dangers
-    var dg = '<table style="width:100%;border-collapse:collapse;font:11px Arial"><thead><tr style="background:#1e1b4b;color:#fff">' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Étape</th>' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Danger</th>' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Type</th>' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Mesure de maîtrise</th></tr></thead><tbody>';
-    (S.haccp.dangers || []).forEach(function (d, i) {
-      dg += '<tr style="background:' + (i % 2 ? '#f8fafc' : '#fff') + '">' +
-        '<td style="padding:5px;border:1px solid #d1d5db;font-weight:600">' + esc(d.etape) + '</td>' +
-        '<td style="padding:5px;border:1px solid #d1d5db">' + esc(d.danger) + '</td>' +
-        '<td style="padding:5px;border:1px solid #d1d5db">' + esc(d.type) + '</td>' +
-        '<td style="padding:5px;border:1px solid #d1d5db">' + esc(d.mesure) + '</td></tr>';
+    var dg = '<table><thead><tr><th>Étape</th><th>Danger</th><th>Type</th><th>Mesure de maîtrise</th></tr></thead><tbody>';
+    (S.haccp.dangers || []).forEach(function (d) {
+      dg += '<tr><td style="font-weight:600">' + esc(d.etape) + '</td><td>' + esc(d.danger) +
+        '</td><td>' + esc(d.type) + '</td><td>' + esc(d.mesure) + '</td></tr>';
     });
     dg += '</tbody></table>';
-    html += bloc('Analyse des dangers et mesures de maîtrise', dg);
+    html += sec('II.4', 'Analyse des dangers et mesures de maîtrise', dg);
 
-    // Tableau des CCP
-    var cc = '<table style="width:100%;border-collapse:collapse;font:10.5px Arial"><thead><tr style="background:#b91c1c;color:#fff">' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">CCP / PrPo</th>' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Limite critique</th>' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Surveillance</th>' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Action corrective</th>' +
-      '<th style="padding:6px;border:1px solid #cbd5e1;text-align:left">Enregistrement</th></tr></thead><tbody>';
-    (S.haccp.ccp || []).forEach(function (c, i) {
-      cc += '<tr style="background:' + (i % 2 ? '#fef2f2' : '#fff') + '">' +
-        '<td style="padding:5px;border:1px solid #d1d5db;font-weight:700">' + esc(c.nom) + '</td>' +
-        '<td style="padding:5px;border:1px solid #d1d5db">' + esc(c.limite) + '</td>' +
-        '<td style="padding:5px;border:1px solid #d1d5db">' + esc(c.surveillance) + '</td>' +
-        '<td style="padding:5px;border:1px solid #d1d5db">' + esc(c.correction) + '</td>' +
-        '<td style="padding:5px;border:1px solid #d1d5db">' + esc(c.enreg) + '</td></tr>';
+    var cc = '<table class="ccp"><thead><tr><th>CCP / PrPo</th><th>Limite critique</th><th>Surveillance</th><th>Action corrective</th><th>Enregistrement</th></tr></thead><tbody>';
+    (S.haccp.ccp || []).forEach(function (c) {
+      cc += '<tr><td style="font-weight:700">' + esc(c.nom) + '</td><td>' + esc(c.limite) +
+        '</td><td>' + esc(c.surveillance) + '</td><td>' + esc(c.correction) + '</td><td>' + esc(c.enreg) + '</td></tr>';
     });
-    cc += '</tbody></table>' +
-      '<p style="font:11px/1.4 Arial;color:#6b7280;margin:6px 0 0">Vérification : étalonnage des sondes, relecture des enregistrements, revue annuelle du plan HACCP et après tout changement de process.</p>';
-    html += bloc('Points critiques (CCP) et points d\'attention', cc);
+    cc += '</tbody></table><p class="muted">Vérification : étalonnage des sondes, relecture des enregistrements, revue annuelle du plan HACCP et après tout changement de process.</p>';
+    html += sec('II.5', 'Points critiques (CCP) et points d\'attention', cc);
 
-    // Plats témoins (collective uniquement)
-    if (S.platsTemoins) {
-      html += bloc('Plats témoins (obligatoires)', '<p style="font:12px/1.5 Arial;margin:0;background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:8px 10px">' + esc(S.platsTemoins) + '</p>');
+    var numAllerg = '6';
+    if (S.platsTemoins || S.gestionExcedents) {
+      numAllerg = '7';
+      var pt = '';
+      if (S.platsTemoins) pt += '<div class="callout cy"><b>Plats témoins (obligatoires) — </b>' + esc(S.platsTemoins) + '</div>';
+      if (S.gestionExcedents) {
+        var ge = S.gestionExcedents;
+        pt += '<p style="margin-top:6px">' + esc(ge.principe) + '</p>' +
+          '<div class="callout cb">' + esc(ge.froides) + '</div>' +
+          '<div class="callout co">' + esc(ge.chaudes) + '</div>' +
+          '<div class="callout cg">' + esc(ge.satellite) + '</div>';
+      }
+      html += sec('II.6', 'Plats témoins & gestion des excédents de fin de service', pt);
     }
 
-    // Gestion des excédents de fin de service (collective uniquement)
-    if (S.gestionExcedents) {
-      var ge = S.gestionExcedents;
-      html += bloc('Gestion des excédents de fin de service',
-        '<p style="font:12px/1.5 Arial;margin:0 0 8px">' + esc(ge.principe) + '</p>' +
-        '<p style="font:12px/1.5 Arial;margin:0 0 6px;background:#eff6ff;border-left:3px solid #3b82f6;padding:7px 10px;border-radius:4px">' + esc(ge.froides) + '</p>' +
-        '<p style="font:12px/1.5 Arial;margin:0 0 6px;background:#fff7ed;border-left:3px solid #f97316;padding:7px 10px;border-radius:4px">' + esc(ge.chaudes) + '</p>' +
-        '<p style="font:12px/1.5 Arial;margin:0;background:#f8fafc;border-left:3px solid #94a3b8;padding:7px 10px;border-radius:4px">' + esc(ge.satellite) + '</p>');
-    }
-
-    // Allergènes
-    html += bloc('Maîtrise des allergènes (14 allergènes réglementaires)',
-      '<p style="font:12px/1.4 Arial;margin:0 0 6px">Information du consommateur obligatoire (Règlement UE 1169/2011). Identification dans chaque recette et prévention des contaminations croisées :</p>' +
+    html += sec('II.' + numAllerg, 'Maîtrise des allergènes (14 allergènes réglementaires)',
+      '<p>Information du consommateur obligatoire (Règlement UE 1169/2011). Identification dans chaque recette et prévention des contaminations croisées :</p>' +
       liste(S.allergenes));
 
     // ════ PARTIE III — Mesures de gestion ════
-    html += '<h2 style="font:800 16px Arial;color:#fff;background:#1e1b4b;padding:9px 12px;border-radius:6px;margin:22px 0 14px">' +
-      'PARTIE III — Mesures de gestion</h2>';
+    html += part('III', 'Mesures de gestion');
+    html += sec('III.1', 'Traçabilité', para(S.tracabilite.principe) + liste(S.tracabilite.enregistrements));
+    html += sec('III.2', 'Gestion des non-conformités', para(S.nonConformites.principe) + liste(S.nonConformites.procedure));
+    html += sec('III.3', 'Procédure de retrait / rappel',
+      para(S.retraitRappel.principe) + liste(S.retraitRappel.procedure) +
+      '<p class="muted" style="font-size:11px;color:#374151">' + esc(S.retraitRappel.contact) + '</p>');
+    html += sec('III.4', 'Synthèse des autocontrôles (enregistrements tenus dans HACCP Pro)', liste(S.autocontroles));
 
-    html += bloc('Traçabilité',
-      '<p style="font:12px/1.5 Arial;margin:0 0 6px">' + esc(S.tracabilite.principe) + '</p>' + liste(S.tracabilite.enregistrements));
-    html += bloc('Gestion des non-conformités',
-      '<p style="font:12px/1.5 Arial;margin:0 0 6px">' + esc(S.nonConformites.principe) + '</p>' + liste(S.nonConformites.procedure));
-    html += bloc('Procédure de retrait / rappel',
-      '<p style="font:12px/1.5 Arial;margin:0 0 6px">' + esc(S.retraitRappel.principe) + '</p>' + liste(S.retraitRappel.procedure) +
-      '<p style="font:12px/1.4 Arial;color:#374151;margin:0">' + esc(S.retraitRappel.contact) + '</p>');
-
-    // ── Autocontrôles ──
-    html += bloc('Synthèse des autocontrôles (enregistrements tenus dans HACCP Pro)', liste(S.autocontroles));
-
-    // ── Avertissement de responsabilité ──
-    html += '<div style="margin:22px 0 0;padding:12px 14px;background:#f1f5f9;border-left:4px solid #4338ca;border-radius:4px;font:11.5px/1.5 Arial;color:#475569">' +
-      '<b>Note importante :</b> ce Plan de Maîtrise Sanitaire est un modèle pré-rempli, généré automatiquement à partir des informations de votre établissement et du Guide de Bonnes Pratiques d\'Hygiène de votre secteur. ' +
+    html += '<div class="disclaimer"><b>Note importante :</b> ce Plan de Maîtrise Sanitaire est un modèle pré-rempli, ' +
+      'généré automatiquement à partir des informations de votre établissement et du Guide de Bonnes Pratiques d\'Hygiène de votre secteur. ' +
       'Il doit être relu, complété (plans des locaux, fiches techniques de vos produits, coordonnées de vos prestataires) et tenu à jour. ' +
       'L\'éditeur de HACCP Pro fournit un outil d\'aide à l\'autocontrôle ; l\'exploitant reste seul responsable de la conformité de son établissement et de la sauvegarde de ses documents.</div>';
 
     return html;
-  }
-
-  function tableauTemperatures(S) {
-    var t = '<table style="width:100%;border-collapse:collapse;font:11.5px Arial;margin-top:6px"><thead><tr style="background:#0f766e;color:#fff">' +
-      '<th style="padding:6px 8px;border:1px solid #cbd5e1;text-align:left">Denrée / opération</th>' +
-      '<th style="padding:6px 8px;border:1px solid #cbd5e1;text-align:left">Température réglementaire</th></tr></thead><tbody>';
-    (S.temperatures || []).forEach(function (r, i) {
-      t += '<tr style="background:' + (i % 2 ? '#f0fdfa' : '#fff') + '">' +
-        '<td style="padding:5px 8px;border:1px solid #d1d5db">' + esc(r.denree) + '</td>' +
-        '<td style="padding:5px 8px;border:1px solid #d1d5db;font-weight:700;white-space:nowrap">' + esc(r.valeur) + '</td></tr>';
-    });
-    t += '</tbody></table>';
-    return t;
   }
 
   // ── Construit le document HTML complet (autonome, imprimable en PDF) ──
@@ -244,17 +258,10 @@
     var titre = 'PMS — ' + (E.nom || S.label);
     return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>' + esc(titre) + '</title>' +
-      '<style>@media print{.noprint{display:none!important}h2,h3,section{break-inside:avoid}}' +
-      'body{margin:0;background:#f3f4f6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-      'table{page-break-inside:auto}</style></head><body>' +
-      '<div class="noprint" style="position:sticky;top:0;z-index:9;background:#1e1b4b;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">' +
-      '<div style="font:700 14px Arial">📄 Plan de Maîtrise Sanitaire — ' + esc(S.label) + '</div>' +
-      '<button onclick="window.print()" style="background:#fff;color:#1e1b4b;border:none;border-radius:8px;font:700 13px Arial;padding:8px 16px;cursor:pointer">🖨️ Imprimer / PDF</button>' +
-      '</div>' +
-      '<div style="padding:20px 16px;max-width:880px;margin:0 auto;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.08)">' +
-      corpsPMS(S, E) + '</div>' +
-      '<div style="height:30px"></div></body></html>';
+      '<title>' + esc(titre) + '</title><style>' + PMS_CSS + '</style></head><body>' +
+      '<div class="toolbar noprint"><span class="t">📄 Plan de Maîtrise Sanitaire — ' + esc(S.label) + '</span>' +
+      '<button onclick="window.print()">🖨️ Imprimer / PDF</button></div>' +
+      '<div class="sheet">' + corpsPMS(S, E) + '</div></body></html>';
   }
 
   // ── Point d'entrée navigateur : ouvre le PMS imprimable du secteur actif ──
