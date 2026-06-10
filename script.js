@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v179';
+var APP_BUILD = 'v180';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3705,21 +3705,30 @@ function getNowStr() {
 }
 
 // FIX TACTILE (tablettes Windows / Edge) — certains appareils ne déclenchent pas le
-// 'click' de façon fiable sur les tuiles de modules. On ajoute un tap tactile propre :
+// 'click' de façon fiable au tap. On declenche le clic de TOUT bouton/lien tape :
 // déclenche openModule au relâchement SI le doigt n'a pas bougé (vrai tap, pas un
 // défilement), et on annule le click suivant (preventDefault) pour éviter le double.
 // N'affecte ni la souris (PC) ni le défilement.
 (function(){
   if (typeof document === 'undefined') return;
-  var sx = 0, sy = 0, moved = false, tracking = false;
-  function elemMod(el){ while (el && el !== document) { if (el.getAttribute && el.getAttribute('data-mod')) return el.getAttribute('data-mod'); el = el.parentNode; } return null; }
-  document.addEventListener('touchstart', function(e){ var t = e.touches && e.touches[0]; if (!t) return; sx = t.clientX; sy = t.clientY; moved = false; tracking = !!elemMod(e.target); }, { passive: true });
-  document.addEventListener('touchmove', function(e){ if (!tracking) return; var t = e.touches && e.touches[0]; if (t && (Math.abs(t.clientX - sx) > 12 || Math.abs(t.clientY - sy) > 12)) moved = true; }, { passive: true });
+  var sx = 0, sy = 0, moved = false;
+  document.addEventListener('touchstart', function(e){ var t = e.touches && e.touches[0]; if (!t) return; sx = t.clientX; sy = t.clientY; moved = false; }, { passive: true });
+  document.addEventListener('touchmove', function(e){ var t = e.touches && e.touches[0]; if (t && (Math.abs(t.clientX - sx) > 12 || Math.abs(t.clientY - sy) > 12)) moved = true; }, { passive: true });
   document.addEventListener('touchend', function(e){
-    if (!tracking || moved) { tracking = false; return; }
-    tracking = false;
-    var id = elemMod(e.target);
-    if (id) { try { e.preventDefault(); } catch(_) {} if (typeof openModule === 'function') openModule(id); }
+    if (moved) return;
+    var el = e.target;
+    while (el && el !== document) {
+      var tag = el.tagName;
+      // Champs de saisie : on laisse le comportement natif (focus, clavier, liste deroulante).
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable) return;
+      // Tout element cliquable : on declenche son clic de façon fiable (et on supprime le click natif pour eviter le double).
+      if (tag === 'BUTTON' || tag === 'A' || (el.getAttribute && (el.getAttribute('onclick') || el.getAttribute('data-mod') || el.getAttribute('role') === 'button'))) {
+        try { e.preventDefault(); } catch(_) {}
+        if (typeof el.click === 'function') el.click();
+        return;
+      }
+      el = el.parentNode;
+    }
   }, false);
 })();
 
