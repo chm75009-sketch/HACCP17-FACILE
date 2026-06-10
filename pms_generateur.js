@@ -9,7 +9,12 @@
    ════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  if (typeof window === 'undefined') return;
+
+  // Source du contenu : window (navigateur) ou require (Node, scripts/tests)
+  function getPMS() {
+    if (typeof window !== 'undefined' && window.PMS_SECTEURS) return window.PMS_SECTEURS;
+    try { return require('./pms_secteurs.js').PMS_SECTEURS; } catch (e) { return null; }
+  }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -229,27 +234,15 @@
     return t;
   }
 
-  // ── Point d'entrée : ouvre le PMS imprimable du secteur (ou d'un secteur donné) ──
-  window.genererPMS = function (secteurForce) {
-    var PMS = window.PMS_SECTEURS;
-    if (!PMS) {
-      if (typeof showToast === 'function') showToast('Contenu PMS indisponible', 'warn', 3000);
-      else alert('Contenu PMS indisponible.');
-      return;
-    }
-    var cle = secteurForce || secteurActif();
+  // ── Construit le document HTML complet (autonome, imprimable en PDF) ──
+  // Réutilisé par l'application (fenêtre) ET par les scripts Node (fichiers).
+  function buildPMSDocument(cle, E) {
+    var PMS = getPMS();
+    if (!PMS) return '';
     var S = PMS[cle] || PMS.resto;
-    var E = etab();
-
-    var w = window.open('', '_blank');
-    if (!w) {
-      if (typeof showToast === 'function') showToast('Autorisez les fenêtres pop-up pour générer le PMS', 'warn', 4000);
-      else alert('Autorisez les fenêtres pop-up pour générer le PMS.');
-      return;
-    }
-
+    E = E || {};
     var titre = 'PMS — ' + (E.nom || S.label);
-    var docHtml = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
+    return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<title>' + esc(titre) + '</title>' +
       '<style>@media print{.noprint{display:none!important}h2,h3,section{break-inside:avoid}}' +
@@ -262,20 +255,43 @@
       '<div style="padding:20px 16px;max-width:880px;margin:0 auto;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.08)">' +
       corpsPMS(S, E) + '</div>' +
       '<div style="height:30px"></div></body></html>';
+  }
 
-    w.document.open();
-    w.document.write(docHtml);
-    w.document.close();
-  };
+  // ── Point d'entrée navigateur : ouvre le PMS imprimable du secteur actif ──
+  if (typeof window !== 'undefined') {
+    window.genererPMS = function (secteurForce) {
+      var PMS = getPMS();
+      if (!PMS) {
+        if (typeof showToast === 'function') showToast('Contenu PMS indisponible', 'warn', 3000);
+        else alert('Contenu PMS indisponible.');
+        return;
+      }
+      var cle = secteurForce || secteurActif();
+      var w = window.open('', '_blank');
+      if (!w) {
+        if (typeof showToast === 'function') showToast('Autorisez les fenêtres pop-up pour générer le PMS', 'warn', 4000);
+        else alert('Autorisez les fenêtres pop-up pour générer le PMS.');
+        return;
+      }
+      w.document.open();
+      w.document.write(buildPMSDocument(cle, etab()));
+      w.document.close();
+    };
 
-  // Choix du secteur avant génération (depuis l'admin / multi-secteurs)
-  window.genererPMSChoix = function () {
-    var PMS = window.PMS_SECTEURS; if (!PMS) return;
-    var labels = Object.keys(PMS).map(function (k) { return PMS[k].emoji + ' ' + PMS[k].label + ' (' + k + ')'; }).join('\n');
-    var rep = window.prompt('Secteur du PMS à générer :\n' + labels + '\n\nTapez la clé (resto / bp / rapide / boucherie / collective) :', secteurActif());
-    if (!rep) return;
-    rep = String(rep).trim().toLowerCase();
-    if (!PMS[rep]) { alert('Secteur inconnu : ' + rep); return; }
-    window.genererPMS(rep);
-  };
+    // Choix du secteur avant génération (depuis l'admin / multi-secteurs)
+    window.genererPMSChoix = function () {
+      var PMS = getPMS(); if (!PMS) return;
+      var labels = Object.keys(PMS).map(function (k) { return PMS[k].emoji + ' ' + PMS[k].label + ' (' + k + ')'; }).join('\n');
+      var rep = window.prompt('Secteur du PMS à générer :\n' + labels + '\n\nTapez la clé (resto / bp / rapide / boucherie / collective) :', secteurActif());
+      if (!rep) return;
+      rep = String(rep).trim().toLowerCase();
+      if (!PMS[rep]) { alert('Secteur inconnu : ' + rep); return; }
+      window.genererPMS(rep);
+    };
+  }
+
+  // ── Export Node (scripts de génération de fichiers + tests) ──
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { buildPMSDocument: buildPMSDocument, corpsPMS: corpsPMS };
+  }
 })();
