@@ -71,7 +71,7 @@ ok(/46\.51Z/.test(ment), 'mentions: code APE');
 ok(/49 rue de Douai, 75009 Paris/.test(ment), 'mentions: siège social');
 ok(/Léa Chikhaoui-Auguste/.test(ment), 'mentions: directrice de la publication');
 ok(/tribunaux compétents de Paris/.test(ment), 'mentions: juridiction Paris');
-ok(/chikhaoui\.lea@gmail\.com/.test(conf), 'RGPD: e-mail de contact des droits renseigné');
+ok(/r\.t\.h@orange\.fr/.test(conf), 'RGPD: e-mail de contact des droits renseigné');
 const restants = (ment + conf).match(/\{\{[A-ZÀ-Üa-z][^}]*\}\}/g) || [];
 ok(restants.length === 0, 'légal: plus aucun champ à compléter' + (restants.length ? ' [' + restants.join(', ') + ']' : ''));
 
