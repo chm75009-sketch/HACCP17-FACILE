@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v181';
+var APP_BUILD = 'v182';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -12057,8 +12057,14 @@ async function renderCoffre() {
     html += '<div style="display:flex;align-items:center;gap:8px">';
     html += '<span style="font-size:18px">' + d.icon + '</span>';
     html += '<span style="flex:1;font-size:12.5px;font-weight:700;color:#1f2937">' + d.label + '</span>';
+    if (d.cle === 'pms' && typeof window.genererPMS === 'function') {
+      html += '<button onclick="genererPMS()" style="background:#4338ca;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;padding:6px 12px;cursor:pointer;white-space:nowrap;margin-right:6px">✨ Générer mon PMS</button>';
+    }
     html += '<button onclick="coffreUpload(\'' + d.cle + '\')" style="background:#16a34a;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;padding:6px 12px;cursor:pointer;white-space:nowrap">📎 Téléverser</button>';
     html += '</div>';
+    if (d.cle === 'pms') {
+      html += '<div style="font-size:10.5px;color:#6b7280;margin-top:6px;line-height:1.45">✨ Génère un PMS complet pré-rempli (BPH, plan HACCP, CCP, traçabilité) adapté à votre secteur, à relire et compléter. Modèle — vous restez responsable de sa mise à jour.</div>';
+    }
     if (fichiers.length === 0) {
       html += '<div style="font-size:11px;color:#9ca3af;margin-top:6px">Aucun document</div>';
     } else {
