@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v184';
+var APP_BUILD = 'v185';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3703,48 +3703,6 @@ function getNowStr() {
   var d = new Date();
   return d.toLocaleDateString('fr-FR') + ' a ' + String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0');
 }
-
-// FIX TACTILE (tablettes Windows / Edge) — certains appareils ne déclenchent pas le
-// 'click' de façon fiable au tap. On declenche le clic de TOUT bouton/lien tape :
-// déclenche openModule au relâchement SI le doigt n'a pas bougé (vrai tap, pas un
-// défilement), et on annule le click suivant (preventDefault) pour éviter le double.
-// N'affecte ni la souris (PC) ni le défilement.
-(function(){
-  if (typeof document === 'undefined') return;
-  var sx = 0, sy = 0, moved = false, dernierClick = 0;
-  // Element cliquable le plus proche (en laissant les champs de saisie au comportement natif).
-  function cible(el){
-    while (el && el !== document) {
-      var tag = el.tagName;
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable) return null;
-      if (tag === 'BUTTON' || tag === 'A' || (el.getAttribute && (el.getAttribute('onclick') || el.getAttribute('data-mod') || el.getAttribute('role') === 'button'))) return el;
-      el = el.parentNode;
-    }
-    return null;
-  }
-  // Tout vrai 'click' du navigateur est noté : on ne synthetisera alors PAS de doublon.
-  document.addEventListener('click', function(){ dernierClick = Date.now(); }, true);
-  function debut(x, y){ sx = x; sy = y; moved = false; }
-  function bouge(x, y){ if (Math.abs(x - sx) > 12 || Math.abs(y - sy) > 12) moved = true; }
-  function fin(targetEl){
-    if (moved) return;
-    var c = cible(targetEl);
-    if (!c) return;
-    // Court delai : si le navigateur a declenche son propre click, on ne fait rien.
-    // Sinon (cas des tablettes ou le click n'arrive jamais), on le declenche nous-meme.
-    setTimeout(function(){ if (Date.now() - dernierClick < 400) return; try { c.click(); } catch(_) {} }, 70);
-  }
-  if (window.PointerEvent) {
-    // Tablettes Windows / Edge : Pointer Events (le tactile y passe par la).
-    document.addEventListener('pointerdown', function(e){ if (e.pointerType === 'mouse') return; debut(e.clientX, e.clientY); }, { passive: true });
-    document.addEventListener('pointermove', function(e){ if (e.pointerType === 'mouse') return; bouge(e.clientX, e.clientY); }, { passive: true });
-    document.addEventListener('pointerup', function(e){ if (e.pointerType === 'mouse') return; fin(e.target); }, false);
-  } else {
-    document.addEventListener('touchstart', function(e){ var t = e.touches && e.touches[0]; if (t) debut(t.clientX, t.clientY); }, { passive: true });
-    document.addEventListener('touchmove', function(e){ var t = e.touches && e.touches[0]; if (t) bouge(t.clientX, t.clientY); }, { passive: true });
-    document.addEventListener('touchend', function(e){ fin(e.target); }, false);
-  }
-})();
 
 // Nombre de JOURS CALENDAIRES (locaux) entre deux dates — pour que « aujourd'hui /
 // hier » soit cohérent avec la date affichée (et non un compte de 24 h glissantes).

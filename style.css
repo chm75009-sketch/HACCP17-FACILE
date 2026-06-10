@@ -352,6 +352,3 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--dark);min-
 /* Listes déroulantes toujours lisibles — fond clair + texte foncé, tous navigateurs (y compris menu natif Windows). !important pour neutraliser le texte blanc en ligne. */
 select { color:#111827 !important; background-color:#ffffff !important; }
 select option, select optgroup { color:#111827; background-color:#ffffff; }
-
-/* Tablettes/tactile Windows : supprime le délai et la capture double-tap qui rendaient les boutons « non réactifs ». */
-button, a, .mod, .nitem, .status-btn, .btn-p, .btn-s, [onclick], select, input { touch-action: manipulation; }
