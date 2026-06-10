@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v164';
+var APP_BUILD = 'v165';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21362,7 +21362,7 @@ function ouvrirInfosLegales(section) {
     '</ul>' +
     '<p style="color:#475569;font-size:13px">Les tarifs en vigueur (en euros, hors taxes — TVA applicable en sus) sont affichés lors de l’inscription et acceptés par l’Abonné au moment de la commande. Ils peuvent évoluer ; tout nouveau tarif est communiqué avant application et n’affecte pas la période en cours.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">5. Paiement</h3>' +
-    '<p style="color:#475569;font-size:13px">L’abonnement est payable d’avance, selon les modalités indiquées lors de la souscription. En cas de défaut de paiement, l’accès peut être suspendu après une relance restée sans effet.</p>' +
+    '<p style="color:#475569;font-size:13px">L’abonnement est payable d’avance, selon les modalités indiquées lors de la souscription. En cas de défaut de paiement, l’accès peut être suspendu sans préavis.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">6. Durée, reconduction et résiliation</h3>' +
     '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
       '<li>Formule sans engagement : reconduite par périodes mensuelles ; résiliable à tout moment, l’arrêt prenant effet à la fin de la période en cours.</li>' +
