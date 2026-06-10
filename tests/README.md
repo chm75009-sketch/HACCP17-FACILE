@@ -29,6 +29,7 @@ node run_tests20.js  # Audit de sécurité (clé anon, RPC login, zéro fuite md
 node run_tests21.js  # Affichage réglementaire + liste des modules NC
 node run_tests22.js  # RGPD + mentions légales (accessibilité + contenu)
 node run_tests23.js  # Admin — dernière connexion (jours calendaires)
+node run_tests24.js  # Panneau admin — création essai/client (secteurs, multi, durées)
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
@@ -37,4 +38,4 @@ Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 - `load_app.js`  : charge tout script.js dans un navigateur simulé
 - `run_tests*.js`: les scénarios
 
-Couverture actuelle : 787 scénarios, 0 échec.
+Couverture actuelle : 812 scénarios, 0 échec.

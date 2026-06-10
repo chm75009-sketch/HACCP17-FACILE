@@ -349,5 +349,6 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--dark);min-
     '.nc{color:#dc2626;font-weight:bold}' +
     '@media print{.no-print{display:none!important}}' +
   '
-/* Lisibilité des listes déroulantes (évite texte blanc sur fond blanc sur PC) */
-select option, select optgroup { background-color:#1f2937; color:#ffffff; }
+/* Listes déroulantes toujours lisibles — fond clair + texte foncé, tous navigateurs (y compris menu natif Windows). !important pour neutraliser le texte blanc en ligne. */
+select { color:#111827 !important; background-color:#ffffff !important; }
+select option, select optgroup { color:#111827; background-color:#ffffff; }
