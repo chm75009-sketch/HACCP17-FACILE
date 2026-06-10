@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v157';
+var APP_BUILD = 'v158';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21346,17 +21346,66 @@ function ouvrirInfosLegales(section) {
     '<h3 style="font-size:14px;margin:16px 0 6px">Droit applicable</h3>' +
     '<p style="color:#475569;font-size:13px">Droit français. Litiges : tribunaux compétents de Paris.</p>';
 
-  var corps = (section === 'mentions') ? mentions : confidentialite;
-  var autreLbl = (section === 'mentions') ? 'Confidentialité' : 'Mentions légales';
-  var autreSec = (section === 'mentions') ? 'confidentialite' : 'mentions';
+  var cgv =
+    '<h2 style="margin:0 0 10px;font-size:19px">Conditions Générales de Vente</h2>' +
+    '<p style="color:#475569;font-size:13px">Les présentes CGV régissent l’abonnement au service HACCP Pro, édité par RTH NETGOCE (SARL), entre l’éditeur et le client professionnel (l’« Abonné »). La souscription vaut acceptation des présentes CGV.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">1. Service</h3>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d’autocontrôle sanitaire (relevés de température, traçabilité, preuves PDF pour la DDPP). C’est un outil d’aide : l’Abonné reste seul responsable du respect de ses obligations sanitaires.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">2. Souscription et compte</h3>' +
+    '<p style="color:#475569;font-size:13px">L’accès se fait par un code et un mot de passe personnels, après inscription. L’Abonné garantit l’exactitude des informations fournies et préserve la confidentialité de ses identifiants.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">3. Essai gratuit</h3>' +
+    '<p style="color:#475569;font-size:13px">Un essai gratuit de 3 jours permet de tester le service, sans engagement, avant toute souscription.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">4. Formules et tarifs</h3>' +
+    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
+      '<li><strong>Formule sans engagement</strong> : abonnement mensuel, sans durée minimale, résiliable à tout moment.</li>' +
+      '<li><strong>Formule avec engagement 12 mois</strong> : tarif réduit en contrepartie d’un engagement ferme de douze (12) mois.</li>' +
+    '</ul>' +
+    '<p style="color:#475569;font-size:13px">Les tarifs en vigueur (en euros, hors taxes — TVA 20 % en sus) sont affichés lors de l’inscription et acceptés par l’Abonné au moment de la commande. Ils peuvent évoluer ; tout nouveau tarif est communiqué avant application et n’affecte pas la période en cours.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">5. Paiement</h3>' +
+    '<p style="color:#475569;font-size:13px">L’abonnement est payable d’avance, selon les modalités indiquées lors de la souscription. En cas de défaut de paiement, l’accès peut être suspendu après une relance restée sans effet.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">6. Durée, reconduction et résiliation</h3>' +
+    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
+      '<li>Formule sans engagement : reconduite par périodes mensuelles ; résiliable à tout moment, l’arrêt prenant effet à la fin de la période en cours.</li>' +
+      '<li>Formule 12 mois : ferme pendant 12 mois, puis reconduite par tacite reconduction, sauf résiliation notifiée avant l’échéance avec un préavis de 30 jours.</li>' +
+      '<li>Résiliation par e-mail à r.t.h@orange.fr. Les sommes dues au titre de la période d’engagement restent exigibles.</li>' +
+    '</ul>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">7. Droit de rétractation</h3>' +
+    '<p style="color:#475569;font-size:13px">L’Abonné agissant en qualité de professionnel, dans le cadre de son activité, ne bénéficie pas du droit de rétractation de 14 jours (art. L221-3 du Code de la consommation). L’essai gratuit de 3 jours permet d’évaluer le service avant tout engagement.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">8. Disponibilité</h3>' +
+    '<p style="color:#475569;font-size:13px">RTH NETGOCE met en œuvre les moyens raisonnables pour assurer la disponibilité du service. Le mode hors-ligne permet de continuer à saisir des contrôles sans réseau, avec synchronisation au retour de la connexion. Des interruptions pour maintenance peuvent survenir.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">9. Données et propriété</h3>' +
+    '<p style="color:#475569;font-size:13px">Le traitement des données est décrit dans la Politique de confidentialité. Les données et contrôles saisis restent la propriété de l’Abonné, qui peut les exporter (PDF). L’application, sa marque et son interface restent la propriété de RTH NETGOCE.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">10. Responsabilité</h3>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro étant un outil d’aide, RTH NETGOCE ne saurait être tenue responsable du non-respect par l’Abonné de ses obligations sanitaires. Sauf faute lourde, la responsabilité de l’éditeur est limitée au montant des sommes versées au titre des 12 derniers mois.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">11. Droit applicable et litiges</h3>' +
+    '<p style="color:#475569;font-size:13px">Droit français. En cas de litige, les parties rechercheront une solution amiable ; à défaut, compétence des tribunaux de Paris.</p>';
+
+  var cookies =
+    '<h2 style="margin:0 0 10px;font-size:19px">Gestion des cookies et du stockage</h2>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro n’utilise aucun cookie publicitaire, aucun traceur ni outil de mesure d’audience tiers. Aucune donnée n’est partagée à des fins marketing.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Stockage strictement nécessaire</h3>' +
+    '<p style="color:#475569;font-size:13px">L’application utilise le stockage local de votre navigateur (localStorage / IndexedDB) et un jeton de session sécurisé, uniquement pour :</p>' +
+    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
+      '<li>vous maintenir connecté de façon sécurisée ;</li>' +
+      '<li>enregistrer vos contrôles et fonctionner hors-ligne ;</li>' +
+      '<li>mémoriser vos préférences (secteur, mode guidé / expert).</li>' +
+    '</ul>' +
+    '<p style="color:#475569;font-size:13px">Ce stockage est indispensable au fonctionnement : conformément à la réglementation, aucun consentement préalable n’est requis pour des traceurs strictement nécessaires.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Effacer ce stockage</h3>' +
+    '<p style="color:#475569;font-size:13px">Vous pouvez à tout moment vider le cache local via Réglages → « Libérer de l’espace », ou via les réglages de votre navigateur. Vos contrôles déjà synchronisés restent en sécurité dans le cloud.</p>';
+
+  var _legalSecs = { confidentialite:{label:'Confidentialité', html:confidentialite}, mentions:{label:'Mentions légales', html:mentions}, cgv:{label:'CGV', html:cgv}, cookies:{label:'Cookies', html:cookies} };
+  if (!_legalSecs[section]) section = 'confidentialite';
+  var corps = _legalSecs[section].html;
+  var nav = Object.keys(_legalSecs).map(function(k){ var on=(k===section); return '<button onclick="ouvrirInfosLegales(\'' + k + '\')" style="background:' + (on?'#4338ca':'#eef2ff') + ';border:none;color:' + (on?'#fff':'#4338ca') + ';padding:7px 11px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">' + _legalSecs[k].label + '</button>'; }).join('');
 
   var overlay = document.createElement('div');
   overlay.id = 'infosLegalesOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.55);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px';
   overlay.innerHTML =
     '<div style="background:#fff;max-width:680px;width:100%;border-radius:16px;padding:22px 22px 28px;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:Outfit,sans-serif">' +
-      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:4px">' +
-        '<button onclick="ouvrirInfosLegales(\'' + autreSec + '\')" style="background:#eef2ff;border:none;color:#4338ca;padding:7px 13px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">' + autreLbl + ' →</button>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' + nav + '</div>' +
         '<button onclick="fermerInfosLegales()" aria-label="Fermer" style="background:#f1f5f9;border:none;color:#334155;width:34px;height:34px;border-radius:9px;font-size:18px;font-weight:800;cursor:pointer">×</button>' +
       '</div>' +
       corps +

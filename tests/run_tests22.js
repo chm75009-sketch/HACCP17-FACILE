@@ -75,6 +75,19 @@ ok(/r\.t\.h@orange\.fr/.test(conf), 'RGPD: e-mail de contact des droits renseign
 const restants = (ment + conf).match(/\{\{[A-ZÀ-Üa-z][^}]*\}\}/g) || [];
 ok(restants.length === 0, 'légal: plus aucun champ à compléter' + (restants.length ? ' [' + restants.join(', ') + ']' : ''));
 
+// ════════════ F) CGV + COOKIES ════════════
+const cgv = renduLegal('cgv'); const cookies = renduLegal('cookies');
+ok(/Conditions Générales de Vente/.test(cgv), 'CGV: page présente');
+ok(/sans engagement/.test(cgv) && /12.{0,3}mois/i.test(cgv), 'CGV: deux formules (sans engagement / 12 mois)');
+ok(/affichés lors de l’inscription/.test(cgv), 'CGV: tarifs renvoyés à l’inscription');
+ok(/hors taxes|TVA 20/.test(cgv), 'CGV: tarifs HT + TVA');
+ok(/rétractation/i.test(cgv) && /professionnel/i.test(cgv), 'CGV: clause rétractation (statut professionnel)');
+ok(/résiliable|résiliation/i.test(cgv), 'CGV: clauses de résiliation');
+ok(/tribunaux de Paris/.test(cgv), 'CGV: juridiction Paris');
+ok(/Gestion des cookies/.test(cookies) && /aucun cookie publicitaire/i.test(cookies), 'Cookies: page présente, sans traceur publicitaire');
+ok(/ouvrirInfosLegales\('cgv'\)/.test(conf) && /ouvrirInfosLegales\('cookies'\)/.test(conf), 'légal: navigation vers les 4 pages (CGV + Cookies inclus)');
+ok(/ouvrirInfosLegales\('cgv'\)/.test(HTML), 'accès: lien CGV dans le pied de page');
+
 console.log('\n══════════════════════════════════════');
 console.log('ROUND 22 (RGPD + mentions légales) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 if (failures.length) { console.log('FAILURES:'); failures.forEach(function (f) { console.log('  - ' + f); }); }
