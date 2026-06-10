@@ -21,6 +21,12 @@ const SRC=fs.readFileSync(path.join(__dirname,'..','script.js'),'utf8');
 const CSS=fs.readFileSync(path.join(__dirname,'..','style.css'),'utf8');
 ok(/!secteurEssai && !multiSect/.test(SRC), 'admin essai: secteur facultatif si compte test (accès à tous les secteurs)');
 ok(/select option[^}]*background/.test(CSS), 'UI: options des listes déroulantes lisibles (fond défini)');
+const B=ctx._capBandeSeuil;
+ok(B(4) && B(4).max===4 && B(4).min===0, 'capteurs: frigo +4 -> seuils 0 / +4 auto');
+ok(B(-18) && B(-18).max===-18 && B(-18).min===-25, 'capteurs: congélateur -18 -> -25 / -18 auto');
+ok(B(2) && B(2).min===0 && B(2).max===2, 'capteurs: chambre +2 -> 0 / +2 auto');
+ok(B(0) && B(0).min===-7 && B(0).max===0, 'capteurs: seuil 0 -> -7 / 0 auto');
+ok(B('abc')===null && B(null)===null, 'capteurs: seuil non numérique -> pas de remplissage');
 console.log('\n══════════════════════════════════════');
 console.log('ROUND 23 (admin — dernière connexion) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 if (failures.length) { failures.forEach(f => console.log('  - ' + f)); }

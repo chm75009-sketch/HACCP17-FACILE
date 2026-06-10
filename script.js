@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v174';
+var APP_BUILD = 'v175';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23096,7 +23096,7 @@ function _renderCapteursBeta() {
     + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">2. Associer une sonde à un frigo</div>'
     + '<input id="cap_nom" placeholder="Nom (ex. Sonde frigo dessert)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
     + '<input id="cap_channel" placeholder="N° de canal UbiBot (channel id)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
-    + '<select id="cap_enceinte" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">' + encOpts + '</select>'
+    + '<select id="cap_enceinte" onchange="onCapEnceinteChange()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">' + encOpts + '</select>'
     + '<div style="display:flex;gap:6px;margin-bottom:8px"><input id="cap_min" type="number" step="0.1" placeholder="Seuil min °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
     + '<input id="cap_max" type="number" step="0.1" placeholder="Seuil max °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px"></div>'
     + '<button onclick="ajouterSondeBeta()" style="width:100%;border:none;background:#16a34a;color:#fff;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer">+ Associer la sonde</button></div>'
@@ -23109,6 +23109,33 @@ function _renderCapteursBeta() {
     + '</div>';
 }
 
+// Reprend automatiquement les seuils définis lors du paramétrage de l'enceinte.
+// seuil = limite réglementaire (max pour le froid) -> on en déduit une plage min/max.
+function _capBandeSeuil(seuil) {
+  var s = parseFloat(seuil);
+  if (!isFinite(s)) return null;
+  return { max: s, min: (s <= 0 ? s - 7 : 0) };
+}
+function onCapEnceinteChange() {
+  try {
+    var sel = document.getElementById('cap_enceinte'); if (!sel || !sel.value) return;
+    var nom = sel.value;
+    var cfg = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
+    var e = null; for (var i = 0; i < cfg.length; i++) { if (((cfg[i].nom || cfg[i].name) || '') === nom) { e = cfg[i]; break; } }
+    var seuil = e ? (typeof e.seuil === 'number' ? e.seuil : parseFloat(e.seuil)) : NaN;
+    if (e && !isFinite(seuil)) {
+      var lbl = (typeof seuilEnceinteDepuisLabel === 'function') ? seuilEnceinteDepuisLabel((e.nom || '') + ' ' + (e.type || '') + ' ' + (e.precision || '')) : '';
+      var m = String(lbl).match(/([+-]?\d+)/); if (m) seuil = parseFloat(m[1]);
+    }
+    var bande = _capBandeSeuil(seuil);
+    if (bande) {
+      var mx = document.getElementById('cap_max'), mn = document.getElementById('cap_min');
+      if (mx) mx.value = bande.max;
+      if (mn) mn.value = bande.min;
+    }
+    var nomEl = document.getElementById('cap_nom'); if (nomEl && !nomEl.value) nomEl.value = 'Sonde ' + nom;
+  } catch (_) {}
+}
 function enregistrerCleUbibot() {
   var v = (document.getElementById('cap_ubikey') || {}).value || '';
   setUbibotKey(v.trim()); scheduleSondesPush();
@@ -23168,6 +23195,7 @@ try {
   window.supprimerSondeBeta = supprimerSondeBeta;
   window.rafraichirTemperaturesBeta = rafraichirTemperaturesBeta;
   window.enregistrerCleUbibot = enregistrerCleUbibot;
+  window.onCapEnceinteChange = onCapEnceinteChange;
   function _capteursVerifHash() { try { if (location.hash === '#capteurs') ouvrirCapteursBeta(); } catch (e) {} }
   // DIAG SÉCURITÉ — affiche l'état réel du jeton au moment voulu (accès caché #diagsec).
   function _diagSecurite() {
