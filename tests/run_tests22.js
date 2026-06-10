@@ -25,7 +25,7 @@ function renduLegal(section) {
 const conf = renduLegal('confidentialite');
 ok(conf.length > 0, 'RGPD: page confidentialité générée');
 ok(/Politique de confidentialité/.test(conf), 'RGPD: titre présent');
-[['Données traitées', /Données traitées/], ['Bases légales', /Bases légales/], ['Hébergement UE', /Supabase.*UE|région UE/], ['Vos droits', /Vos droits/], ['CNIL', /CNIL/], ['Conservation', /Conservation/]].forEach(function (p) {
+[['Données traitées', /Données traitées/], ['Bases légales', /Bases légales/], ['Hébergement UE', /Supabase|Union européenne|Irlande/], ['Vos droits', /Vos droits/], ['CNIL', /CNIL/], ['Conservation', /Conservation/]].forEach(function (p) {
   ok(p[1].test(conf), 'RGPD: section "' + p[0] + '" présente');
 });
 ok(/effacement|portabilit/.test(conf), 'RGPD: droits RGPD détaillés (effacement, portabilité…)');
@@ -34,7 +34,7 @@ ok(/jamais vos données|pas.*publicitaires/i.test(conf), 'RGPD: engagement non-r
 // ════════════ B) MENTIONS LÉGALES (LCEN) ════════════
 const ment = renduLegal('mentions');
 ok(/Mentions légales/.test(ment), 'mentions: titre présent');
-[['Éditeur', /Éditeur/], ['Hébergement', /Hébergement/], ['Responsabilité', /Responsabilité/], ['Droit applicable', /Droit applicable/]].forEach(function (p) {
+[['Éditeur', /Éditeur/], ['Hébergeurs', /Héberge/], ['Responsabilité', /Responsabilité/], ['Droit applicable', /Droit applicable/]].forEach(function (p) {
   ok(p[1].test(ment), 'mentions: section "' + p[0] + '" présente');
 });
 ok(/SIRET/.test(ment) && /Directrice? de la publication/.test(ment), 'mentions: champs obligatoires LCEN (SIRET, directeur publication)');

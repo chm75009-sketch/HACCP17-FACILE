@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v156';
+var APP_BUILD = 'v157';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21290,31 +21290,59 @@ function ouvrirInfosLegales(section) {
 
   var confidentialite =
     '<h2 style="margin:0 0 10px;font-size:19px">Politique de confidentialité</h2>' +
-    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d\'autocontrôle sanitaire pour les professionnels des métiers de bouche. Nous ne vendons jamais vos données et ne les utilisons pas à des fins publicitaires.</p>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro, édité par RTH NETGOCE, est un outil d’autocontrôle sanitaire pour les professionnels des métiers de bouche. Nous ne vendons jamais vos données et ne les utilisons à aucune fin publicitaire.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Responsable du traitement</h3>' +
+    '<p style="color:#475569;font-size:13px">RTH NETGOCE — SARL, 49 rue de Douai, 75009 Paris. Contact : r.t.h@orange.fr.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Données traitées</h3>' +
     '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
-      '<li>Identité de l\'établissement (nom, SIRET, adresse, e-mail)</li>' +
-      '<li>Données d\'autocontrôle HACCP (relevés, non-conformités, signataire, signature)</li>' +
-      '<li>Photos de traçabilité (bons de livraison, étiquettes…)</li>' +
-      '<li>Données techniques (session, identifiant d\'appareil) pour la sécurité</li>' +
+      '<li>Identité de l’établissement : nom, SIRET, adresse, e-mail, téléphone.</li>' +
+      '<li>Données d’autocontrôle HACCP : relevés de température, non-conformités, actions correctives, nom du signataire et signature manuscrite numérisée.</li>' +
+      '<li>Photos de traçabilité : bons de livraison, étiquettes, nuisibles…</li>' +
+      '<li>Équipe : noms et fonctions des personnes habilitées à signer les contrôles.</li>' +
+      '<li>Données techniques : identifiant de session, empreinte de connexion (hachée) — pour la sécurité et le fonctionnement hors-ligne.</li>' +
+    '</ul>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Finalités</h3>' +
+    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
+      '<li>Fournir le service d’autocontrôle et générer vos preuves réglementaires (PDF DDPP).</li>' +
+      '<li>Synchroniser vos contrôles entre vos appareils.</li>' +
+      '<li>Gérer votre compte, votre abonnement et le support.</li>' +
+      '<li>Assurer la sécurité et le cloisonnement strict des données par établissement.</li>' +
     '</ul>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Bases légales</h3>' +
-    '<p style="color:#475569;font-size:13px">Exécution du contrat, obligation légale de traçabilité (Paquet Hygiène, arrêté du 21/12/2009), et intérêt légitime (sécurité).</p>' +
-    '<h3 style="font-size:14px;margin:16px 0 6px">Hébergement & sous-traitants</h3>' +
-    '<p style="color:#475569;font-size:13px">Données hébergées chez Supabase (région UE). Aucun cookie publicitaire ni pistage tiers. L\'application utilise le stockage local de votre navigateur pour fonctionner hors-ligne.</p>' +
+    '<p style="color:#475569;font-size:13px">Exécution du contrat (fourniture du service), obligation légale de traçabilité sanitaire (Paquet Hygiène — règlement CE 852/2004, arrêté du 21/12/2009) et intérêt légitime (sécurité du service).</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Destinataires et sous-traitants</h3>' +
+    '<p style="color:#475569;font-size:13px">Vos données ne sont accessibles qu’à vous et, de façon strictement technique, à nos sous-traitants d’hébergement :</p>' +
+    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
+      '<li><strong>Supabase, Inc.</strong> — base de données et photos, sur une infrastructure Amazon Web Services située en Union européenne (région Irlande).</li>' +
+      '<li><strong>GitHub, Inc.</strong> (États-Unis) — hébergement de l’interface de l’application.</li>' +
+      '<li><strong>EmailJS</strong> (États-Unis) — envoi des e-mails (confirmation d’inscription, code d’accès).</li>' +
+    '</ul>' +
+    '<p style="color:#475569;font-size:13px">Les transferts vers les États-Unis (GitHub, EmailJS) sont encadrés par des garanties appropriées (clauses contractuelles types / Data Privacy Framework). Aucune donnée d’autocontrôle (relevés, photos) n’est hébergée hors Union européenne.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Conservation des données</h3>' +
+    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
+      '<li>Contrôles et preuves HACCP : pendant toute la durée de l’abonnement (preuve en cas de contrôle DDPP).</li>' +
+      '<li>Photos de traçabilité : supprimées automatiquement au-delà de 18 mois.</li>' +
+      '<li>Compte et fiche établissement : durée de la relation contractuelle, puis 3 ans.</li>' +
+      '<li>Demande d’inscription : 3 ans.</li>' +
+      '<li>Empreinte de connexion hors-ligne : 7 jours.</li>' +
+    '</ul>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Cookies et stockage local</h3>' +
+    '<p style="color:#475569;font-size:13px">L’application n’utilise aucun cookie publicitaire ni traceur tiers. Elle utilise uniquement le stockage local de votre navigateur, strictement nécessaire au fonctionnement et au mode hors-ligne : aucun consentement préalable n’est requis pour ce stockage.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Sécurité</h3>' +
+    '<p style="color:#475569;font-size:13px">Données chiffrées en transit (HTTPS), cloisonnement strict par établissement, mots de passe jamais stockés en clair (empreinte SHA-256), sauvegarde locale pour ne jamais perdre un contrôle.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Vos droits</h3>' +
-    '<p style="color:#475569;font-size:13px">Accès, rectification, effacement, limitation, opposition, portabilité — par e-mail à <strong>r.t.h@orange.fr</strong> (réponse sous 1 mois). Réclamation possible auprès de la CNIL (cnil.fr).</p>' +
-    '<h3 style="font-size:14px;margin:16px 0 6px">Conservation</h3>' +
-    '<p style="color:#475569;font-size:13px">Les contrôles sont conservés le temps nécessaire à la preuve réglementaire, puis purgés. Compte résilié : suppression définitive sous 30 jours (hors obligation légale de conservation).</p>';
+    '<p style="color:#475569;font-size:13px">Vous disposez des droits d’accès, de rectification, d’effacement, de limitation, d’opposition et de portabilité. Exercice par e-mail à <strong>r.t.h@orange.fr</strong> (réponse sous 1 mois). En cas de désaccord, vous pouvez saisir la CNIL (www.cnil.fr).</p>';
 
   var mentions =
     '<h2 style="margin:0 0 10px;font-size:19px">Mentions légales</h2>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Éditeur</h3>' +
     '<p style="color:#475569;font-size:13px">RTH NETGOCE — SARL au capital de 8 000 €<br>SIRET 444 244 776 00019 — RCS Paris 444 244 776<br>TVA intracommunautaire : FR27 444 244 776 — Code APE 46.51Z<br>Siège social : 49 rue de Douai, 75009 Paris<br>Contact : r.t.h@orange.fr — 06 61 47 61 65<br>Directrice de la publication : Léa Chikhaoui-Auguste</p>' +
-    '<h3 style="font-size:14px;margin:16px 0 6px">Hébergement</h3>' +
-    '<p style="color:#475569;font-size:13px">Application : GitHub Pages (GitHub Inc.).<br>Données & médias : Supabase (région UE).</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Hébergeurs</h3>' +
+    '<p style="color:#475569;font-size:13px"><strong>Application (interface)</strong> : GitHub, Inc. — 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.<br><strong>Données et photos</strong> : Supabase, Inc. — infrastructure Amazon Web Services, Union européenne (région Irlande).<br><strong>E-mails</strong> : EmailJS (États-Unis).</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Propriété intellectuelle</h3>' +
+    '<p style="color:#475569;font-size:13px">L’application HACCP Pro, sa marque, son interface et ses contenus sont la propriété de RTH NETGOCE. Toute reproduction non autorisée est interdite. Vos données et vos contrôles restent votre propriété.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Responsabilité</h3>' +
-    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d\'aide à l\'autocontrôle ; il ne se substitue pas à la responsabilité de l\'exploitant quant au respect de ses obligations sanitaires.</p>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d’aide à l’autocontrôle ; il ne se substitue pas à la responsabilité de l’exploitant quant au respect de ses obligations sanitaires.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Droit applicable</h3>' +
     '<p style="color:#475569;font-size:13px">Droit français. Litiges : tribunaux compétents de Paris.</p>';
 
