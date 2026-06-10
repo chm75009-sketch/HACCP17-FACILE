@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v185';
+var APP_BUILD = 'v186';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -7243,7 +7243,7 @@ function renderMods(cat) {
     return true;
   });
   grid.innerHTML = mods.map(function(m, i) {
-    return '<button class="mod ' + m.color + '" data-mod="' + m.id + '" onclick="openModule(\'' + m.id + '\')" style="animation-delay:' + (i*0.04) + 's">' +
+    return '<button class="mod ' + m.color + '" onclick="openModule(\'' + m.id + '\')" style="animation-delay:' + (i*0.04) + 's">' +
       '<div class="mod-ico">' + m.ico + '</div>' +
       '<div class="mod-name">' + m.name + '</div>' +
       (m.fn ? '<div class="mod-fn">' + m.fn + '</div>' : '') +
