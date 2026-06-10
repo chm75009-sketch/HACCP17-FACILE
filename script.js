@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v167';
+var APP_BUILD = 'v168';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -3949,7 +3949,7 @@ function _majLienChangerCompte() {
 // « Changer de compte » depuis l'écran de connexion : oublie le compte mémorisé
 // sur CET appareil (les données restent dans le cloud) et repart sur un login vierge.
 function changerDeCompte() {
-  if (!confirm('Changer de compte ?\n\nLe compte mémorisé sur cet appareil sera oublié. Vos données restent en sécurité dans le cloud — vous les retrouverez en vous reconnectant.')) return;
+  if (!confirm('Changer de compte ?\n\nLe compte mémorisé sur cet appareil sera oublié. Vous retrouverez vos données synchronisées en vous reconnectant ; pensez à conserver vos propres exports (PDF).')) return;
   try {
     lsRemove('haccp_last_code');
     lsRemove('haccp_trial_pwd');
@@ -21329,7 +21329,7 @@ function ouvrirInfosLegales(section) {
     '<h3 style="font-size:14px;margin:16px 0 6px">Cookies et stockage local</h3>' +
     '<p style="color:#475569;font-size:13px">L’application n’utilise aucun cookie publicitaire ni traceur tiers. Elle utilise uniquement le stockage local de votre navigateur, strictement nécessaire au fonctionnement et au mode hors-ligne : aucun consentement préalable n’est requis pour ce stockage.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Sécurité</h3>' +
-    '<p style="color:#475569;font-size:13px">Données chiffrées en transit (HTTPS), cloisonnement strict par établissement, mots de passe jamais stockés en clair (empreinte SHA-256), sauvegarde locale pour ne jamais perdre un contrôle.</p>' +
+    '<p style="color:#475569;font-size:13px">Données chiffrées en transit (HTTPS), cloisonnement strict par établissement, mots de passe jamais stockés en clair (empreinte SHA-256), stockage local pour le fonctionnement hors-ligne. Ces mesures de sécurité ne se substituent pas à la sauvegarde de vos contrôles, qui reste à votre charge.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Vos droits</h3>' +
     '<p style="color:#475569;font-size:13px">Vous disposez des droits d’accès, de rectification, d’effacement, de limitation, d’opposition et de portabilité. Exercice par e-mail à <strong>r.t.h@orange.fr</strong> (réponse sous 1 mois). En cas de désaccord, vous pouvez saisir la CNIL (www.cnil.fr).</p>';
 
@@ -21374,7 +21374,7 @@ function ouvrirInfosLegales(section) {
     '<h3 style="font-size:14px;margin:16px 0 6px">8. Disponibilité</h3>' +
     '<p style="color:#475569;font-size:13px">RTH NETGOCE met en œuvre les moyens raisonnables pour assurer la disponibilité du service. Le mode hors-ligne permet de continuer à saisir des contrôles sans réseau, avec synchronisation au retour de la connexion. Des interruptions pour maintenance peuvent survenir.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">9. Données et propriété</h3>' +
-    '<p style="color:#475569;font-size:13px">Le traitement des données est décrit dans la Politique de confidentialité. Les données et contrôles saisis restent la propriété de l’Abonné, qui peut les exporter (PDF). L’application, sa marque et son interface restent la propriété de RTH NETGOCE.</p>' +
+    '<p style="color:#475569;font-size:13px">Le traitement des données est décrit dans la Politique de confidentialité. Les données et contrôles saisis restent la propriété de l’Abonné, qui peut les exporter (PDF). Il appartient à l’Abonné de sauvegarder régulièrement ses contrôles par ses propres moyens ; RTH NETGOCE n’assure pas cette sauvegarde et ne garantit pas la conservation des données. L’application, sa marque et son interface restent la propriété de RTH NETGOCE.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">10. Responsabilité</h3>' +
     '<p style="color:#475569;font-size:13px">HACCP Pro étant un outil d’aide, RTH NETGOCE ne saurait être tenue responsable du non-respect par l’Abonné de ses obligations sanitaires. Sauf faute lourde, la responsabilité de l’éditeur est limitée au montant des sommes versées au titre des 12 derniers mois.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">11. Droit applicable et litiges</h3>' +

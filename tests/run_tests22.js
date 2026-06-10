@@ -30,6 +30,7 @@ ok(/Politique de confidentialité/.test(conf), 'RGPD: titre présent');
 });
 ok(/effacement|portabilit/.test(conf), 'RGPD: droits RGPD détaillés (effacement, portabilité…)');
 ok(/votre responsabilité/.test(conf) && /ne garantit pas la conservation/.test(conf) && /vous appartient/.test(conf), 'RGPD: sauvegarde à la charge du client, responsabilité éditeur dégagée');
+ok(!/ne jamais perdre un contrôle/.test(conf) && /ne se substituent pas à la sauvegarde/.test(conf), 'RGPD: section Sécurité cohérente (pas de promesse de non-perte)');
 ok(/jamais vos données|pas.*publicitaires/i.test(conf), 'RGPD: engagement non-revente/non-pub');
 
 // ════════════ B) MENTIONS LÉGALES (LCEN) ════════════
