@@ -62,6 +62,31 @@
     'ul.l,ol.l{margin:4px 0 8px;padding-left:20px}ul.l li,ol.l li{margin-bottom:4px}' +
     '.avert{margin:16px 0 0;padding:11px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e}' +
     'table.form td{height:22px}table.form{margin-bottom:14px}' +
+    /* Annexe = une page A4 entière */
+    '.apage{break-before:page;min-height:244mm;border:1.5px solid #c7d2fe;border-radius:10px;margin:0 0 6px;display:flex;flex-direction:column;overflow:hidden}' +
+    '.apage .ah{background:#1e1b4b;color:#fff;padding:11px 14px;display:flex;align-items:baseline;gap:10px}' +
+    '.apage .ah .anum{background:rgba(255,255,255,.2);border-radius:6px;padding:2px 9px;font-weight:800;font-size:12px;white-space:nowrap}' +
+    '.apage .ah .atitle{font-weight:800;font-size:14px}' +
+    '.apage .ac{flex:1;padding:14px 16px;display:flex;flex-direction:column}' +
+    '.apage .ac>p{margin-top:0}' +
+    '.apage table.form{flex:1}.apage table.form td{height:34px}' +
+    /* Affiche pleine page (Annexe 11) */
+    '.poster{break-before:page;min-height:244mm;border:3px solid #1e1b4b;border-radius:14px;padding:24px;display:flex;flex-direction:column;text-align:center;page-break-inside:avoid;margin:0 0 6px}' +
+    '.poster .pemoji{font-size:58px;margin:8px 0 2px}' +
+    '.poster h2{font-size:30px;color:#1e1b4b;margin:2px 0 8px;font-weight:800;line-height:1.12}' +
+    '.poster .psub{font-size:15px;color:#4338ca;font-weight:700;margin-bottom:16px}' +
+    '.poster .pbody{flex:1;display:flex;flex-direction:column;justify-content:center;font-size:15px;line-height:1.6}' +
+    '.poster ol,.poster ul{text-align:left;font-size:17px;line-height:2;max-width:560px;margin:0 auto;padding-left:26px}' +
+    '.poster ol li,.poster ul li{margin-bottom:6px}' +
+    '.poster .pfoot{font-size:12.5px;color:#475569;margin-top:16px;border-top:1px dashed #cbd5e1;padding-top:12px}' +
+    '.poster .grid14{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px;text-align:left;max-width:620px;margin:0 auto;font-size:14.5px}' +
+    '.poster .grid14 div{padding:4px 0;border-bottom:1px solid #eef2ff}' +
+    '.poster .flowp{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center}' +
+    '.poster .flowp .st{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:9px 13px;font-weight:700;font-size:14px;color:#1e1b4b}' +
+    '.poster .flowp .ar{color:#94a3b8;font-weight:800}' +
+    '.poster .ccrow{display:flex;align-items:center;gap:14px;max-width:520px;margin:9px auto;font-size:17px;font-weight:600;text-align:left}' +
+    '.poster .chip{width:34px;height:34px;border-radius:7px;flex-shrink:0;border:1px solid rgba(0,0,0,.18)}' +
+    '.poster table.temp{max-width:620px;margin:0 auto}' +
     '.flow{line-height:2.1}.flow .st{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:4px 9px;margin:2px;font-size:11px;font-weight:600;color:#1e1b4b}.flow .ar{color:#94a3b8;margin:0 1px;font-weight:700}' +
     '.callout{border-radius:6px;padding:9px 12px;margin:0 0 8px}' +
     '.cy{background:#fef9c3;border:1px solid #fde047}' +
@@ -303,38 +328,97 @@
       '<tr><td>Signature de l\'exploitant</td><td style="height:34px"></td></tr>' +
       infoRow('Date de révision prévue', 'Annuelle, ou après tout changement majeur') + '</table>';
 
-    // ════════ ANNEXES ════════
+    // ════════ ANNEXES — une annexe = une page A4 entière ════════
     html += '<div class="page-break"></div>';
     html += chap('A', 'Annexes — Fiches d\'enregistrement & affiches');
-    html += '<p class="muted">Les fiches d\'enregistrement (Annexes 1 à 9) sont à imprimer, renseigner et émarger au quotidien, ' +
-      'puis à conserver dans le classeur « Hygiène ». Les Annexes 10 et 11 listent les affichages à apposer dans l\'établissement.</p>';
+    html += '<p class="muted">Chaque annexe est conçue pour être imprimée sur une page A4. Les fiches (Annexes 1 à 9) sont à renseigner et émarger ' +
+      'au quotidien, puis à conserver dans le classeur « Hygiène ». L\'Annexe 10 liste les affichages ; l\'Annexe 11 fournit les affiches, une par page.</p>';
 
-    html += sec('Annexe 1', 'Fiche de relevé des températures (quotidienne, par enceinte)',
-      blankTable(['Date', 'Enceinte', 'T° matin', 'T° soir', 'Conforme (O/N)', 'Action corrective', 'Visa'], 12));
-    html += sec('Annexe 2', 'Plan de nettoyage et de désinfection — émargement',
-      blankTable(['Date', 'Zone / matériel', 'Fréquence prévue', 'Produit utilisé', 'Fait (✔)', 'Visa'], 12));
-    html += sec('Annexe 3', 'Fiche de contrôle à la réception',
-      blankTable(['Date', 'Fournisseur', 'Produit', 'T° relevée', 'État colis', 'DLC / DDM', 'N° lot', 'Conforme', 'Visa'], 12));
-    html += sec('Annexe 4', 'Registre des allergènes (par produit / recette)',
-      blankTable(['Produit / recette', 'Allergènes présents', 'Traces possibles', 'Mis à jour le', 'Visa'], 12));
-    html += sec('Annexe 5', 'Fiche de non-conformité et de retrait / rappel',
-      blankTable(['Date', 'Produit / lot', 'Nature de la non-conformité', 'Cause', 'Action corrective', 'Devenir (destruction / retour)', 'Visa'], 10));
-    html += sec('Annexe 6', 'Fiche de traçabilité (bons de livraison, lots, origine)',
-      blankTable(['Date', 'Produit', 'Fournisseur', 'N° lot', 'Origine', 'DLC / DDM', 'N° bon de livraison'], 12));
-    html += sec('Annexe 7', 'Suivi de la maintenance et des attestations',
-      blankTable(['Équipement', 'Opération (ramonage, étalonnage, entretien froid…)', 'Date', 'Prestataire / interne', 'Prochaine échéance', 'Visa'], 10));
-    html += sec('Annexe 8', 'Fiche de contrôle de l\'huile de friture (le cas échéant)',
-      blankTable(['Date', 'Bain / friteuse', 'Composés polaires (%)', 'Conforme (≤ 25 %)', 'Action (filtration / renouvellement)', 'Visa'], 10));
-    html += sec('Annexe 9', 'Fiche de conservation & DLC secondaires',
-      blankTable(['Produit', 'Date de fabrication / ouverture', 'DLC secondaire', 'N° lot', 'Visa'], 12));
+    // Fiche pleine page : en-tête « Annexe N » + tableau vierge qui remplit la page
+    var annexePage = function (num, titre, headers, nRows) {
+      return '<section class="apage"><div class="ah"><span class="anum">Annexe ' + esc(num) + '</span>' +
+        '<span class="atitle">' + esc(titre) + '</span></div><div class="ac">' + blankTable(headers, nRows) + '</div></section>';
+    };
 
-    html += sec('Annexe 10', 'Affichages obligatoires & supports visuels affichés dans l\'établissement',
+    html += annexePage('1', 'Fiche de relevé des températures (quotidienne, par enceinte)',
+      ['Date', 'Enceinte', 'T° matin', 'T° soir', 'Conforme (O/N)', 'Action corrective', 'Visa'], 18);
+    html += annexePage('2', 'Plan de nettoyage et de désinfection — émargement',
+      ['Date', 'Zone / matériel', 'Fréquence prévue', 'Produit utilisé', 'Fait (✔)', 'Visa'], 18);
+    html += annexePage('3', 'Fiche de contrôle à la réception',
+      ['Date', 'Fournisseur', 'Produit', 'T° relevée', 'État colis', 'DLC / DDM', 'N° lot', 'Conforme', 'Visa'], 18);
+    html += annexePage('4', 'Registre des allergènes (par produit / recette)',
+      ['Produit / recette', 'Allergènes présents', 'Traces possibles', 'Mis à jour le', 'Visa'], 18);
+    html += annexePage('5', 'Fiche de non-conformité et de retrait / rappel',
+      ['Date', 'Produit / lot', 'Nature de la non-conformité', 'Cause', 'Action corrective', 'Devenir', 'Visa'], 16);
+    html += annexePage('6', 'Fiche de traçabilité (bons de livraison, lots, origine)',
+      ['Date', 'Produit', 'Fournisseur', 'N° lot', 'Origine', 'DLC / DDM', 'N° bon de livraison'], 18);
+    html += annexePage('7', 'Suivi de la maintenance et des attestations',
+      ['Équipement', 'Opération (ramonage, étalonnage, entretien froid…)', 'Date', 'Prestataire / interne', 'Prochaine échéance', 'Visa'], 16);
+    html += annexePage('8', 'Fiche de contrôle de l\'huile de friture (le cas échéant)',
+      ['Date', 'Bain / friteuse', 'Composés polaires (%)', 'Conforme (≤ 25 %)', 'Action', 'Visa'], 16);
+    html += annexePage('9', 'Fiche de conservation & DLC secondaires',
+      ['Produit', 'Date de fabrication / ouverture', 'DLC secondaire', 'N° lot', 'Visa'], 18);
+
+    // Annexe 10 — affichages obligatoires (page entière)
+    html += '<section class="apage"><div class="ah"><span class="anum">Annexe 10</span>' +
+      '<span class="atitle">Affichages obligatoires & supports visuels</span></div><div class="ac">' +
       '<p class="muted">Cocher « Oui » lorsque l\'affiche est en place. Les affiches doivent être personnalisées au nom de l\'établissement.</p>' +
       tbl(['Catégorie', 'Affiche / support', 'Emplacement conseillé', 'Affiché (O/N)'],
-        (S.affichesOblig || []).map(function (a) { return [esc(a.cat), esc(a.affiche), esc(a.lieu), '']; })));
-    html += sec('Annexe 11', 'Affiches à afficher dans l\'établissement (format A4)',
-      '<p>Affiches à imprimer (une par page) et à apposer aux postes concernés (atelier, plonge, réception, vente, vestiaire, chambre froide) :</p>' +
-      liste(S.affichesA4));
+        (S.affichesOblig || []).map(function (a) { return [esc(a.cat), esc(a.affiche), esc(a.lieu), '']; })) +
+      '</div></section>';
+
+    // Annexe 11 — les affiches, UNE AFFICHE PAR PAGE (poster A4 entièrement rempli)
+    var poster = function (emoji, titre, sousTitre, body, foot) {
+      return '<section class="poster"><div class="pemoji">' + emoji + '</div><h2>' + esc(titre) + '</h2>' +
+        (sousTitre ? '<div class="psub">' + esc(sousTitre) + '</div>' : '') +
+        '<div class="pbody">' + body + '</div>' + (foot ? '<div class="pfoot">' + foot + '</div>' : '') + '</section>';
+    };
+    var ol = function (arr) { return '<ol>' + arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>'; };
+    var ul = function (arr) { return '<ul>' + arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'; };
+    var chip = function (couleur, label) { return '<div class="ccrow"><span class="chip" style="background:' + couleur + '"></span><span>' + esc(label) + '</span></div>'; };
+    var flow = function (etapes) { return '<div class="flowp">' + etapes.map(function (e) { return '<span class="st">' + esc(e) + '</span>'; }).join('<span class="ar">→</span>') + '</div>'; };
+
+    var POSTERS = {
+      'Se laver les mains': poster('🧼', 'Se laver les mains', 'Au moins 30 secondes',
+        ol(['Mouiller les mains à l\'eau tiède', 'Savonner : paumes, dos, entre les doigts, ongles, poignets (30 s)',
+          'Rincer abondamment', 'Sécher avec un essuie-mains à usage unique', 'Fermer le robinet avec l\'essuie-mains']),
+        'Quand : prise de poste · sortie des toilettes · après les déchets · changement d\'activité · après s\'être mouché.'),
+      'Plan de nettoyage & désinfection': poster('🧽', 'Plan de nettoyage & désinfection', 'Le protocole en 5 étapes',
+        ol(['Pré-nettoyage : retirer les résidus', 'Lavage au détergent', 'Rinçage', 'Désinfection (respecter le temps de contact)', 'Rinçage final et séchage']),
+        'Respecter la dilution et le temps d\'action du produit. Produits d\'entretien rangés à part, fermés, avec leur fiche de données de sécurité (FDS).'),
+      'Rangement des enceintes froides': poster('🧊', 'Rangement des enceintes froides', null,
+        ul(['Produits cuits / prêts à consommer EN HAUT', 'Produits crus EN BAS', 'Tout filmé, daté et étiqueté (DLC)',
+          'Rotation FIFO (premier entré, premier sorti)', 'Jamais de carton ni de contenant souillé', 'Ne pas surcharger : l\'air doit circuler', 'Contrôler la température 2×/jour']), null),
+      'Rangement de la réserve sèche': poster('📦', 'Rangement de la réserve sèche', null,
+        ul(['Stockage hors-sol (étagères ou palettes)', 'Rotation FIFO', 'Contenants fermés et étiquetés',
+          'Séparé des produits d\'entretien et des déchets', 'Local sec, propre et ventilé', 'Sacs entamés reconditionnés et datés']), null),
+      'Les 14 allergènes': poster('🥜', 'Les 14 allergènes', 'À déclaration obligatoire (Règl. UE 1169/2011)',
+        '<div class="grid14">' + (S.allergenes || []).map(function (a, i) { return '<div>' + (i + 1) + '. ' + esc(a) + '</div>'; }).join('') + '</div>',
+        'Information du consommateur obligatoire. Voir le registre des allergènes par produit (Annexe 4).'),
+      'Tenue & hygiène du personnel': poster('🧑‍🍳', 'Tenue & hygiène du personnel', null,
+        ul(['Tenue propre, réservée à la production', 'Charlotte : cheveux entièrement couverts', 'Pas de bijoux, montre, faux ongles ni vernis',
+          'Ongles courts et propres', 'Plaies protégées (pansement bleu détectable + gant)', 'Ne pas manger, boire ni fumer en zone de production']), null),
+      'La marche en avant': poster('➡️', 'La marche en avant', 'Du « sale » vers le « propre », sans croisement',
+        flow(['Réception', 'Stockage', 'Déconditionnement', 'Préparation', 'Cuisson', 'Refroidissement', 'Conservation', 'Vente']),
+        'Si les locaux ne permettent pas la séparation dans l\'espace, l\'organiser dans le temps (nettoyage entre deux activités).'),
+      'Relevé des températures': poster('🌡️', 'Températures réglementaires', 'À respecter et à relever',
+        tableauTemperatures(S),
+        'Relever les températures 2×/jour sur la fiche (Annexe 1). Toute dérive déclenche une action corrective.'),
+      'En cas de suspicion d\'intoxication (TIAC)': poster('🚨', 'En cas de suspicion d\'intoxication (TIAC)', 'Toxi-infection alimentaire collective',
+        ol(['Conserver les plats témoins et les restes suspects', 'Noter les produits servis et les symptômes',
+          'Alerter immédiatement la DD(ETS)PP et l\'ARS', 'Isoler les denrées concernées', 'Coopérer à l\'enquête sanitaire']), null),
+      'Code couleur des lavettes': poster('🧻', 'Code couleur des lavettes', 'Schéma indicatif — à adapter à votre établissement',
+        chip('#2563eb', 'Bleu — Surfaces et plans de travail propres') + chip('#dc2626', 'Rouge — Sanitaires / zones à risque') +
+        chip('#16a34a', 'Vert — Zone de préparation des légumes') + chip('#eab308', 'Jaune — Lavabos / usages divers'),
+        'Une couleur = un usage. Ne jamais croiser les lavettes entre zones.'),
+      'Code couleur des planches': poster('🔪', 'Code couleur des planches à découper', 'Une planche par famille de produit',
+        chip('#dc2626', 'Rouge — Viande crue') + chip('#2563eb', 'Bleu — Poisson cru') + chip('#eab308', 'Jaune — Volaille crue') +
+        chip('#16a34a', 'Vert — Fruits & légumes') + chip('#f8fafc', 'Blanc — Produits laitiers & boulangerie') + chip('#92400e', 'Marron — Viandes & légumes cuits'),
+        'Évite les contaminations croisées. Nettoyer et désinfecter entre chaque usage.')
+    };
+    (S.affichesA4 || []).forEach(function (nom) {
+      html += POSTERS[nom] || poster('📌', nom, null, '<p>Affiche à personnaliser au nom de l\'établissement.</p>', null);
+    });
 
     html += '<div class="disclaimer"><b>Note importante :</b> ce Plan de Maîtrise Sanitaire est un modèle pré-rempli, ' +
       'généré automatiquement à partir des informations de votre établissement et du Guide de Bonnes Pratiques d\'Hygiène de votre secteur. ' +

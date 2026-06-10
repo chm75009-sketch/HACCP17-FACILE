@@ -131,6 +131,10 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   ok(/relevé des températures/i.test(written), 'générateur: Annexe 1 = fiche relevé températures');
   ok(/Registre des allergènes/i.test(written), 'générateur: Annexe 4 = registre allergènes');
   ok(/class="form"/.test(written), 'générateur: fiches vierges à remplir (tableaux form)');
+  ok((written.match(/class="apage"/g) || []).length >= 10, 'générateur: chaque fiche d\'annexe occupe une page A4 entière');
+  ok((written.match(/class="poster"/g) || []).length === 11, 'générateur: Annexe 11 = 11 affiches, une par page');
+  ok(/Rouge — Viande crue/.test(written), 'générateur: affiche code couleur des planches (remplie)');
+  ok(/grid14/.test(written), 'générateur: affiche des 14 allergènes (remplie)');
   ok(/Affichages obligatoires/i.test(written), 'générateur: Annexe 10 = affichages obligatoires');
   ok(/Se laver les mains/.test(written), 'générateur: Annexe 11 = liste des affiches');
   ok(/Avertissement/i.test(written), 'générateur: avertissement en tête');
