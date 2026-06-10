@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v160';
+var APP_BUILD = 'v161';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21291,7 +21291,7 @@ function ouvrirInfosLegales(section) {
 
   var confidentialite =
     '<h2 style="margin:0 0 10px;font-size:19px">Politique de confidentialité</h2>' +
-    '<p style="color:#475569;font-size:13px">HACCP Pro, édité par RTH NETGOCE, est un outil d’autocontrôle sanitaire pour les professionnels des métiers de bouche. Nous ne vendons jamais vos données et ne les utilisons à aucune fin publicitaire.</p>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro, édité par RTH NETGOCE, est un outil d’aide à l’autocontrôle sanitaire pour les professionnels des métiers de bouche. Nous ne vendons jamais vos données et ne les utilisons à aucune fin publicitaire. Le client reste seul responsable du respect de la réglementation dans son établissement.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Responsable du traitement</h3>' +
     '<p style="color:#475569;font-size:13px">RTH NETGOCE — SARL, 49 rue de Douai, 75009 Paris. Contact : r.t.h@orange.fr.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Données traitées</h3>' +
