@@ -162,7 +162,9 @@ function buildModule(env) {
     'toggleTousClients:window.toggleTousClients,majCompteurSelClients:window.majCompteurSelClients,' +
     'desactiverClient:window.desactiverClient,reactiverClient:window.reactiverClient,prolongerClient:window.prolongerClient,' +
     'validerDemande:window.validerDemande,refuserDemande:window.refuserDemande,' +
-    'creerEssai:window.creerEssai,genererCodeEssai:genererCodeEssai,loadAdminEssais:loadAdminEssais};\n' +
+    'creerEssai:window.creerEssai,genererCodeEssai:genererCodeEssai,loadAdminEssais:loadAdminEssais,' +
+    'loadAdminDemandes:loadAdminDemandes,loadAdminHistorique:loadAdminHistorique,' +
+    'adminTab:window.adminTab,loginAdmin:window.loginAdmin,logoutAdmin:window.logoutAdmin};\n' +
     '}\n' +
     '})();';
   // eslint-disable-next-line no-new-func
