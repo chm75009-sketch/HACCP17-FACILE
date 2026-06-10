@@ -39,7 +39,14 @@
 
   // ── Feuille de styles du document (mise en forme propre, format A4) ──
   var PMS_CSS =
-    '@page{size:A4;margin:16mm 15mm 18mm}' +
+    '@page{size:A4;margin:16mm 15mm 18mm;@bottom-center{content:"Page " counter(page) " / " counter(pages);font:9px Arial;color:#94a3b8}}' +
+    /* sauts/regroupements honorés par le moteur de pagination (Paged.js) ET l'impression native */
+    '.page-break{break-before:page}.apage,.poster,.part,.sec,table,tr,.callout,.flow{break-inside:avoid}thead{display:table-header-group}h2,h3{break-after:avoid}' +
+    /* Sommaire : numéro de page DEVANT chaque titre (rempli par le paginateur) */
+    '.toc a.tocl{display:flex;align-items:baseline;gap:10px;text-decoration:none;color:#1f2937;padding:3px 0;border-bottom:1px dotted #d1d5db}' +
+    '.toc a.tocl::before{content:target-counter(attr(href url),page);min-width:30px;text-align:right;font-weight:800;color:#4338ca;font-size:11px;flex:0 0 auto}' +
+    '.toc a.tocl-main{font-weight:800;color:#1e1b4b;margin-top:9px;font-size:12.5px}' +
+    '.toc a.tocl-sub{font-size:11px}' +
     '*{box-sizing:border-box}' +
     'body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;color:#1f2937;font-size:11.5px;line-height:1.55;margin:0;background:#e5e7eb}' +
     '.sheet{background:#fff;max-width:800px;margin:0 auto;padding:26px 30px 40px;box-shadow:0 1px 14px rgba(0,0,0,.14)}' +
@@ -125,8 +132,10 @@
   function part(num, titre) {
     return '<h2 class="part"><span class="pn">PARTIE ' + esc(num) + '</span>' + esc(titre) + '</h2>';
   }
+  function secId(num) { return num ? 'sec-' + String(num).replace(/[^0-9A-Za-z]+/g, '-') : ''; }
   function sec(num, titre, contenuHtml) {
-    return '<section class="sec"><h3>' + (num ? '<span class="num">' + esc(num) + '</span>' : '') +
+    var id = num ? ' id="' + secId(num) + '"' : '';
+    return '<section class="sec"' + id + '><h3>' + (num ? '<span class="num">' + esc(num) + '</span>' : '') +
       '<span>' + esc(titre) + '</span></h3><div class="body">' + contenuHtml + '</div></section>';
   }
   function para(txt) { return '<p>' + esc(txt) + '</p>'; }
@@ -164,8 +173,12 @@
       'l\'exploitant reste seul responsable de la conformité de son établissement et de la sauvegarde de ses documents.</div>';
 
     // ── Outils de mise en forme locaux ──
+    var chapId = function (num, titre) {
+      var n = String(num).replace(/[^0-9A-Za-z]+/g, '');
+      return 'ch-' + (n || String(titre).normalize('NFD').replace(/[^0-9A-Za-z]+/g, '').slice(0, 6));
+    };
     var chap = function (num, titre) {
-      return '<h2 class="part"><span class="pn">' + esc(num) + '</span>' + esc(titre) + '</h2>';
+      return '<h2 class="part" id="' + chapId(num, titre) + '"><span class="pn">' + esc(num) + '</span>' + esc(titre) + '</h2>';
     };
     var listeNum = function (arr) {
       return '<ol class="l">' + (arr || []).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>';
@@ -182,27 +195,35 @@
       return tbl(headers, rows, 'form');
     };
 
-    // ════ SOMMAIRE ════
+    // ════ SOMMAIRE (titres cliquables + n° de page devant chaque titre) ════
+    var tlM = function (id, label) { return '<a class="tocl tocl-main" href="#' + id + '">' + esc(label) + '</a>'; };
+    var tlS = function (id, label) { return '<a class="tocl tocl-sub" href="#' + id + '">' + esc(label) + '</a>'; };
     html += '<div class="page-break"></div>';
-    var ptNum = S.platsTemoins ? '3.6' : '';
-    html += sec('', 'Sommaire',
-      '<div class="toc">' +
-      '<div class="toc-part">1. Présentation de l\'établissement et champ d\'application</div>' +
-      '<ul><li>1.1 — Objet du PMS</li><li>1.2 — Champ d\'application</li><li>1.3 — Obligations réglementaires préalables</li></ul>' +
-      '<div class="toc-part">2. Les Bonnes Pratiques d\'Hygiène (BPH)</div>' +
-      '<ul><li>2.1 — Personnel</li><li>2.2 — Locaux & matériel</li><li>2.3 — Plan de nettoyage</li><li>2.4 — Nuisibles</li>' +
-      '<li>2.5 — Eau</li><li>2.6 — Températures</li><li>2.7 — Déchets</li></ul>' +
-      '<div class="toc-part">3. Le plan HACCP</div>' +
-      '<ul><li>3.1 — Méthode (7 principes / 12 étapes)</li><li>3.2 — Équipe & champ</li><li>3.3 — Diagramme</li>' +
-      '<li>3.4 — Analyse des dangers</li><li>3.5 — Points critiques (CCP)</li>' + (S.platsTemoins ? '<li>3.6 — Plats témoins & excédents</li>' : '') + '</ul>' +
-      '<div class="toc-part">4. Traçabilité et gestion des non-conformités</div>' +
-      '<ul><li>4.1 — Traçabilité & durées de conservation</li><li>4.2 — Produits non conformes</li><li>4.3 — Retrait / rappel & TIAC</li></ul>' +
-      '<div class="toc-part">5. Information du consommateur — allergènes</div>' +
-      '<div class="toc-part">6. Procédures de vérification et d\'autocontrôle</div>' +
-      '<div class="toc-part">7. Documents d\'enregistrement (fiches & registres)</div>' +
-      '<div class="toc-part">Validation du PMS</div>' +
-      '<div class="toc-part">Annexes 1 à 9 — Fiches d\'enregistrement · Annexe 10 — Affichages · Annexe 11 — Affiches</div>' +
-      '</div>');
+    var toc = '<div class="toc">' +
+      tlM('ch-1', '1. Présentation de l\'établissement et champ d\'application') +
+      tlS('sec-1-1', '1.1 — Objet du PMS') + tlS('sec-1-2', '1.2 — Champ d\'application') + tlS('sec-1-3', '1.3 — Obligations réglementaires préalables') +
+      tlM('ch-2', '2. Les Bonnes Pratiques d\'Hygiène (BPH)') +
+      tlS('sec-2-1', '2.1 — Personnel') + tlS('sec-2-2', '2.2 — Locaux & matériel') + tlS('sec-2-3', '2.3 — Plan de nettoyage') +
+      tlS('sec-2-4', '2.4 — Nuisibles') + tlS('sec-2-5', '2.5 — Eau') + tlS('sec-2-6', '2.6 — Températures') + tlS('sec-2-7', '2.7 — Déchets') +
+      tlM('ch-3', '3. Le plan HACCP') +
+      tlS('sec-3-1', '3.1 — Méthode (7 principes / 12 étapes)') + tlS('sec-3-2', '3.2 — Équipe & champ') + tlS('sec-3-3', '3.3 — Diagramme') +
+      tlS('sec-3-4', '3.4 — Analyse des dangers') + tlS('sec-3-5', '3.5 — Points critiques (CCP)') +
+      (S.platsTemoins ? tlS('sec-3-6', '3.6 — Plats témoins & excédents') : '') +
+      tlM('ch-4', '4. Traçabilité et gestion des non-conformités') +
+      tlS('sec-4-1', '4.1 — Traçabilité & durées de conservation') + tlS('sec-4-2', '4.2 — Produits non conformes') + tlS('sec-4-3', '4.3 — Retrait / rappel & TIAC') +
+      tlM('ch-5', '5. Information du consommateur — allergènes') +
+      tlM('ch-6', '6. Procédures de vérification et d\'autocontrôle') +
+      tlM('ch-7', '7. Documents d\'enregistrement (fiches & registres)') +
+      tlM('ch-Valida', 'Validation du PMS') +
+      tlM('ch-A', 'Annexes — Fiches d\'enregistrement & affiches') +
+      tlS('anx-1', 'Annexe 1 — Relevé des températures') + tlS('anx-2', 'Annexe 2 — Plan de nettoyage') +
+      tlS('anx-3', 'Annexe 3 — Contrôle à la réception') + tlS('anx-4', 'Annexe 4 — Registre des allergènes') +
+      tlS('anx-5', 'Annexe 5 — Non-conformité / retrait-rappel') + tlS('anx-6', 'Annexe 6 — Traçabilité') +
+      tlS('anx-7', 'Annexe 7 — Maintenance & attestations') + tlS('anx-8', 'Annexe 8 — Huile de friture') +
+      tlS('anx-9', 'Annexe 9 — Conservation & DLC secondaires') + tlS('anx-10', 'Annexe 10 — Affichages obligatoires') +
+      tlS('aff-0', 'Annexe 11 — Affiches à afficher (' + (S.affichesA4 || []).length + ')') +
+      '</div>';
+    html += sec('', 'Sommaire', toc);
 
     // ════ 1. PRÉSENTATION ════
     html += '<div class="page-break"></div>';
@@ -336,7 +357,7 @@
 
     // Fiche pleine page : en-tête « Annexe N » + tableau vierge qui remplit la page
     var annexePage = function (num, titre, headers, nRows) {
-      return '<section class="apage"><div class="ah"><span class="anum">Annexe ' + esc(num) + '</span>' +
+      return '<section class="apage" id="anx-' + esc(num) + '"><div class="ah"><span class="anum">Annexe ' + esc(num) + '</span>' +
         '<span class="atitle">' + esc(titre) + '</span></div><div class="ac">' + blankTable(headers, nRows) + '</div></section>';
     };
 
@@ -360,7 +381,7 @@
       ['Produit', 'Date de fabrication / ouverture', 'DLC secondaire', 'N° lot', 'Visa'], 18);
 
     // Annexe 10 — affichages obligatoires (page entière)
-    html += '<section class="apage"><div class="ah"><span class="anum">Annexe 10</span>' +
+    html += '<section class="apage" id="anx-10"><div class="ah"><span class="anum">Annexe 10</span>' +
       '<span class="atitle">Affichages obligatoires & supports visuels</span></div><div class="ac">' +
       '<p class="muted">Cocher « Oui » lorsque l\'affiche est en place. Les affiches doivent être personnalisées au nom de l\'établissement.</p>' +
       tbl(['Catégorie', 'Affiche / support', 'Emplacement conseillé', 'Affiché (O/N)'],
@@ -416,8 +437,9 @@
         chip('#16a34a', 'Vert — Fruits & légumes') + chip('#f8fafc', 'Blanc — Produits laitiers & boulangerie') + chip('#92400e', 'Marron — Viandes & légumes cuits'),
         'Évite les contaminations croisées. Nettoyer et désinfecter entre chaque usage.')
     };
-    (S.affichesA4 || []).forEach(function (nom) {
-      html += POSTERS[nom] || poster('📌', nom, null, '<p>Affiche à personnaliser au nom de l\'établissement.</p>', null);
+    (S.affichesA4 || []).forEach(function (nom, i) {
+      var ph = POSTERS[nom] || poster('📌', nom, null, '<p>Affiche à personnaliser au nom de l\'établissement.</p>', null);
+      html += ph.replace('<section class="poster">', '<section class="poster" id="aff-' + i + '">');
     });
 
     html += '<div class="disclaimer"><b>Note importante :</b> ce Plan de Maîtrise Sanitaire est un modèle pré-rempli, ' +
@@ -436,13 +458,21 @@
     var S = PMS[cle] || PMS.resto;
     E = E || {}; opts = opts || {};
     var titre = 'PMS — ' + (E.nom || S.label);
-    var toolbar = opts.noToolbar ? '' :
-      '<div class="toolbar noprint"><span class="t">📄 Plan de Maîtrise Sanitaire — ' + esc(S.label) + '</span>' +
-      '<button onclick="window.print()">🖨️ Imprimer / PDF</button></div>';
+    // Moteur de pagination : numérote les pages (Page X / Y) ET remplit les n° de
+    // page du sommaire. Chargé depuis le CDN déjà autorisé. Si indisponible, le
+    // document reste lisible (sans numéros) — dégradation propre.
+    var paged = '<script src="https://cdn.jsdelivr.net/npm/pagedjs/dist/paged.polyfill.js"></script>';
+    // Bouton « Imprimer » flottant, ajouté HORS du flux paginé (sur <html>), donc
+    // jamais avalé par la pagination. Absent en mode overlay (la barre de l'app gère).
+    var floatBtn = opts.overlay ? '' :
+      '<script>window.addEventListener("load",function(){var b=document.createElement("button");b.className="noprint";' +
+      'b.textContent="\\uD83D\\uDDA8\\uFE0F Imprimer / PDF";b.style.cssText="position:fixed;top:10px;right:10px;z-index:2147483647;' +
+      'background:#1e1b4b;color:#fff;border:none;border-radius:9px;padding:10px 16px;font:700 13px Arial;cursor:pointer";' +
+      'b.onclick=function(){window.print()};document.documentElement.appendChild(b);});</script>';
     return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<title>' + esc(titre) + '</title><style>' + PMS_CSS + '</style></head><body>' +
-      toolbar + '<div class="sheet">' + corpsPMS(S, E) + '</div></body></html>';
+      '<div class="sheet">' + corpsPMS(S, E) + '</div>' + paged + floatBtn + '</body></html>';
   }
 
   // ── Point d'entrée navigateur : ouvre le PMS imprimable du secteur actif ──
@@ -475,9 +505,9 @@
       document.body.appendChild(ov);
       try {
         var idoc = ifr.contentWindow.document;
-        idoc.open(); idoc.write(buildPMSDocument(cle, etab(), { noToolbar: true })); idoc.close();
+        idoc.open(); idoc.write(buildPMSDocument(cle, etab(), { overlay: true })); idoc.close();
       } catch (e) {
-        ifr.setAttribute('srcdoc', buildPMSDocument(cle, etab(), { noToolbar: true }));
+        ifr.setAttribute('srcdoc', buildPMSDocument(cle, etab(), { overlay: true }));
       }
       var fermer = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
       document.getElementById('pmsBack').onclick = fermer;
