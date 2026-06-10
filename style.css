@@ -349,3 +349,5 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--dark);min-
     '.nc{color:#dc2626;font-weight:bold}' +
     '@media print{.no-print{display:none!important}}' +
   '
+/* Lisibilité des listes déroulantes (évite texte blanc sur fond blanc sur PC) */
+select option, select optgroup { background-color:#1f2937; color:#ffffff; }

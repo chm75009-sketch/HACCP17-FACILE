@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v170';
+var APP_BUILD = 'v171';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -19963,7 +19963,7 @@ function testEffacerDonnees() {
           alert('Merci de remplir TOUS les champs :\n• Établissement\n• Nom + prénom\n• Adresse\n• Téléphone\n• E-mail');
           return;
         }
-        if (!secteurEssai) { alert('Merci de choisir le SECTEUR d\'activité (le compte essai sera verrouillé dessus).'); return; }
+        if (!secteurEssai && !multiSect) { alert('Merci de choisir le SECTEUR d\'activité (le compte essai sera verrouillé dessus), ou cochez « accès à tous les secteurs ».'); return; }
         if (!estClient && !(duree >= 1 && duree <= 15)) { alert('La durée doit être comprise entre 1 et 15 jours.'); return; }
 
         var code = genererCodeEssai();
@@ -19980,7 +19980,7 @@ function testEffacerDonnees() {
           code_acces: code,
           mot_de_passe: pwd,
           nom: etab,
-          secteur: secteurEssai, // verrouillé sur le secteur choisi
+          secteur: (secteurEssai || 'resto'), // verrouillé sur le secteur choisi (défaut 'resto' pour un compte test multi-secteurs)
           multi_secteur: multiSect, // case admin : true = accès à tous les secteurs (test)
           adresse: adr,
           actif: true,

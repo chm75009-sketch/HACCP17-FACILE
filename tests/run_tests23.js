@@ -16,6 +16,11 @@ ok(J(new Date(2025,11,31,22,0,0), new Date(2026,0,1,3,0,0)) === 1, 'passage d\'a
 function lbl(a,b){ var j=Math.max(0,J(a,b)); return j===0?"aujourd'hui":(j===1?'hier':'il y a '+j+' jours'); }
 ok(lbl(new Date(2026,5,9,20,0,0), new Date(2026,5,10,10,0,0))==='hier', 'libellé: "hier" pour connexion de la veille');
 ok(lbl(new Date(2026,5,8,9,0,0), new Date(2026,5,10,10,0,0))==='il y a 2 jours', 'libellé: "il y a 2 jours"');
+const fs=require('fs'), path=require('path');
+const SRC=fs.readFileSync(path.join(__dirname,'..','script.js'),'utf8');
+const CSS=fs.readFileSync(path.join(__dirname,'..','style.css'),'utf8');
+ok(/!secteurEssai && !multiSect/.test(SRC), 'admin essai: secteur facultatif si compte test (accès à tous les secteurs)');
+ok(/select option[^}]*background/.test(CSS), 'UI: options des listes déroulantes lisibles (fond défini)');
 console.log('\n══════════════════════════════════════');
 console.log('ROUND 23 (admin — dernière connexion) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 if (failures.length) { failures.forEach(f => console.log('  - ' + f)); }
