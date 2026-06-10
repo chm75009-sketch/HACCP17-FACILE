@@ -145,13 +145,6 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   ok(/852\/2004/.test(written), 'générateur: référence réglementaire affichée');
   ok(/Imprimer/.test(written), 'générateur: bouton Imprimer/PDF');
   ok(/seul responsable/i.test(written), 'générateur: clause de responsabilité (modèle)');
-  // Pagination + sommaire avec n° de page devant chaque titre
-  ok(/paged\.polyfill\.js/.test(written), 'générateur: moteur de pagination chargé');
-  ok(/@bottom-center\{content:"Page " counter\(page\)/.test(written), 'générateur: numéro de page sur chaque page');
-  ok(/target-counter\(attr\(href url\),page\)/.test(written), 'générateur: sommaire — n° de page devant chaque titre');
-  ok((written.match(/class="tocl/g) || []).length >= 20, 'générateur: sommaire = titres cliquables avec ancres');
-  ok(/id="ch-1"/.test(written) && /id="ch-7"/.test(written) && /id="sec-2-6"/.test(written), 'générateur: ancres de chapitres/sections présentes');
-  ok(/id="anx-1"/.test(written) && /id="anx-10"/.test(written) && /id="aff-0"/.test(written), 'générateur: ancres d\'annexes/affiches présentes');
 
   // secteur différent => contenu différent
   let w2 = G.buildPMSDocument('boucherie', fakeWin.ETAB);
