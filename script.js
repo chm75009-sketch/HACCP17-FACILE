@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v159';
+var APP_BUILD = 'v160';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21320,13 +21320,9 @@ function ouvrirInfosLegales(section) {
     '</ul>' +
     '<p style="color:#475569;font-size:13px">Les transferts vers les États-Unis (GitHub, EmailJS) sont encadrés par des garanties appropriées (clauses contractuelles types / Data Privacy Framework). Aucune donnée d’autocontrôle (relevés, photos) n’est hébergée hors Union européenne.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Conservation des données</h3>' +
-    '<ul style="color:#475569;font-size:13px;padding-left:18px;line-height:1.7">' +
-      '<li>Contrôles et preuves HACCP : pendant toute la durée de l’abonnement (preuve en cas de contrôle DDPP).</li>' +
-      '<li>Photos de traçabilité : supprimées automatiquement au-delà de 18 mois.</li>' +
-      '<li>Compte et fiche établissement : durée de la relation contractuelle, puis 3 ans.</li>' +
-      '<li>Demande d’inscription : 3 ans.</li>' +
-      '<li>Empreinte de connexion hors-ligne : 7 jours.</li>' +
-    '</ul>' +
+    '<p style="color:#475569;font-size:13px">Les données de votre compte (identité de l’établissement, abonnement) sont conservées pendant la durée de la relation contractuelle, puis jusqu’à 3 ans à des fins de preuve et d’obligations légales. L’empreinte de connexion hors-ligne est conservée 7 jours.</p>' +
+    '<h3 style="font-size:14px;margin:16px 0 6px">Sauvegarde de vos contrôles — votre responsabilité</h3>' +
+    '<p style="color:#475569;font-size:13px">Vos contrôles et leurs preuves (PDF) sont VOS documents réglementaires. Il vous appartient de les télécharger, imprimer ou exporter régulièrement et de les conserver par vos propres moyens (PDF, document ou impression), notamment pour pouvoir les présenter lors d’un contrôle de la DDPP. L’hébergement proposé par HACCP Pro l’est pour votre confort : RTH NETGOCE ne garantit pas la conservation de vos données ni de vos photos, et n’est pas responsable de leur sauvegarde, de leur perte ou de leur suppression. Les photos peuvent notamment être supprimées automatiquement au-delà de 18 mois. En cas de résiliation, pensez à exporter vos données au préalable.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Cookies et stockage local</h3>' +
     '<p style="color:#475569;font-size:13px">L’application n’utilise aucun cookie publicitaire ni traceur tiers. Elle utilise uniquement le stockage local de votre navigateur, strictement nécessaire au fonctionnement et au mode hors-ligne : aucun consentement préalable n’est requis pour ce stockage.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Sécurité</h3>' +

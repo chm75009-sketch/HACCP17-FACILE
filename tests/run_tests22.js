@@ -29,6 +29,7 @@ ok(/Politique de confidentialité/.test(conf), 'RGPD: titre présent');
   ok(p[1].test(conf), 'RGPD: section "' + p[0] + '" présente');
 });
 ok(/effacement|portabilit/.test(conf), 'RGPD: droits RGPD détaillés (effacement, portabilité…)');
+ok(/votre responsabilité/.test(conf) && /ne garantit pas la conservation/.test(conf) && /vous appartient/.test(conf), 'RGPD: sauvegarde à la charge du client, responsabilité éditeur dégagée');
 ok(/jamais vos données|pas.*publicitaires/i.test(conf), 'RGPD: engagement non-revente/non-pub');
 
 // ════════════ B) MENTIONS LÉGALES (LCEN) ════════════
