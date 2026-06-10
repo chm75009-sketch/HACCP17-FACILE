@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v166';
+var APP_BUILD = 'v167';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21392,7 +21392,7 @@ function ouvrirInfosLegales(section) {
     '</ul>' +
     '<p style="color:#475569;font-size:13px">Ce stockage est indispensable au fonctionnement : conformément à la réglementation, aucun consentement préalable n’est requis pour des traceurs strictement nécessaires.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">Effacer ce stockage</h3>' +
-    '<p style="color:#475569;font-size:13px">Vous pouvez à tout moment vider le cache local via Réglages → « Libérer de l’espace », ou via les réglages de votre navigateur. Vos contrôles déjà synchronisés restent en sécurité dans le cloud.</p>';
+    '<p style="color:#475569;font-size:13px">Vous pouvez à tout moment vider le cache local via Réglages → « Libérer de l’espace », ou via les réglages de votre navigateur. Vos contrôles doivent être sauvegardés par vos soins (export PDF, impression) sur votre propre support (disque dur, etc.) : leur conservation relève de votre responsabilité.</p>';
 
   var _legalSecs = { confidentialite:{label:'Confidentialité', html:confidentialite}, mentions:{label:'Mentions légales', html:mentions}, cgv:{label:'CGV', html:cgv}, cookies:{label:'Cookies', html:cookies} };
   if (!_legalSecs[section]) section = 'confidentialite';
