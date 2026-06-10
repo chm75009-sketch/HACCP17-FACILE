@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v161';
+var APP_BUILD = 'v162';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -21347,7 +21347,7 @@ function ouvrirInfosLegales(section) {
     '<h2 style="margin:0 0 10px;font-size:19px">Conditions Générales de Vente</h2>' +
     '<p style="color:#475569;font-size:13px">Les présentes CGV régissent l’abonnement au service HACCP Pro, édité par RTH NETGOCE (SARL), entre l’éditeur et le client professionnel (l’« Abonné »). La souscription vaut acceptation des présentes CGV.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">1. Service</h3>' +
-    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d’autocontrôle sanitaire (relevés de température, traçabilité, preuves PDF pour la DDPP). C’est un outil d’aide : l’Abonné reste seul responsable du respect de ses obligations sanitaires.</p>' +
+    '<p style="color:#475569;font-size:13px">HACCP Pro est un outil d’aide à l’autocontrôle sanitaire (relevés de température, traçabilité, preuves PDF pour la DDPP) ; l’Abonné reste seul responsable du respect de ses obligations sanitaires et réglementaires.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">2. Souscription et compte</h3>' +
     '<p style="color:#475569;font-size:13px">L’accès se fait par un code et un mot de passe personnels, après inscription. L’Abonné garantit l’exactitude des informations fournies et préserve la confidentialité de ses identifiants.</p>' +
     '<h3 style="font-size:14px;margin:16px 0 6px">3. Essai gratuit</h3>' +
