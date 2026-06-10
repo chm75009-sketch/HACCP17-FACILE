@@ -59,7 +59,9 @@
     'table.ccp th{background:#b91c1c}table.ccp tbody tr:nth-child(even){background:#fef4f4}' +
     'table.temp th{background:#0f766e}table.temp tbody tr:nth-child(even){background:#f0fdfa}' +
     'table.temp td:last-child{font-weight:700;white-space:nowrap;color:#0f766e}' +
-    'ul.l{margin:4px 0 8px;padding-left:18px}ul.l li{margin-bottom:4px}' +
+    'ul.l,ol.l{margin:4px 0 8px;padding-left:20px}ul.l li,ol.l li{margin-bottom:4px}' +
+    '.avert{margin:16px 0 0;padding:11px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e}' +
+    'table.form td{height:22px}table.form{margin-bottom:14px}' +
     '.flow{line-height:2.1}.flow .st{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:4px 9px;margin:2px;font-size:11px;font-weight:600;color:#1e1b4b}.flow .ar{color:#94a3b8;margin:0 1px;font-weight:700}' +
     '.callout{border-radius:6px;padding:9px 12px;margin:0 0 8px}' +
     '.cy{background:#fef9c3;border:1px solid #fde047}' +
@@ -131,90 +133,123 @@
       '<div class="foot">Établi le ' + dateStr + ' · Généré avec HACCP Pro</div>' +
       '</div>';
 
+    html += '<div class="avert">⚠️ <b>Avertissement :</b> le présent Plan de Maîtrise Sanitaire est un modèle. Il doit être ' +
+      'complété, adapté et validé par l\'exploitant en fonction de l\'activité réelle, puis fait vivre au quotidien (relevés, ' +
+      'plan de nettoyage émargé, fiches de réception et de non-conformité…). HACCP Pro est un outil d\'aide à l\'autocontrôle ; ' +
+      'l\'exploitant reste seul responsable de la conformité de son établissement et de la sauvegarde de ses documents.</div>';
+
+    // ── Outils de mise en forme locaux ──
+    var chap = function (num, titre) {
+      return '<h2 class="part"><span class="pn">' + esc(num) + '</span>' + esc(titre) + '</h2>';
+    };
+    var listeNum = function (arr) {
+      return '<ol class="l">' + (arr || []).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>';
+    };
+    var tbl = function (headers, rows, cls) {
+      var h = '<table' + (cls ? ' class="' + cls + '"' : '') + '><thead><tr>' +
+        headers.map(function (x) { return '<th>' + esc(x) + '</th>'; }).join('') + '</tr></thead><tbody>';
+      (rows || []).forEach(function (r) { h += '<tr>' + r.map(function (c) { return '<td>' + (c == null ? '' : c) + '</td>'; }).join('') + '</tr>'; });
+      return h + '</tbody></table>';
+    };
+    var blankTable = function (headers, nRows) {
+      var rows = [];
+      for (var i = 0; i < (nRows || 10); i++) rows.push(headers.map(function () { return '<div style="height:15px"></div>'; }));
+      return tbl(headers, rows, 'form');
+    };
+
     // ════ SOMMAIRE ════
     html += '<div class="page-break"></div>';
+    var ptNum = S.platsTemoins ? '3.6' : '';
     html += sec('', 'Sommaire',
       '<div class="toc">' +
-      '<div class="toc-part">Présentation</div><ul><li>Identification de l\'établissement</li><li>Textes réglementaires de référence</li></ul>' +
-      '<div class="toc-part">Partie I — Bonnes Pratiques d\'Hygiène (prérequis)</div>' +
-      '<ul><li>I.1 — Personnel (formation, hygiène, santé)</li><li>I.2 — Locaux, équipements et maintenance</li>' +
-      '<li>I.3 — Plan de nettoyage et de désinfection</li><li>I.4 — Lutte contre les nuisibles</li>' +
-      '<li>I.5 — Approvisionnement en eau</li><li>I.6 — Gestion des déchets</li><li>I.7 — Maîtrise des températures</li></ul>' +
-      '<div class="toc-part">Partie II — Plan HACCP (7 principes)</div>' +
-      '<ul><li>II.1 — Champ d\'application &amp; équipe</li><li>II.2 — Description des produits</li>' +
-      '<li>II.3 — Diagramme de fabrication</li><li>II.4 — Analyse des dangers</li>' +
-      '<li>II.5 — Points critiques (CCP)</li>' + (S.platsTemoins ? '<li>II.6 — Plats témoins &amp; excédents</li>' : '') +
-      '<li>II.' + (S.platsTemoins ? '7' : '6') + ' — Maîtrise des allergènes</li></ul>' +
-      '<div class="toc-part">Partie III — Mesures de gestion</div>' +
-      '<ul><li>III.1 — Traçabilité</li><li>III.2 — Gestion des non-conformités</li>' +
-      '<li>III.3 — Procédure de retrait / rappel</li><li>III.4 — Synthèse des autocontrôles</li></ul>' +
+      '<div class="toc-part">1. Présentation de l\'établissement et champ d\'application</div>' +
+      '<ul><li>1.1 — Objet du PMS</li><li>1.2 — Champ d\'application</li><li>1.3 — Obligations réglementaires préalables</li></ul>' +
+      '<div class="toc-part">2. Les Bonnes Pratiques d\'Hygiène (BPH)</div>' +
+      '<ul><li>2.1 — Personnel</li><li>2.2 — Locaux & matériel</li><li>2.3 — Plan de nettoyage</li><li>2.4 — Nuisibles</li>' +
+      '<li>2.5 — Eau</li><li>2.6 — Températures</li><li>2.7 — Déchets</li></ul>' +
+      '<div class="toc-part">3. Le plan HACCP</div>' +
+      '<ul><li>3.1 — Méthode (7 principes / 12 étapes)</li><li>3.2 — Équipe & champ</li><li>3.3 — Diagramme</li>' +
+      '<li>3.4 — Analyse des dangers</li><li>3.5 — Points critiques (CCP)</li>' + (S.platsTemoins ? '<li>3.6 — Plats témoins & excédents</li>' : '') + '</ul>' +
+      '<div class="toc-part">4. Traçabilité et gestion des non-conformités</div>' +
+      '<ul><li>4.1 — Traçabilité & durées de conservation</li><li>4.2 — Produits non conformes</li><li>4.3 — Retrait / rappel & TIAC</li></ul>' +
+      '<div class="toc-part">5. Information du consommateur — allergènes</div>' +
+      '<div class="toc-part">6. Procédures de vérification et d\'autocontrôle</div>' +
+      '<div class="toc-part">7. Documents d\'enregistrement (fiches & registres)</div>' +
+      '<div class="toc-part">Validation du PMS</div>' +
+      '<div class="toc-part">Annexes 1 à 9 — Fiches d\'enregistrement · Annexe 10 — Affichages · Annexe 11 — Affiches</div>' +
       '</div>');
 
-    // ════ PRÉSENTATION ════
+    // ════ 1. PRÉSENTATION ════
     html += '<div class="page-break"></div>';
+    html += chap('1', 'Présentation de l\'établissement et champ d\'application');
     html += sec('', 'Identification de l\'établissement',
       '<table class="info">' +
       infoRow('Raison sociale', E.nom) + infoRow('Adresse', adr) + infoRow('SIRET', E.siret) +
       infoRow('Téléphone', E.tel) + infoRow('E-mail', E.email) +
-      infoRow('Responsable (gérant du PMS)', E.responsable) + infoRow('Secteur d\'activité', S.label) +
-      infoRow('Date d\'établissement', dateStr) + '</table>');
+      infoRow('Responsable de l\'hygiène', E.responsable) + infoRow('Secteur d\'activité', S.label) +
+      infoRow('Eau potable réseau public', 'Oui') + infoRow('Date d\'établissement', dateStr) + '</table>');
+    html += sec('1.1', 'Objet du PMS', para(S.objetPMS));
+    html += sec('1.2', 'Champ d\'application', para(S.haccp.champ) + liste(S.references));
+    html += sec('1.3', 'Obligations réglementaires préalables',
+      '<p><b>Déclaration d\'activité :</b> ' + esc(S.obligations.cerfa) + '</p>' +
+      '<p><b>Formation / instructions à l\'hygiène :</b> ' + esc(S.obligations.formation) + '</p>' +
+      '<p><b>Tenue et conservation des enregistrements :</b></p>' +
+      tbl(['Document à archiver', 'Durée de conservation'],
+        S.obligations.conservation.map(function (r) { return [esc(r.doc), '<b>' + esc(r.duree) + '</b>']; })));
 
-    html += sec('', 'Textes réglementaires de référence', liste(S.references));
-
-    // ════ PARTIE I — BPH ════
-    html += part('I', 'Bonnes Pratiques d\'Hygiène (prérequis)');
+    // ════ 2. BPH ════
+    html += chap('2', 'Les Bonnes Pratiques d\'Hygiène (BPH)');
     var p = S.bph.personnel;
-    html += sec('I.1', 'Personnel — formation, hygiène, santé',
+    html += sec('2.1', 'Hygiène et formation du personnel',
       '<table class="info">' +
       infoRow('Formation', p.formation) + infoRow('Tenue de travail', p.tenue) +
       infoRow('Bijoux, ongles, plaies', p.bijoux) + infoRow('Suivi médical / santé', p.sante) +
       infoRow('Hygiène des mains', p.mains) + infoRow('Visiteurs / livreurs', p.visiteurs) +
       (p.notes ? infoRow('Spécificité du secteur', p.notes) : '') + '</table>');
-
-    html += sec('I.2', 'Locaux, équipements et maintenance', para(S.bph.locaux));
-
+    html += sec('2.2', 'Locaux, équipements et matériel', para(S.bph.locaux));
     var pn = '<table><thead><tr><th>Zone / matériel</th><th>Fréquence</th><th>Produit</th><th>Méthode</th></tr></thead><tbody>';
     (S.bph.nettoyage || []).forEach(function (n) {
       pn += '<tr><td style="font-weight:600">' + esc(n.zone) + '</td><td>' + esc(n.freq) +
         '</td><td>' + esc(n.produit) + '</td><td>' + esc(n.methode) + '</td></tr>';
     });
     pn += '</tbody></table>';
-    html += sec('I.3', 'Plan de nettoyage et de désinfection', pn);
+    html += sec('2.3', 'Plan de nettoyage et de désinfection (PND)',
+      '<p>Protocole en 5 étapes : pré-nettoyage → lavage (détergent) → rinçage → désinfection → rinçage final / séchage. ' +
+      'Produits d\'entretien stockés dans un local fermé séparé des denrées, avec leurs fiches de données de sécurité (FDS).</p>' + pn);
+    html += sec('2.4', 'Lutte contre les nuisibles', para(S.bph.nuisibles));
+    html += sec('2.5', 'Approvisionnement en eau', para(S.bph.eau));
+    html += sec('2.6', 'Maîtrise des températures (chaîne du froid et du chaud)',
+      para(S.bph.froidChaud) + tableauTemperatures(S) +
+      '<p class="muted">Relevés de température quotidiens (1 à 2 fois/jour) sur fiche émargée pour chaque enceinte (conservation 12 mois). ' +
+      'Toute dérive déclenche une action corrective. Décongélation en enceinte réfrigérée (0 à +4 °C), jamais à température ambiante. ' +
+      'Enregistrement automatique continu obligatoire pour les enceintes négatives de plus de 10 m².</p>');
+    html += sec('2.7', 'Gestion des déchets', para(S.bph.dechets));
 
-    html += sec('I.4', 'Lutte contre les nuisibles', para(S.bph.nuisibles));
-    html += sec('I.5', 'Approvisionnement en eau', para(S.bph.eau));
-    html += sec('I.6', 'Gestion des déchets', para(S.bph.dechets));
-    html += sec('I.7', 'Maîtrise des températures (froid / chaud)', para(S.bph.froidChaud) + tableauTemperatures(S));
-
-    // ════ PARTIE II — HACCP ════
-    html += part('II', 'Plan HACCP (7 principes — Codex Alimentarius)');
-    html += sec('II.1', 'Champ d\'application & équipe HACCP', para(S.haccp.champ) + liste(S.haccp.equipe));
-    html += sec('II.2', 'Description des produits', liste(S.haccp.produits));
-
+    // ════ 3. HACCP ════
+    html += chap('3', 'Le plan HACCP');
+    html += sec('3.1', 'La méthode HACCP : 7 principes et 12 étapes',
+      '<p><b>Les 7 principes</b> (Codex Alimentarius) :</p>' + listeNum(S.methodeHACCP.principes) +
+      '<p><b>Les 12 étapes d\'application :</b></p>' + listeNum(S.methodeHACCP.etapes));
+    html += sec('3.2', 'Équipe et champ d\'application', para(S.haccp.champ) + liste(S.haccp.equipe));
     var diag = '<div class="flow">' + (S.haccp.diagramme || []).map(function (e, i) {
       return '<span class="st">' + (i + 1) + '. ' + esc(e) + '</span>';
     }).join('<span class="ar">→</span>') + '</div>';
-    html += sec('II.3', 'Diagramme de fabrication', diag);
-
+    html += sec('3.3', 'Diagramme de fabrication', '<p>' + esc(S.haccp.produits.join(' · ')) + '</p>' + diag);
     var dg = '<table><thead><tr><th>Étape</th><th>Danger</th><th>Type</th><th>Mesure de maîtrise</th></tr></thead><tbody>';
     (S.haccp.dangers || []).forEach(function (d) {
       dg += '<tr><td style="font-weight:600">' + esc(d.etape) + '</td><td>' + esc(d.danger) +
         '</td><td>' + esc(d.type) + '</td><td>' + esc(d.mesure) + '</td></tr>';
     });
     dg += '</tbody></table>';
-    html += sec('II.4', 'Analyse des dangers et mesures de maîtrise', dg);
-
+    html += sec('3.4', 'Analyse des dangers', dg);
     var cc = '<table class="ccp"><thead><tr><th>CCP / PrPo</th><th>Limite critique</th><th>Surveillance</th><th>Action corrective</th><th>Enregistrement</th></tr></thead><tbody>';
     (S.haccp.ccp || []).forEach(function (c) {
       cc += '<tr><td style="font-weight:700">' + esc(c.nom) + '</td><td>' + esc(c.limite) +
         '</td><td>' + esc(c.surveillance) + '</td><td>' + esc(c.correction) + '</td><td>' + esc(c.enreg) + '</td></tr>';
     });
     cc += '</tbody></table><p class="muted">Vérification : étalonnage des sondes, relecture des enregistrements, revue annuelle du plan HACCP et après tout changement de process.</p>';
-    html += sec('II.5', 'Points critiques (CCP) et points d\'attention', cc);
-
-    var numAllerg = '6';
+    html += sec('3.5', 'Tableau de maîtrise des points critiques (CCP / PrPo)', cc);
     if (S.platsTemoins || S.gestionExcedents) {
-      numAllerg = '7';
       var pt = '';
       if (S.platsTemoins) pt += '<div class="callout cy"><b>Plats témoins (obligatoires) — </b>' + esc(S.platsTemoins) + '</div>';
       if (S.gestionExcedents) {
@@ -224,21 +259,82 @@
           '<div class="callout co">' + esc(ge.chaudes) + '</div>' +
           '<div class="callout cg">' + esc(ge.satellite) + '</div>';
       }
-      html += sec('II.6', 'Plats témoins & gestion des excédents de fin de service', pt);
+      html += sec('3.6', 'Plats témoins & gestion des excédents de fin de service', pt);
     }
 
-    html += sec('II.' + numAllerg, 'Maîtrise des allergènes (14 allergènes réglementaires)',
-      '<p>Information du consommateur obligatoire (Règlement UE 1169/2011). Identification dans chaque recette et prévention des contaminations croisées :</p>' +
-      liste(S.allergenes));
+    // ════ 4. TRAÇABILITÉ & NON-CONFORMITÉS ════
+    html += chap('4', 'Traçabilité et gestion des non-conformités');
+    html += sec('4.1', 'Traçabilité',
+      para(S.tracabilite.principe) + liste(S.tracabilite.enregistrements) +
+      '<p><b>Durées de vie indicatives des produits finis</b> (dès fabrication, conservation au froid) :</p>' +
+      tbl(['Produit', 'Durée de vie'], (S.dureesVie || []).map(function (r) { return [esc(r.produit), '<b>' + esc(r.duree) + '</b>']; })));
+    html += sec('4.2', 'Gestion des produits non conformes', para(S.nonConformites.principe) + liste(S.nonConformites.procedure));
+    html += sec('4.3', 'Procédure de retrait / rappel',
+      para(S.retraitRappel.principe) + listeNum(S.retraitRappel.procedure) +
+      '<div class="callout cy"><b>En cas de suspicion de TIAC </b>(toxi-infection alimentaire collective) : conserver les plats témoins / échantillons, ' +
+      'noter les produits et symptômes, alerter la DD(ETS)PP, coopérer à l\'enquête.</div>' +
+      '<p class="muted">' + esc(S.retraitRappel.contact) + '</p>');
 
-    // ════ PARTIE III — Mesures de gestion ════
-    html += part('III', 'Mesures de gestion');
-    html += sec('III.1', 'Traçabilité', para(S.tracabilite.principe) + liste(S.tracabilite.enregistrements));
-    html += sec('III.2', 'Gestion des non-conformités', para(S.nonConformites.principe) + liste(S.nonConformites.procedure));
-    html += sec('III.3', 'Procédure de retrait / rappel',
-      para(S.retraitRappel.principe) + liste(S.retraitRappel.procedure) +
-      '<p class="muted" style="font-size:11px;color:#374151">' + esc(S.retraitRappel.contact) + '</p>');
-    html += sec('III.4', 'Synthèse des autocontrôles (enregistrements tenus dans HACCP Pro)', liste(S.autocontroles));
+    // ════ 5. ALLERGÈNES ════
+    html += chap('5', 'Information du consommateur — allergènes');
+    html += sec('', 'Les 14 allergènes à déclaration obligatoire',
+      '<p>Conformément au Règlement (UE) n° 1169/2011 (INCO), l\'information sur la présence des 14 allergènes est mise à disposition ' +
+      'du consommateur pour les denrées non préemballées : par affichage et/ou via un <b>registre des allergènes</b> consultable, tenu à jour par produit ' +
+      '(voir Annexe 4). Les produits vendus décongelés portent la mention « décongelé ».</p>' + liste(S.allergenes));
+
+    // ════ 6. VÉRIFICATION & AUTOCONTRÔLE ════
+    html += chap('6', 'Procédures de vérification et d\'autocontrôle');
+    html += sec('', 'Vérifications', liste(S.verification));
+    html += sec('', 'Critères microbiologiques de référence (produits sensibles)',
+      tbl(['Germe', 'Critère (Règl. CE 2073/2005)'], (S.criteresMicro || []).map(function (r) { return [esc(r.germe), esc(r.critere)]; })));
+
+    // ════ 7. DOCUMENTS D'ENREGISTREMENT ════
+    html += chap('7', 'Documents d\'enregistrement (fiches & registres)');
+    html += sec('', 'Le classeur « Hygiène »',
+      '<p>Les fiches suivantes constituent le classeur « Hygiène ». Elles sont renseignées et émargées au quotidien, et fournies vierges en annexe :</p>' +
+      listeNum(S.fichesEnreg));
+
+    // ════ VALIDATION ════
+    html += chap('✓', 'Validation du PMS');
+    html += '<table class="info">' +
+      infoRow('Rédigé / proposé par', 'HACCP Pro (RTH NETGOCE)') +
+      infoRow('Validé par (exploitant)', E.responsable) +
+      '<tr><td>Date de mise en application</td><td></td></tr>' +
+      '<tr><td>Signature de l\'exploitant</td><td style="height:34px"></td></tr>' +
+      infoRow('Date de révision prévue', 'Annuelle, ou après tout changement majeur') + '</table>';
+
+    // ════════ ANNEXES ════════
+    html += '<div class="page-break"></div>';
+    html += chap('A', 'Annexes — Fiches d\'enregistrement & affiches');
+    html += '<p class="muted">Les fiches d\'enregistrement (Annexes 1 à 9) sont à imprimer, renseigner et émarger au quotidien, ' +
+      'puis à conserver dans le classeur « Hygiène ». Les Annexes 10 et 11 listent les affichages à apposer dans l\'établissement.</p>';
+
+    html += sec('Annexe 1', 'Fiche de relevé des températures (quotidienne, par enceinte)',
+      blankTable(['Date', 'Enceinte', 'T° matin', 'T° soir', 'Conforme (O/N)', 'Action corrective', 'Visa'], 12));
+    html += sec('Annexe 2', 'Plan de nettoyage et de désinfection — émargement',
+      blankTable(['Date', 'Zone / matériel', 'Fréquence prévue', 'Produit utilisé', 'Fait (✔)', 'Visa'], 12));
+    html += sec('Annexe 3', 'Fiche de contrôle à la réception',
+      blankTable(['Date', 'Fournisseur', 'Produit', 'T° relevée', 'État colis', 'DLC / DDM', 'N° lot', 'Conforme', 'Visa'], 12));
+    html += sec('Annexe 4', 'Registre des allergènes (par produit / recette)',
+      blankTable(['Produit / recette', 'Allergènes présents', 'Traces possibles', 'Mis à jour le', 'Visa'], 12));
+    html += sec('Annexe 5', 'Fiche de non-conformité et de retrait / rappel',
+      blankTable(['Date', 'Produit / lot', 'Nature de la non-conformité', 'Cause', 'Action corrective', 'Devenir (destruction / retour)', 'Visa'], 10));
+    html += sec('Annexe 6', 'Fiche de traçabilité (bons de livraison, lots, origine)',
+      blankTable(['Date', 'Produit', 'Fournisseur', 'N° lot', 'Origine', 'DLC / DDM', 'N° bon de livraison'], 12));
+    html += sec('Annexe 7', 'Suivi de la maintenance et des attestations',
+      blankTable(['Équipement', 'Opération (ramonage, étalonnage, entretien froid…)', 'Date', 'Prestataire / interne', 'Prochaine échéance', 'Visa'], 10));
+    html += sec('Annexe 8', 'Fiche de contrôle de l\'huile de friture (le cas échéant)',
+      blankTable(['Date', 'Bain / friteuse', 'Composés polaires (%)', 'Conforme (≤ 25 %)', 'Action (filtration / renouvellement)', 'Visa'], 10));
+    html += sec('Annexe 9', 'Fiche de conservation & DLC secondaires',
+      blankTable(['Produit', 'Date de fabrication / ouverture', 'DLC secondaire', 'N° lot', 'Visa'], 12));
+
+    html += sec('Annexe 10', 'Affichages obligatoires & supports visuels affichés dans l\'établissement',
+      '<p class="muted">Cocher « Oui » lorsque l\'affiche est en place. Les affiches doivent être personnalisées au nom de l\'établissement.</p>' +
+      tbl(['Catégorie', 'Affiche / support', 'Emplacement conseillé', 'Affiché (O/N)'],
+        (S.affichesOblig || []).map(function (a) { return [esc(a.cat), esc(a.affiche), esc(a.lieu), '']; })));
+    html += sec('Annexe 11', 'Affiches à afficher dans l\'établissement (format A4)',
+      '<p>Affiches à imprimer (une par page) et à apposer aux postes concernés (atelier, plonge, réception, vente, vestiaire, chambre froide) :</p>' +
+      liste(S.affichesA4));
 
     html += '<div class="disclaimer"><b>Note importante :</b> ce Plan de Maîtrise Sanitaire est un modèle pré-rempli, ' +
       'généré automatiquement à partir des informations de votre établissement et du Guide de Bonnes Pratiques d\'Hygiène de votre secteur. ' +

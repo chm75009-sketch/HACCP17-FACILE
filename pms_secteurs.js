@@ -553,7 +553,153 @@
     }
   };
 
-  // ── Assemblage final + parties communes (III) attachées à chaque secteur ──
+  // ════════════════════════════════════════════════════════════════════════
+  // BLOCS COMMUNS (trame du modèle de référence) — §1, §6, §7, validation, annexes
+  // ════════════════════════════════════════════════════════════════════════
+  var OBJET_PMS = 'Le Plan de Maîtrise Sanitaire (PMS) décrit l\'ensemble des mesures prises par l\'établissement pour assurer ' +
+    'la sécurité et la salubrité de ses denrées alimentaires vis-à-vis des dangers biologiques, chimiques, physiques et allergènes. ' +
+    'Il regroupe trois composantes : les Bonnes Pratiques d\'Hygiène (BPH), le plan HACCP, et la traçabilité / gestion des non-conformités.';
+
+  var METHODE_HACCP = {
+    principes: [
+      'Procéder à l\'analyse des dangers.',
+      'Déterminer les points critiques pour la maîtrise (CCP).',
+      'Fixer le ou les seuil(s) critique(s).',
+      'Mettre en place un système de surveillance des CCP.',
+      'Déterminer les actions correctives à appliquer lorsqu\'un CCP n\'est pas maîtrisé.',
+      'Appliquer des procédures de vérification.',
+      'Constituer un dossier documentaire (procédures et enregistrements).'
+    ],
+    etapes: [
+      'Constituer l\'équipe HACCP.', 'Décrire le produit.', 'Déterminer son utilisation prévue.',
+      'Établir le diagramme de fabrication.', 'Vérifier le diagramme sur site.', 'Analyser les dangers (principe 1).',
+      'Déterminer les CCP (principe 2).', 'Fixer les seuils critiques (principe 3).', 'Mettre en place la surveillance (principe 4).',
+      'Définir les actions correctives (principe 5).', 'Vérifier le système (principe 6).', 'Documenter et enregistrer (principe 7).'
+    ]
+  };
+
+  // Durées de conservation des documents (Règl. 178/2002 + pratiques DDPP)
+  var CONSERVATION_DOCS = [
+    { doc: 'Relevés de température', duree: '12 mois' },
+    { doc: 'Résultats microbiologiques & fiches de non-conformité', duree: '3 ans' },
+    { doc: 'Bons de livraison / fiches de réception', duree: '5 ans' },
+    { doc: 'Étiquettes / lots — denrées périssables (DLC < 3 mois)', duree: '6 mois' },
+    { doc: 'Étiquettes / lots — produits sans DDM', duree: '5 ans' },
+    { doc: 'Attestations de formation / conformité matériaux', duree: 'Durée d\'activité' }
+  ];
+
+  // Critères microbiologiques de référence (Règl. CE 2073/2005) — produits sensibles
+  var CRITERES_MICRO = [
+    { germe: 'Salmonella', critere: 'Absence dans 25 g' },
+    { germe: 'Listeria monocytogenes (produits RTE)', critere: '≤ 100 UFC/g (absence dans 25 g si croissance possible)' },
+    { germe: 'E. coli (indicateur d\'hygiène)', critere: 'm = 10 / M = 100 UFC/g (selon produit)' },
+    { germe: 'Staphylocoques à coagulase positive', critere: '≤ 100 UFC/g' },
+    { germe: 'Bacillus cereus présumé', critere: '≤ 10² UFC/g (produits sensibles)' },
+    { germe: 'Flore aérobie mésophile (FTAM)', critere: 'Indicateur d\'hygiène générale du process' }
+  ];
+
+  var VERIFICATION = [
+    'Autocontrôles microbiologiques : prélèvements périodiques (surfaces + 2 à 3 produits sensibles) par un laboratoire accrédité ; bulletins conservés 3 ans. La réglementation n\'impose pas de fréquence : elle est définie avec le laboratoire (art. 3 et 4 du Règl. 2073/2005).',
+    'Validation du refroidissement rapide : protocole vérifié périodiquement (ex. 1 fois/trimestre) sur plusieurs fabrications, en mesurant la T° à cœur et les durées.',
+    'Vérification des thermomètres / sondes : glace fondante (-0,5 / +0,5 °C) et eau bouillante (99–101 °C) ; étalonnage annuel.',
+    'Vérification des enregistrements : revue régulière des relevés de T°, du plan de nettoyage émargé, des fiches de réception et de non-conformité.',
+    'Contrôle des DLC : vérification quotidienne et retrait des produits dépassés.',
+    'Revue annuelle du PMS : mise à jour après tout changement (recette, équipement, organisation) ou non-conformité majeure.'
+  ];
+
+  // §7 — Fiches & registres = Annexes 1 à 9
+  var FICHES_ENREG = [
+    'Fiche de relevé des températures (par enceinte, quotidienne).',
+    'Plan de nettoyage et de désinfection émargé.',
+    'Fiche de contrôle à la réception (T° / état des colis / DLC / lot).',
+    'Registre des allergènes (par produit / recette).',
+    'Fiche de non-conformité et de retrait / rappel.',
+    'Fiche de traçabilité (bons de livraison, lots, origine).',
+    'Suivi de la maintenance (ramonage, étalonnage, entretien froid) et des attestations.',
+    'Fiche de contrôle de l\'huile de friture (le cas échéant).',
+    'Fiche de conservation & DLC secondaires (datage des produits ouverts / fabriqués).'
+  ];
+
+  // Annexe 10 — affichages obligatoires & supports visuels
+  var AFFICHES_OBLIG = [
+    { cat: 'Réglementaire', affiche: 'Affichages obligatoires (droit du travail)', lieu: 'Vestiaire / local du personnel' },
+    { cat: 'Réglementaire', affiche: 'Interdiction de fumer et de vapoter', lieu: 'Entrées, atelier, réserves' },
+    { cat: 'Réglementaire', affiche: 'Mise à disposition d\'eau potable gratuite', lieu: 'Zone de vente / salle' },
+    { cat: 'Réglementaire', affiche: 'Origine des viandes (si plats à base de viande)', lieu: 'Zone de vente / salle' },
+    { cat: 'Réglementaire', affiche: 'Tri des déchets / réduction des emballages (loi AGEC)', lieu: 'Zone déchets / vente' },
+    { cat: 'Secours', affiche: 'Gestes de premiers secours', lieu: 'Atelier / local du personnel' },
+    { cat: 'Hygiène / BPH', affiche: 'Consignes générales d\'hygiène', lieu: 'Atelier (entrée)' },
+    { cat: 'Hygiène / BPH', affiche: 'Tenue professionnelle (charlotte, blouse…)', lieu: 'Vestiaire' },
+    { cat: 'Hygiène / BPH', affiche: 'Lavage des mains / lavettes', lieu: 'Point d\'eau / plonge' },
+    { cat: 'Hygiène / BPH', affiche: 'Code couleur des planches à découper', lieu: 'Plan de travail' },
+    { cat: 'Chaîne du froid', affiche: 'Températures réglementaires de conservation', lieu: 'Près des enceintes froides' },
+    { cat: 'Chaîne du froid', affiche: 'Respect de la chaîne du froid', lieu: 'Réception / réserves' },
+    { cat: 'Chaîne du froid', affiche: 'Rangement & sécurité de la chambre froide', lieu: 'Chambre froide' },
+    { cat: 'Chaîne du froid', affiche: 'Refroidissement rapide des produits', lieu: 'Zone de production' },
+    { cat: 'Pédagogique', affiche: 'Dangers microbiologiques', lieu: 'Atelier' },
+    { cat: 'Pédagogique', affiche: 'Dangers physiques & chimiques', lieu: 'Atelier / réserves' }
+  ];
+
+  // Annexe 11 — affiches A4 à imprimer et apposer
+  var AFFICHES_A4 = [
+    'Se laver les mains', 'Plan de nettoyage & désinfection', 'Rangement des enceintes froides',
+    'Rangement de la réserve sèche', 'Les 14 allergènes', 'Tenue & hygiène du personnel',
+    'La marche en avant', 'Relevé des températures', 'En cas de suspicion d\'intoxication (TIAC)',
+    'Code couleur des lavettes', 'Code couleur des planches'
+  ];
+
+  // §1.3 — Obligations réglementaires (formation : spécifique par secteur)
+  var FORMATION = {
+    resto: 'Au moins une personne de l\'établissement justifie d\'une formation en hygiène alimentaire adaptée à la restauration commerciale (décret n° 2011-731, 14 h). Sensibilisation de tout le personnel.',
+    rapide: 'Au moins une personne formée à l\'hygiène alimentaire (décret n° 2011-731, 14 h). Forte rotation : formation d\'accueil systématique et fiches de poste affichées.',
+    collective: 'Formation / instructions à l\'hygiène de tout le personnel (Règl. CE 852/2004). Au moins un référent formé HACCP ; plan de formation interne tracé.',
+    bp: 'Les métiers de bouche (boulangers, pâtissiers) ne sont pas visés par l\'obligation de formation du décret n° 2011-731 (instruction DGAL du 30/10/2017) ; un référent formé à l\'hygiène (14 h) reste vivement recommandé. Instructions / formation adaptées au personnel (Règl. CE 852/2004).',
+    boucherie: 'Métier de bouche : référent formé à l\'hygiène vivement recommandé ; instructions / formation adaptées (Règl. CE 852/2004). Formation obligatoire en cas d\'activité de restauration / traiteur (décret n° 2011-731).'
+  };
+  var CERFA = 'Déclaration d\'activité auprès de la DD(ETS)PP (Cerfa n° 13984) — préalable obligatoire à l\'exploitation, à actualiser en cas de manipulation de denrées d\'origine animale destinées à d\'autres professionnels.';
+
+  // §4 — Durées de vie indicatives des produits finis (par secteur, à +4 °C sauf mention)
+  var DUREES_VIE = {
+    resto: [
+      { produit: 'Préparations à base d\'œufs crus (mayonnaise, mousse)', duree: 'Le jour de fabrication' },
+      { produit: 'Préparations froides assemblées (entrées, salades)', duree: '1 jour' },
+      { produit: 'Plats cuisinés maison refroidis (PCEA)', duree: '3 jours (J+3) à ≤ +3 °C' },
+      { produit: 'Sauces cuites maison', duree: '2 à 3 jours à ≤ +3 °C' },
+      { produit: 'Produits décongelés', duree: 'À consommer rapidement — jamais recongeler' },
+      { produit: 'Après ouverture (ovoproduits, lait, crème)', duree: '48 h ; autres : 3 jours à +4 °C' }
+    ],
+    bp: [
+      { produit: 'À base d\'œufs crus (mayonnaise) ou de crème chantilly', duree: '1 jour' },
+      { produit: 'Traiteur assemblé sans cuisson (sandwiches, salades)', duree: '1 jour' },
+      { produit: 'À base de crème anglaise ; traiteur salé cuit (quiches, pizzas)', duree: '2 jours' },
+      { produit: 'À base de crème (éclairs, choux garnis)', duree: '3 jours' },
+      { produit: 'À base de mousse pâtissière (bavarois)', duree: '4 jours' },
+      { produit: 'À base de meringue italienne', duree: '5 jours' },
+      { produit: 'À base de crème au beurre (bûches)', duree: '15 jours' },
+      { produit: 'Pâtes cuites non garnies (génoises, choux, macarons)', duree: '15 jours (T° ambiante)' }
+    ],
+    rapide: [
+      { produit: 'Produits assemblés à la demande (burgers, sandwichs, wraps)', duree: 'Consommation immédiate' },
+      { produit: 'Crudités préparées / sauces maison', duree: '1 jour à ≤ +3 °C' },
+      { produit: 'Produits décongelés', duree: 'Du jour — jamais recongeler' },
+      { produit: 'Bain de friture', duree: 'Selon composés polaires (≤ 25 %)' }
+    ],
+    boucherie: [
+      { produit: 'Viande hachée préparée sur place', duree: 'Le jour de fabrication (DLC J)' },
+      { produit: 'Préparations de viandes (saucisses, brochettes)', duree: '24 à 72 h à +2 °C selon procédé' },
+      { produit: 'Charcuterie cuite maison', duree: '3 à 21 jours selon barème et conditionnement' },
+      { produit: 'Charcuterie crue / salaison', duree: 'Selon procédé d\'affinage (sel, nitrites, aw, durée)' },
+      { produit: 'Abats', duree: 'Très périssables — rotation rapide' }
+    ],
+    collective: [
+      { produit: 'Préparations froides', duree: '1 jour (J), conservées ≤ +3 °C' },
+      { produit: 'Préparations en liaison froide (refroidies)', duree: 'J+3 maximum à ≤ +3 °C' },
+      { produit: 'Plats remis en température', duree: 'Le jour même — pas de re-refroidissement' },
+      { produit: 'Plats témoins', duree: '5 jours à ≤ +3 °C' }
+    ]
+  };
+
+  // ── Assemblage final + parties communes attachées à chaque secteur ──
   var PMS_SECTEURS = { resto: RESTO, bp: BP, rapide: RAPIDE, boucherie: BOUCHERIE, collective: COLLECTIVE };
   Object.keys(PMS_SECTEURS).forEach(function (k) {
     PMS_SECTEURS[k].cle = k;
@@ -561,6 +707,16 @@
     PMS_SECTEURS[k].tracabilite = TRACABILITE;
     PMS_SECTEURS[k].nonConformites = NON_CONFORMITES;
     PMS_SECTEURS[k].retraitRappel = RETRAIT_RAPPEL;
+    // Trame du modèle de référence
+    PMS_SECTEURS[k].objetPMS = OBJET_PMS;
+    PMS_SECTEURS[k].obligations = { cerfa: CERFA, formation: FORMATION[k], conservation: CONSERVATION_DOCS };
+    PMS_SECTEURS[k].methodeHACCP = METHODE_HACCP;
+    PMS_SECTEURS[k].criteresMicro = CRITERES_MICRO;
+    PMS_SECTEURS[k].verification = VERIFICATION;
+    PMS_SECTEURS[k].dureesVie = DUREES_VIE[k];
+    PMS_SECTEURS[k].fichesEnreg = FICHES_ENREG;
+    PMS_SECTEURS[k].affichesOblig = AFFICHES_OBLIG;
+    PMS_SECTEURS[k].affichesA4 = AFFICHES_A4;
   });
 
   // Exposition globale

@@ -108,19 +108,42 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   ok(/Plan de Maîtrise Sanitaire/i.test(written), 'générateur: titre PMS présent');
   ok(/Cuisine Test/.test(written), 'générateur: nom de l\'établissement injecté');
   ok(/44424477600019/.test(written), 'générateur: SIRET injecté');
-  ok(/PARTIE I/.test(written) && /PARTIE II/.test(written) && /PARTIE III/.test(written), 'générateur: 3 parties (BPH/HACCP/Gestion)');
+  // Trame du modèle de référence : sections numérotées 1 à 7 + validation + annexes
+  ok(/1\. Présentation/.test(written), 'générateur: chapitre 1 Présentation');
+  ok(/2\. Les Bonnes Pratiques d.Hygiène/.test(written), 'générateur: chapitre 2 BPH');
+  ok(/3\. Le plan HACCP/.test(written), 'générateur: chapitre 3 HACCP');
+  ok(/4\. Traçabilité/.test(written), 'générateur: chapitre 4 Traçabilité');
+  ok(/5\. Information du consommateur/.test(written), 'générateur: chapitre 5 Allergènes');
+  ok(/6\. Procédures de vérification/.test(written), 'générateur: chapitre 6 Vérification');
+  ok(/7\. Documents d.enregistrement/.test(written), 'générateur: chapitre 7 Documents');
+  ok(/1\.3/.test(written) && /Obligations réglementaires/.test(written), 'générateur: §1.3 obligations réglementaires');
+  ok(/7 principes/.test(written) && /12 étapes/.test(written), 'générateur: méthode HACCP 7 principes / 12 étapes');
+  ok(/Durées de vie indicatives/.test(written), 'générateur: durées de vie des produits finis');
+  ok(/Critères microbiologiques/.test(written) && /2073\/2005/.test(written), 'générateur: critères microbiologiques');
+  ok(/Validation du PMS/.test(written), 'générateur: bloc Validation du PMS');
+  // Annexes 1 à 11
+  ['Annexe 1', 'Annexe 2', 'Annexe 3', 'Annexe 4', 'Annexe 5', 'Annexe 6', 'Annexe 7', 'Annexe 8', 'Annexe 9', 'Annexe 10', 'Annexe 11'].forEach(function (a) {
+    ok(written.indexOf(a) > -1, 'générateur: ' + a + ' présente');
+  });
+  ok(/relevé des températures/i.test(written), 'générateur: Annexe 1 = fiche relevé températures');
+  ok(/Registre des allergènes/i.test(written), 'générateur: Annexe 4 = registre allergènes');
+  ok(/class="form"/.test(written), 'générateur: fiches vierges à remplir (tableaux form)');
+  ok(/Affichages obligatoires/i.test(written), 'générateur: Annexe 10 = affichages obligatoires');
+  ok(/Se laver les mains/.test(written), 'générateur: Annexe 11 = liste des affiches');
+  ok(/Avertissement/i.test(written), 'générateur: avertissement en tête');
   ok(/plats? témoins?/i.test(written), 'générateur (collective): section plats témoins');
   ok(/excédents de fin de service/i.test(written), 'générateur (collective): section gestion des excédents');
   ok(/852\/2004/.test(written), 'générateur: référence réglementaire affichée');
   ok(/Imprimer/.test(written), 'générateur: bouton Imprimer/PDF');
-  ok(/Modèle|responsable de sa mise à jour|seul responsable/i.test(written), 'générateur: clause de responsabilité (modèle)');
+  ok(/seul responsable/i.test(written), 'générateur: clause de responsabilité (modèle)');
 
   // secteur différent => contenu différent
   let w2 = '';
   fakeWin.open = function () { return { document: { open: function () {}, close: function () {}, write: function (h) { w2 = h; } } }; };
   fakeWin.genererPMS('boucherie');
   ok(/853\/2004/.test(w2), 'générateur (boucherie): référence 853/2004 présente');
-  ok(!/plats? témoins?/i.test(w2), 'générateur (boucherie): pas de plats témoins (spécifique collective)');
+  ok(/Annexe 9/.test(w2), 'générateur (boucherie): annexes présentes aussi');
+  ok(!/Plats témoins \(obligatoires\)/.test(w2), 'générateur (boucherie): pas de section dédiée plats témoins (spécifique collective)');
 })();
 
 console.log('\n══════════════════════════════════════');
