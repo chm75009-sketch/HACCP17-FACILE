@@ -77,6 +77,11 @@ ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /broche|kebab|d�
 ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /Salmonella/i.test(d.danger) && /œuf/i.test(d.mesure + d.etape); }), 'rapide: danger Salmonella sauces froides (œuf cru)');
 ok(PMS_SECTEURS.rapide.temperatures.some(function (t) { return /70 ?°C/.test(t.valeur); }), 'rapide: broche tranchée ≥ 70 °C');
 ok(PMS_SECTEURS.rapide.autocontroles.some(function (a) { return /livraison|isotherme/i.test(a); }), 'rapide: maîtrise T° en livraison / emporter');
+// Éléments vérifiés depuis le GBPH 2024 (pages BPHG) :
+ok(/TACT/.test(PMS_SECTEURS.rapide.bph.froidChaud), 'rapide: méthode de nettoyage TACT (GBPH)');
+ok(/ATP/.test(PMS_SECTEURS.rapide.bph.froidChaud), 'rapide: transport ATP classes C/F (GBPH)');
+ok(PMS_SECTEURS.rapide.references.some(function (r) { return /2024/.test(r) && /SNARR/i.test(r); }), 'rapide: référence GBPH SNARR 2024');
+ok(PMS_SECTEURS.rapide.references.some(function (r) { return /2017\/2158|acrylamide/i.test(r); }), 'rapide: référence acrylamide 2017/2158');
 
 // Boucherie : Règlement 853/2004 + zone ≤ 12°C + sous-produits animaux
 ok(PMS_SECTEURS.boucherie.references.some(function (r) { return /853\/2004/.test(r); }), 'boucherie: référence Règlement 853/2004 (agrément)');

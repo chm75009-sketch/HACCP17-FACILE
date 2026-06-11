@@ -305,13 +305,15 @@
       locaux: 'Postes de production en ligne (assemblage rapide). Séparation des flux crus/cuits. Zones de stockage chaud (bac-marie, lampes) et froid (saladettes réfrigérées) maîtrisées. Poste de broche kebab (grill vertical) à part, écran de protection, lèchefrite nettoyée à chaque broche. Bac de lavage-désinfection des crudités identifié. Surfaces lavables.',
       nettoyage: planNettoyageBase([
         { zone: 'Grill, plancha, friteuse', freq: 'Fin de service + dégraissage régulier', produit: 'Dégraissant alimentaire', methode: 'Grattage, dégraissage, désinfection des surfaces froides' },
+        { zone: 'Broche kebab (pince, lèchefrite, grill vertical)', freq: 'Lèchefrite à chaque broche, ensemble à la fin des opérations', produit: 'Dégraissant + désinfectant conforme normes CEN', methode: 'Démontage, dégraissage, désinfection, rinçage' },
+        { zone: 'Couteaux, grilles, éléments démontables', freq: 'À la fin des opérations', produit: 'Détergent-désinfectant', methode: 'Séparés, nettoyés, désinfectés et rincés (GBPH)' },
         { zone: 'Saladette / bac réfrigéré', freq: 'Quotidien + entre services', produit: 'Détergent-désinfectant', methode: 'Vidage des bacs, nettoyage, contrôle T°' },
         { zone: 'Machine à boissons / glaçons', freq: 'Quotidien (becs) + hebdo (circuits)', produit: 'Détergent-désinfectant agréé', methode: 'Démontage becs, désinfection, détartrage' }
       ]),
       nuisibles: 'Plan de lutte contre les nuisibles (3D) : restauration rapide souvent en zone de passage / centre commercial — vigilance accrue. Portes à fermeture automatique, sas, postes d\'appâtage, contrôle des livraisons.',
       eau: 'Eau potable du réseau. Glaçons et fontaines à boissons à partir d\'eau potable, circuits désinfectés régulièrement.',
       dechets: 'Volume d\'emballages important (tri carton/plastique). Huiles de friture : contrôle des composés polaires et collecte par prestataire agréé (bordereaux). Biodéchets triés.',
-      froidChaud: 'Maintien chaud des produits prêts (≥ 63 °C) et froid des composants (≤ +3 °C en saladette). Broche kebab : seule la couche extérieure cuite (≥ 70 °C) est tranchée, la broche entamée non vendue est refroidie rapidement ou jetée. Maîtrise du temps d\'exposition des produits assemblés. Vente à emporter / livraison : sacs isothermes, séparation chaud/froid, délais courts.'
+      froidChaud: 'Maintien chaud des produits prêts (≥ 63 °C) et froid des composants (≤ +3 °C en saladette). Broche kebab : seule la couche extérieure cuite (≥ 70 °C) est tranchée, la broche entamée non vendue est refroidie rapidement ou jetée. Maîtrise du temps d\'exposition des produits assemblés. Vente à emporter / livraison : sacs/caissons isothermes, séparation chaud/froid, délais courts ; pour le transport de denrées congelées, engins ATP de classe C ou F (Arrêté du 27 novembre 2020) ; chargement rapide (écart ≤ +3 °C en surface). Nettoyage selon la méthode TACT (Température, Action mécanique, Concentration, Temps) ; désinfectants conformes aux normes CEN.'
     },
     haccp: {
       champ: champBase('restauration rapide'),
