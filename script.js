@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v192';
+var APP_BUILD = 'v193';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -687,6 +687,83 @@ async function _tryOfflineLogin(code, pwd) {
     console.info('[HACCP] Connexion hors-ligne acceptée (empreinte locale valide)');
     return { ok: true, data: c.etab, offline: true };
   } catch(e) { return { ok: false }; }
+}
+
+// ─── PIN VOCAL — connexion rapide par code à 4 chiffres (dictable) ───
+// OPTIONNEL : tant qu'aucun PIN n'est activé, la connexion classique est
+// inchangée. Le PIN n'est jamais stocké en clair (empreinte SHA-256). Le
+// code + mot de passe sont obfusqués (XOR clé dérivée du PIN). ⚠️ Un PIN de
+// 4 chiffres reste faible : confort de déverrouillage sur VOTRE appareil.
+function _pinObf(str, keyHex) {
+  var out = '';
+  for (var i = 0; i < str.length; i++) {
+    var k = parseInt(keyHex.substr((i * 2) % keyHex.length, 2), 16) || 0;
+    out += String.fromCharCode(str.charCodeAt(i) ^ k);
+  }
+  try { return btoa(unescape(encodeURIComponent(out))); } catch (e) { return ''; }
+}
+function _pinDeobf(b64, keyHex) {
+  try {
+    var s = decodeURIComponent(escape(atob(b64))), out = '';
+    for (var i = 0; i < s.length; i++) {
+      var k = parseInt(keyHex.substr((i * 2) % keyHex.length, 2), 16) || 0;
+      out += String.fromCharCode(s.charCodeAt(i) ^ k);
+    }
+    return out;
+  } catch (e) { return ''; }
+}
+function pinVocalActif() { try { return !!lsGet('haccp_pinv'); } catch (e) { return false; } }
+
+async function activerPinVocal() {
+  var code = (document.getElementById('login_code') ? document.getElementById('login_code').value : '').trim().toUpperCase();
+  var pwd = (document.getElementById('login_pwd') ? document.getElementById('login_pwd').value : '').trim();
+  if (!code || !pwd) { alert('Entrez d\'abord votre code d\'accès et votre mot de passe, puis activez le PIN.'); return; }
+  var pin = prompt('Choisissez un code PIN à 4 chiffres pour cet appareil :');
+  if (pin === null) return;
+  pin = String(pin).replace(/\D/g, '');
+  if (pin.length !== 4) { alert('Le PIN doit comporter exactement 4 chiffres.'); return; }
+  var pin2 = prompt('Confirmez le PIN à 4 chiffres :');
+  if (pin2 === null) return;
+  if (String(pin2).replace(/\D/g, '') !== pin) { alert('Les deux PIN ne correspondent pas.'); return; }
+  var keyHex = await _sha256Hex(pin);
+  if (!keyHex) { alert('Contexte non sécurisé : PIN indisponible ici.'); return; }
+  var h = await _sha256Hex(pin + '|' + code);
+  try {
+    lsSet('haccp_pinv', JSON.stringify({ h: h, c: _pinObf(code, keyHex), p: _pinObf(pwd, keyHex), at: Date.now() }));
+    alert('✅ PIN activé sur cet appareil.\n\nLa prochaine fois, touchez « Connexion par PIN » et dictez (ou tapez) vos 4 chiffres.');
+    if (typeof _pinUiRefresh === 'function') _pinUiRefresh();
+  } catch (e) { alert('Impossible d\'enregistrer le PIN (stockage plein ?).'); }
+}
+
+function desactiverPinVocal() {
+  try { lsRemove('haccp_pinv'); } catch (e) {}
+  if (typeof _pinUiRefresh === 'function') _pinUiRefresh();
+}
+
+async function connexionParPin(pin) {
+  pin = String(pin || '').replace(/\D/g, '');
+  if (pin.length !== 4) { alert('Dictez ou saisissez vos 4 chiffres.'); return; }
+  var raw; try { raw = lsGet('haccp_pinv'); } catch (e) {}
+  if (!raw) { alert('Aucun PIN activé sur cet appareil.'); return; }
+  var o; try { o = JSON.parse(raw); } catch (e) { return; }
+  var keyHex = await _sha256Hex(pin);
+  var code = _pinDeobf(o.c, keyHex), pwd = _pinDeobf(o.p, keyHex);
+  var hVerif = await _sha256Hex(pin + '|' + code);
+  if (hVerif !== o.h) { alert('PIN incorrect.'); return; }
+  var ce = document.getElementById('login_code'), pe = document.getElementById('login_pwd');
+  if (ce) ce.value = code;
+  if (pe) pe.value = pwd;
+  if (typeof connexion === 'function') connexion();   // réutilise la connexion CLASSIQUE (sûr)
+}
+
+function _pinUiRefresh() {
+  var actif = pinVocalActif();
+  var b = document.getElementById('pinLoginWrap'); if (b) b.style.display = actif ? 'block' : 'none';
+  var a = document.getElementById('pinActiverWrap'); if (a) a.style.display = actif ? 'none' : 'block';
+}
+if (typeof window !== 'undefined') {
+  window.activerPinVocal = activerPinVocal; window.desactiverPinVocal = desactiverPinVocal;
+  window.connexionParPin = connexionParPin; window.pinVocalActif = pinVocalActif;
 }
 
 async function sbSauvegarderModule(module, donnees, signePar) {
@@ -3570,6 +3647,7 @@ document.getElementById('heroDate').textContent = ds.charAt(0).toUpperCase()+ds.
 // ── DÉMARRAGE ──
 (function initApp() {
   try { _trace('initApp — session=' + (!!sessionRead()) + ' marker=' + lsGet('haccp_deconnecte') + ' trialPwd=' + (!!lsGet('haccp_trial_pwd'))); } catch(e){}
+  try { if (typeof _pinUiRefresh === 'function') _pinUiRefresh(); } catch(e){} // PIN vocal : afficher/masquer selon l'appareil
   try { _installerFiletSignaturePhotos(); } catch(e){} // SEC-3 — filet de re-signature des photos
   // Reprise de la session ADMIN : si l'admin était connecté, on revient DIRECTEMENT dans
   // son tableau de bord (fini la page d'accueil + re-scroll + re-saisie du mot de passe).
