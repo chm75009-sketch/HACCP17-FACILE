@@ -294,7 +294,9 @@
       'Règlement (CE) n° 852/2004 — hygiène des denrées alimentaires',
       'Arrêté du 21 décembre 2009 — températures de conservation',
       'Règlement (CE) n° 2073/2005 — critères microbiologiques',
-      'Règlement (UE) n° 1169/2011 — allergènes',
+      'Règlement (UE) n° 1169/2011 (INCO) — information du consommateur / allergènes',
+      'Règlement (UE) n° 2017/2158 — réduction de l\'acrylamide (produits frits)',
+      'Règlement (CE) n° 1935/2004 — matériaux au contact des denrées (emballages à emporter)',
       'GBPH « Restauration rapide » — SNARR, édition validée par la DGAL (juillet 2024)',
       'Décret n° 2011-731 — formation en hygiène alimentaire'
     ],
