@@ -117,12 +117,13 @@
       'Arrêté du 21 décembre 2009 — températures de conservation',
       'Règlement (CE) n° 2073/2005 — critères microbiologiques',
       'Règlement (UE) n° 1169/2011 — allergènes (information du consommateur)',
-      'GBPH « Restaurateur » (guide validé, secteur de la restauration commerciale)',
+      'Arrêté du 9 mai 1995 — hygiène des aliments remis directement au consommateur',
+      'GBPH « Restaurateur » (édition 1999, réimpression 2006 — guide validé par les pouvoirs publics, CGAD / CFHRCD / FNIH / SNRLH)',
       'Décret n° 2011-731 — obligation de formation en hygiène alimentaire'
     ],
     bph: {
-      personnel: personnelBase('Restauration : rotation des postes chaud/froid maîtrisée, séparation des activités propres et souillées dans le temps et l\'espace.'),
-      locaux: 'Marche en avant dans l\'espace ou, à défaut, dans le temps (séparation cru/cuit, propre/sale). Surfaces lisses, lavables, non absorbantes. Éclairage protégé. Ventilation suffisante. Réseau d\'évacuation adapté.',
+      personnel: personnelBase('Restauration (GBPH Restaurateur) : lavage des mains au savon bactéricide pendant 20 secondes (paume, dos, entre les doigts, ongles brossés, poignets), séchage par essuie-mains à usage unique ; désinfection instantanée à l\'alcool 70° avant une opération sensible (mayonnaise, hachage, mise sous vide). Formation à l\'hygiène renouvelée (art. 7 de l\'arrêté du 9 mai 1995).'),
+      locaux: 'Marche en avant DANS L\'ESPACE (du sale vers le propre, sans croisement : réception → stockage → déconditionnement → préparation → cuisson → refroidissement → conservation → vente) ou, à défaut, DANS LE TEMPS (opérations séparées par un nettoyage-désinfection). Surfaces lisses, lavables, non absorbantes. Pas de bois au contact direct ; jeu de planches à code couleur. Éclairage protégé. Ventilation suffisante. Réseau d\'évacuation adapté.',
       nettoyage: planNettoyageBase([
         { zone: 'Trancheuse, robot, mixeur', freq: 'Après chaque usage', produit: 'Détergent-désinfectant', methode: 'Démontage des pièces, lavage, désinfection, remontage' },
         { zone: 'Chambre froide positive / négative', freq: 'Hebdo + dès souillure', produit: 'Détergent-désinfectant', methode: 'Contrôle des joints, évaporateur, écoulement' }
@@ -152,10 +153,14 @@
         { etape: 'Réception', danger: 'Rupture chaîne du froid, DLC dépassée, contamination', type: 'Biologique', mesure: 'Contrôle T° et DLC à réception, refus si non conforme' },
         { etape: 'Stockage', danger: 'Développement microbien, contaminations croisées', type: 'Biologique', mesure: 'Respect des T°, séparation cru/cuit, filmage, rangement DLC' },
         { etape: 'Décongélation', danger: 'Multiplication microbienne', type: 'Biologique', mesure: 'Décongélation en enceinte froide 0–+4 °C, jamais à T° ambiante' },
-        { etape: 'Préparation froide', danger: 'Salmonella (œufs crus), Listeria', type: 'Biologique', mesure: 'Ovoproduits pasteurisés conseillés, hygiène, T° maîtrisée, fabrication à la demande' },
+        { etape: 'Préparation froide', danger: 'Salmonella (œufs crus, mayonnaise), Listeria', type: 'Biologique', mesure: 'Ovoproduits pasteurisés conseillés, hygiène, T° maîtrisée, fabrication à la demande' },
+        { etape: 'Légumes terreux / viandes en sauce / sous vide', danger: 'Clostridium perfringens (cause n°1 d\'intoxication en restauration, GBPH)', type: 'Biologique', mesure: 'Laver les légumes terreux, refroidir rapidement les plats en sauce, ne pas tiédir lentement' },
+        { etape: 'Tranchage / hachage', danger: 'Staphylocoque doré (manipulateur), E. coli', type: 'Biologique', mesure: 'Hygiène des mains, hachage à la demande (steak tartare, carpaccio), matériel désinfecté' },
         { etape: 'Cuisson', danger: 'Survie de pathogènes', type: 'Biologique', mesure: 'CCP — cuisson à cœur (voir limites critiques)' },
-        { etape: 'Refroidissement', danger: 'Croissance des spores (Clostridium, Bacillus)', type: 'Biologique', mesure: 'CCP — +63 °C à +10 °C en moins de 2 h' },
+        { etape: 'Poissons crus / porc / cheval', danger: 'Parasites (anisakis ; ténia, trichine)', type: 'Biologique', mesure: 'Poisson cru : congélation -20 °C pendant 24 h (ou cuisson à cœur ≥ 55 °C) ; ne pas servir le porc saignant' },
+        { etape: 'Refroidissement', danger: 'Croissance des spores (Clostridium, Bacillus)', type: 'Biologique', mesure: 'CCP — +63 °C à +10 °C en moins de 2 h (épaisseur ≤ 5 cm)' },
         { etape: 'Maintien chaud', danger: 'Multiplication microbienne', type: 'Biologique', mesure: 'CCP — maintien ≥ 63 °C' },
+        { etape: 'Friture', danger: 'Composés toxiques (huile surchauffée)', type: 'Chimique', mesure: 'Huile ≤ 180 °C, filtrer, changer dès altération (couleur, mousse, odeur)' },
         { etape: 'Toutes étapes', danger: 'Allergènes (contamination croisée)', type: 'Allergène', mesure: 'Identification des 14 allergènes, info consommateur, ustensiles dédiés' },
         { etape: 'Toutes étapes', danger: 'Corps étrangers (verre, métal, plastique)', type: 'Physique', mesure: 'Contrôle visuel, protection éclairage, état du matériel' }
       ],
@@ -173,9 +178,13 @@
       { denree: 'Viandes découpées (autres)', valeur: '+7 °C' },
       { denree: 'Produits de la pêche frais', valeur: '0 à +2 °C (glace fondante)' },
       { denree: 'Produits laitiers frais, desserts à base de lait', valeur: '+4 °C' },
+      { denree: 'Produits laitiers, fromages à pâte molle / pressée cuite', valeur: '+8 °C' },
+      { denree: 'Œufs coquille (stockage)', valeur: 'Local sec et frais, 8 à 15 °C' },
+      { denree: 'Glaces et crèmes glacées', valeur: 'Réception -20 °C · stockage -18 °C' },
       { denree: 'Surgelés', valeur: '-18 °C' },
+      { denree: 'Huile de friture', valeur: '≤ 180 °C — composés polaires ≤ 25 %' },
       { denree: 'Maintien au chaud (liaison chaude)', valeur: '≥ +63 °C' },
-      { denree: 'Refroidissement rapide', valeur: '+63 → +10 °C en < 2 h' },
+      { denree: 'Refroidissement rapide', valeur: '+63 → +10 °C en < 2 h (épaisseur ≤ 5 cm)' },
       { denree: 'Remise en température (réchauffage)', valeur: '≥ +63 °C à cœur en < 1 h' }
     ],
     autocontroles: [
@@ -661,12 +670,13 @@
   // §4 — Durées de vie indicatives des produits finis (par secteur, à +4 °C sauf mention)
   var DUREES_VIE = {
     resto: [
-      { produit: 'Préparations à base d\'œufs crus (mayonnaise, mousse)', duree: 'Le jour de fabrication' },
-      { produit: 'Préparations froides assemblées (entrées, salades)', duree: '1 jour' },
-      { produit: 'Plats cuisinés maison refroidis (PCEA)', duree: '3 jours (J+3) à ≤ +3 °C' },
+      { produit: 'Mayonnaise / préparations à base d\'œufs coquille crus', duree: '24 h (2 à 3 jours si ovoproduits liquides pasteurisés)' },
+      { produit: 'Préparations froides assemblées (entrées, salades)', duree: 'J+3 (jour même si pas de local dédié ; J+5 si local adapté + étude de vieillissement)' },
+      { produit: 'Plats cuisinés maison conservés au froid positif', duree: '3 à 6 jours à ≤ +3 °C, datés' },
       { produit: 'Sauces cuites maison', duree: '2 à 3 jours à ≤ +3 °C' },
-      { produit: 'Produits décongelés', duree: 'À consommer rapidement — jamais recongeler' },
-      { produit: 'Après ouverture (ovoproduits, lait, crème)', duree: '48 h ; autres : 3 jours à +4 °C' }
+      { produit: 'Steak tartare / carpaccio', duree: 'Haché / tranché à la demande — pas de conservation' },
+      { produit: 'Produits décongelés', duree: '2 à 3 jours (achetés surgelés) / 48 h (congelés sur place) — jamais recongeler' },
+      { produit: 'Produit sous vide après ouverture', duree: '24 h' }
     ],
     bp: [
       { produit: 'À base d\'œufs crus (mayonnaise) ou de crème chantilly', duree: '1 jour' },

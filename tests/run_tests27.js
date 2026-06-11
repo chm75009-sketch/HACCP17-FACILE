@@ -54,6 +54,11 @@ CLES.forEach(function (k) {
 });
 
 // ════════════ B) PRÉCISION SECTORIELLE (chaque secteur a SES spécificités) ════════════
+// Restauration : enrichissements du GBPH Restaurateur
+ok(PMS_SECTEURS.resto.references.some(function (r) { return /9 mai 1995/.test(r); }), 'resto: référence Arrêté du 9 mai 1995 (GBPH Restaurateur)');
+ok(PMS_SECTEURS.resto.haccp.dangers.some(function (d) { return /Clostridium perfringens/.test(d.danger); }), 'resto: danger Clostridium perfringens (cause n°1, GBPH)');
+ok(PMS_SECTEURS.resto.haccp.dangers.some(function (d) { return /anisakis/i.test(d.danger); }), 'resto: danger parasites poisson cru (anisakis)');
+ok(PMS_SECTEURS.resto.temperatures.some(function (t) { return /180 ?°C/.test(t.valeur); }), 'resto: huile de friture ≤ 180 °C (GBPH)');
 // Restauration : cuisson volaille 74°C + refroidissement < 2h
 ok(PMS_SECTEURS.resto.haccp.ccp.some(function (c) { return /74/.test(c.limite); }), 'resto: cuisson volaille ≥ 74 °C');
 ok(PMS_SECTEURS.resto.haccp.ccp.some(function (c) { return /< 2 h|moins de 2 h/i.test(c.limite); }), 'resto: refroidissement < 2 h');
