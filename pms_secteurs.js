@@ -295,7 +295,7 @@
       'Arrêté du 21 décembre 2009 — températures de conservation',
       'Règlement (CE) n° 2073/2005 — critères microbiologiques',
       'Règlement (UE) n° 1169/2011 — allergènes',
-      'GBPH « Restauration rapide » (guide validé du secteur)',
+      'GBPH « Restauration rapide » — SNARR, édition validée par la DGAL (juillet 2024)',
       'Décret n° 2011-731 — formation en hygiène alimentaire'
     ],
     bph: {
