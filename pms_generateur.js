@@ -51,9 +51,9 @@
     '.sec>h3{display:flex;gap:8px;align-items:baseline;font-size:13px;font-weight:700;color:#1e1b4b;border-left:4px solid #4338ca;background:#eef2ff;padding:7px 11px;border-radius:0 6px 6px 0;margin:0 0 9px}' +
     '.sec>h3 .num{color:#4338ca;font-weight:800}' +
     '.body{padding:0 2px}' +
-    'table{width:100%;border-collapse:collapse;font-size:11px;margin:4px 0 6px}' +
-    'th{background:#1e1b4b;color:#fff;text-align:left;padding:6px 8px;border:1px solid #cbd5e1;font-weight:700;font-size:10.5px}' +
-    'td{padding:5px 8px;border:1px solid #d7dce3;vertical-align:top}' +
+    'table{width:100%;border-collapse:collapse;font-size:11px;margin:4px 0 6px;table-layout:fixed}' +
+    'th{background:#1e1b4b;color:#fff;text-align:left;padding:6px 8px;border:1px solid #cbd5e1;font-weight:700;font-size:10.5px;overflow-wrap:anywhere;word-break:break-word}' +
+    'td{padding:5px 8px;border:1px solid #d7dce3;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}' +
     'tbody tr:nth-child(even){background:#f8fafc}' +
     'table.info td:first-child{font-weight:700;width:34%;background:#f1f5f9;color:#374151}' +
     'table.ccp th{background:#b91c1c}table.ccp tbody tr:nth-child(even){background:#fef4f4}' +
@@ -112,11 +112,14 @@
     '.toolbar .t{font-weight:700;font-size:14px}.toolbar button{background:#fff;color:#1e1b4b;border:none;border-radius:8px;font-weight:700;font-size:13px;padding:8px 16px;cursor:pointer}}' +
     /* Pages A4 paginées (paginateur maison, borné) */
     '.pages{padding:10px 0}' +
-    '.pg{width:210mm;min-height:296mm;background:#fff;margin:0 auto 9px;box-shadow:0 1px 10px rgba(0,0,0,.15);padding:15mm 15mm 20mm;position:relative}' +
-    '.pgft{position:absolute;left:15mm;right:15mm;bottom:8mm;text-align:center;font:9px Arial;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:4px}' +
+    // À l'écran : la page s'adapte à la largeur du téléphone (lisible, rien ne déborde).
+    '.pg{width:100%;max-width:820px;box-sizing:border-box;background:#fff;margin:0 auto 12px;box-shadow:0 1px 10px rgba(0,0,0,.15);padding:18px 18px 34px;position:relative}' +
+    '.pgft{position:absolute;left:14px;right:14px;bottom:10px;text-align:center;font:9px Arial;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:5px}' +
     '.tocpg{display:inline-block;min-width:26px;font-weight:800;color:#4338ca;margin-right:6px}' +
+    // À l\'impression / PDF : vraie page A4.
     '@media print{@page{margin:0}body{background:#fff}.noprint{display:none!important}' +
-    '.pages{padding:0}.pg{margin:0;box-shadow:none;height:296mm;break-after:page;page-break-after:always}' +
+    '.pages{padding:0}.pg{width:auto;max-width:none;margin:0;box-shadow:none;height:296mm;padding:15mm 15mm 20mm;break-after:page;page-break-after:always}' +
+    '.pgft{left:15mm;right:15mm;bottom:8mm}' +
     '.part,.sec,table,tr,.callout,.flow,.apage,.poster{break-inside:avoid}thead{display:table-header-group}h3{break-after:avoid}}';
 
   // ── Briques de mise en forme ──
