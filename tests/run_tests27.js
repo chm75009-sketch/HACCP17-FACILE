@@ -82,6 +82,11 @@ ok(/TACT/.test(PMS_SECTEURS.rapide.bph.froidChaud), 'rapide: méthode de nettoya
 ok(/ATP/.test(PMS_SECTEURS.rapide.bph.froidChaud), 'rapide: transport ATP classes C/F (GBPH)');
 ok(PMS_SECTEURS.rapide.references.some(function (r) { return /2024/.test(r) && /SNARR/i.test(r); }), 'rapide: référence GBPH SNARR 2024');
 ok(PMS_SECTEURS.rapide.references.some(function (r) { return /2017\/2158|acrylamide/i.test(r); }), 'rapide: référence acrylamide 2017/2158');
+// Valeurs réglementaires confirmées (cuisson volaille, refroidissement, DLC sandwichs SNARR) :
+ok(PMS_SECTEURS.rapide.haccp.ccp.some(function (c) { return /74 ?°C/.test(c.limite) && /volaille/i.test(c.limite); }), 'rapide: cuisson volaille ≥ 74 °C à cœur');
+ok(PMS_SECTEURS.rapide.temperatures.some(function (t) { return /74 ?°C/.test(t.valeur); }), 'rapide: T° cuisson volaille 74 °C');
+ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /< 2 h|moins de 2 h/i.test(d.mesure) && /63.*10|10.*°C/.test(d.mesure); }), 'rapide: refroidissement +63→+10 °C en < 2 h');
+ok(PMS_SECTEURS.rapide.dureesVie.some(function (p) { return /24 ?h/i.test(p.duree) && /sandwich/i.test(p.produit); }), 'rapide: DLC sandwichs 24 h (étude SNARR)');
 
 // Boucherie : Règlement 853/2004 + zone ≤ 12°C + sous-produits animaux
 ok(PMS_SECTEURS.boucherie.references.some(function (r) { return /853\/2004/.test(r); }), 'boucherie: référence Règlement 853/2004 (agrément)');

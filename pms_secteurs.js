@@ -344,6 +344,7 @@
         { etape: 'Assemblage / manipulation manuelle', danger: 'Staphylocoque doré (manuportage par le personnel)', type: 'Biologique', mesure: 'Lavage des mains, port de gants si plaie, pas de manipulation à mains nues prolongée, maîtrise du temps hors froid' },
         { etape: 'Friture', danger: 'Composés polaires, acrylamide', type: 'Chimique', mesure: 'CCP — huile : composés polaires ≤ 25 %, T° ≤ 175 °C, renouvellement' },
         { etape: 'Maintien chaud', danger: 'Multiplication microbienne', type: 'Biologique', mesure: 'CCP — maintien ≥ 63 °C, limiter le temps de maintien' },
+        { etape: 'Refroidissement des préparations chaudes maison (sauces cuites, viandes)', danger: 'Germination des spores, multiplication microbienne', type: 'Biologique', mesure: 'Refroidissement rapide +63 → +10 °C à cœur en < 2 h (épaisseur réduite), puis stockage 0 à +3 °C' },
         { etape: 'Saladette / composants froids', danger: 'Croissance microbienne', type: 'Biologique', mesure: 'Bac ≤ +3 °C, réassort en petites quantités, étiquetage' },
         { etape: 'Crudités (salade, tomate, oignon)', danger: 'Listeria, contamination par la terre', type: 'Biologique', mesure: 'Lavage puis désinfection (eau de Javel alimentaire ou trempage), rinçage, stockage ≤ +3 °C' },
         { etape: 'Vente à emporter / livraison', danger: 'Rupture de la chaîne du froid/chaud pendant le transport', type: 'Biologique', mesure: 'Sacs/caissons isothermes, séparation chaud/froid, délai de livraison court, pas de produit maintenu en zone tiède' },
@@ -351,7 +352,7 @@
         { etape: 'Toutes étapes', danger: 'Corps étrangers', type: 'Physique', mesure: 'Contrôle visuel, état du matériel' }
       ],
       ccp: [
-        { nom: 'CCP 1 — Cuisson des viandes hachées', limite: '≥ 65 °C à cœur (cuisson complète, plus de jus rosé)', surveillance: 'Sonde à cœur / temps-température de l\'équipement', correction: 'Prolonger la cuisson, jeter si doute', verif: 'Étalonnage sonde', enreg: 'Fiche de cuisson' },
+        { nom: 'CCP 1 — Cuisson à cœur', limite: 'Viande hachée ≥ 65 °C à cœur (plus de jus rosé) ; volaille / nuggets de volaille ≥ 74 °C ; autres ≥ 63 °C (obligation de résultat — couple temps/température équivalent admis)', surveillance: 'Sonde à cœur / temps-température de l\'équipement', correction: 'Prolonger la cuisson, jeter si doute', verif: 'Étalonnage sonde', enreg: 'Fiche de cuisson' },
         { nom: 'CCP 2 — Cuisson de la broche (kebab / döner)', limite: 'Trancher uniquement la couche extérieure cuite (≥ 70 °C en surface) ; broche entamée refroidie < 2 h ou jetée en fin de service', surveillance: 'Contrôle visuel de la cuisson, sonde en surface, suivi durée d\'exposition', correction: 'Recuire la tranche, jeter la broche en cas de doute, ne jamais reconstituer', verif: 'Étalonnage sonde, suivi des durées', enreg: 'Fiche de suivi broche' },
         { nom: 'CCP 3 — Maîtrise des huiles de friture', limite: 'Composés polaires ≤ 25 %, T° ≤ 175 °C', surveillance: 'Bandelette / testeur composés polaires, contrôle visuel', correction: 'Filtration / renouvellement du bain', verif: 'Suivi des changements de bain', enreg: 'Registre huiles de friture' },
         { nom: 'CCP 4 — Maintien en température', limite: 'Chaud ≥ 63 °C / saladette ≤ +3 °C', surveillance: 'Contrôle T° par service', correction: 'Retrait du produit, réglage équipement', verif: 'Contrôle thermomètres', enreg: 'Relevé de service' }
@@ -362,8 +363,11 @@
       { denree: 'Surgelés (steaks, nuggets, frites)', valeur: '-18 °C' },
       { denree: 'Composants froids en saladette', valeur: '≤ +3 °C' },
       { denree: 'Produits laitiers, sauces fraîches', valeur: '+4 °C' },
+      { denree: 'Cuisson à cœur — volaille / nuggets de volaille', valeur: '≥ +74 °C' },
+      { denree: 'Cuisson à cœur — viande hachée', valeur: '≥ +65 °C (plus de jus rosé)' },
       { denree: 'Maintien chaud (produits prêts)', valeur: '≥ +63 °C' },
       { denree: 'Broche kebab — surface tranchée', valeur: '≥ +70 °C (couche cuite uniquement)' },
+      { denree: 'Refroidissement des préparations chaudes maison', valeur: '+63 → +10 °C à cœur en < 2 h, puis 0 à +3 °C' },
       { denree: 'Huile de friture', valeur: '≤ 175 °C — composés polaires ≤ 25 %' },
       { denree: 'Décongélation', valeur: 'En enceinte froide 0 à +4 °C' },
       { denree: 'Transport / livraison à emporter', valeur: 'Chaud ≥ +63 °C ou froid ≤ +3 °C (sac isotherme)' }
@@ -709,6 +713,7 @@
     ],
     rapide: [
       { produit: 'Produits assemblés à la demande (burgers, sandwichs, wraps)', duree: 'Consommation immédiate' },
+      { produit: 'Sandwichs frais préparés sur place et conservés au froid', duree: '24 h (J+1) à ≤ +3 °C, à défaut d\'étude de vieillissement propre (réf. étude SNARR / Avis ANSES 2011-SA-0189)' },
       { produit: 'Broche kebab entamée', duree: 'Le service — refroidie rapidement ou jetée, jamais reconstituée' },
       { produit: 'Sauces froides maison à base d\'œuf cru (blanche, mayonnaise)', duree: '24 h à ≤ +3 °C (fabrication du jour)' },
       { produit: 'Crudités lavées-désinfectées / sauces maison', duree: '1 jour à ≤ +3 °C' },
