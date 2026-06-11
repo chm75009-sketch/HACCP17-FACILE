@@ -71,6 +71,12 @@ ok(PMS_SECTEURS.bp.references.some(function (r) { return /Boulangerie|Pâtisseri
 // Restauration rapide : huiles de friture (composés polaires) + viande hachée
 ok(PMS_SECTEURS.rapide.haccp.ccp.some(function (c) { return /polaire/i.test(c.limite) || /polaire/i.test(c.nom); }), 'rapide: CCP huiles de friture (composés polaires)');
 ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /STEC|E\. coli/i.test(d.danger); }), 'rapide: danger E. coli (viande hachée)');
+// Enrichissements GBPH Restauration rapide :
+ok(PMS_SECTEURS.rapide.haccp.ccp.some(function (c) { return /broche|kebab|döner/i.test(c.nom); }), 'rapide: CCP broche kebab (cuisson de surface)');
+ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /broche|kebab|döner/i.test(d.etape); }), 'rapide: danger broche kebab (cœur froid)');
+ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /Salmonella/i.test(d.danger) && /œuf/i.test(d.mesure + d.etape); }), 'rapide: danger Salmonella sauces froides (œuf cru)');
+ok(PMS_SECTEURS.rapide.temperatures.some(function (t) { return /70 ?°C/.test(t.valeur); }), 'rapide: broche tranchée ≥ 70 °C');
+ok(PMS_SECTEURS.rapide.autocontroles.some(function (a) { return /livraison|isotherme/i.test(a); }), 'rapide: maîtrise T° en livraison / emporter');
 
 // Boucherie : Règlement 853/2004 + zone ≤ 12°C + sous-produits animaux
 ok(PMS_SECTEURS.boucherie.references.some(function (r) { return /853\/2004/.test(r); }), 'boucherie: référence Règlement 853/2004 (agrément)');

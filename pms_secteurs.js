@@ -300,7 +300,7 @@
     ],
     bph: {
       personnel: personnelBase('Restauration rapide : forte rotation du personnel — formation d\'accueil hygiène systématique, fiches de poste simples et affichées.'),
-      locaux: 'Postes de production en ligne (assemblage rapide). Séparation des flux crus/cuits. Zones de stockage chaud (bac-marie, lampes) et froid (saladettes réfrigérées) maîtrisées. Surfaces lavables.',
+      locaux: 'Postes de production en ligne (assemblage rapide). Séparation des flux crus/cuits. Zones de stockage chaud (bac-marie, lampes) et froid (saladettes réfrigérées) maîtrisées. Poste de broche kebab (grill vertical) à part, écran de protection, lèchefrite nettoyée à chaque broche. Bac de lavage-désinfection des crudités identifié. Surfaces lavables.',
       nettoyage: planNettoyageBase([
         { zone: 'Grill, plancha, friteuse', freq: 'Fin de service + dégraissage régulier', produit: 'Dégraissant alimentaire', methode: 'Grattage, dégraissage, désinfection des surfaces froides' },
         { zone: 'Saladette / bac réfrigéré', freq: 'Quotidien + entre services', produit: 'Détergent-désinfectant', methode: 'Vidage des bacs, nettoyage, contrôle T°' },
@@ -309,38 +309,48 @@
       nuisibles: 'Plan de lutte contre les nuisibles (3D) : restauration rapide souvent en zone de passage / centre commercial — vigilance accrue. Portes à fermeture automatique, sas, postes d\'appâtage, contrôle des livraisons.',
       eau: 'Eau potable du réseau. Glaçons et fontaines à boissons à partir d\'eau potable, circuits désinfectés régulièrement.',
       dechets: 'Volume d\'emballages important (tri carton/plastique). Huiles de friture : contrôle des composés polaires et collecte par prestataire agréé (bordereaux). Biodéchets triés.',
-      froidChaud: 'Maintien chaud des produits prêts (≥ 63 °C) et froid des composants (≤ +3 °C en saladette). Maîtrise du temps d\'exposition des produits assemblés.'
+      froidChaud: 'Maintien chaud des produits prêts (≥ 63 °C) et froid des composants (≤ +3 °C en saladette). Broche kebab : seule la couche extérieure cuite (≥ 70 °C) est tranchée, la broche entamée non vendue est refroidie rapidement ou jetée. Maîtrise du temps d\'exposition des produits assemblés. Vente à emporter / livraison : sacs isothermes, séparation chaud/froid, délais courts.'
     },
     haccp: {
       champ: champBase('restauration rapide'),
       equipe: equipeBase(),
       produits: [
-        'Viandes hachées (steaks hachés, kebab, nuggets) — produits très sensibles',
+        'Viandes hachées (steaks hachés, nuggets) — produits très sensibles',
+        'Broche de viande kebab / döner / gyros — produit à risque spécifique (cuisson en surface, cœur froid)',
         'Produits frits (frites, beignets, panés)',
-        'Composants froids (crudités, sauces, fromages)',
+        'Pizzas, paninis, tacos, croque-monsieur (empâtement, garnissage, cuisson)',
+        'Sauces froides maison (blanche, mayonnaise, samouraï) — souvent à base d\'œuf cru',
+        'Composants froids (crudités lavées-désinfectées, fromages, charcuteries)',
         'Produits assemblés à la demande (burgers, sandwichs, salades, wraps)',
         'Boissons (fontaines, glaçons)'
       ],
       diagramme: [
         'Réception (surgelés, frais, secs)', 'Stockage (négatif / positif / sec)',
-        'Décongélation maîtrisée', 'Préparation des composants froids',
-        'Cuisson (grill, friteuse, four)', 'Maintien chaud',
-        'Assemblage à la demande', 'Remise au client / emballage à emporter / livraison'
+        'Décongélation maîtrisée', 'Préparation des composants froids (lavage-désinfection des crudités, sauces)',
+        'Cuisson (grill, friteuse, four)', 'Cuisson de la broche (kebab) en continu + tranchage de la couche cuite',
+        'Maintien chaud', 'Assemblage à la demande',
+        'Remise au client / emballage à emporter / livraison (sac isotherme)'
       ],
       dangers: [
         { etape: 'Réception', danger: 'Rupture chaîne du froid, surgelés décongelés', type: 'Biologique', mesure: 'Contrôle T° (surgelés ≤ -18 °C), DLC, refus si non conforme' },
         { etape: 'Décongélation', danger: 'Multiplication microbienne', type: 'Biologique', mesure: 'En enceinte froide ou cuisson directe sans décongélation préalable' },
         { etape: 'Cuisson viande hachée', danger: 'E. coli (STEC), Salmonella', type: 'Biologique', mesure: 'CCP — cuisson à cœur ≥ 65 °C (steak haché : à cœur, plus de jus rosé)' },
+        { etape: 'Broche kebab / döner', danger: 'Survie de Salmonella / E. coli au cœur de la broche (cuisson de surface, cœur resté froid)', type: 'Biologique', mesure: 'CCP — ne trancher que la couche extérieure bien cuite (≥ 70 °C) ; la broche entamée non vendue est refroidie rapidement ou jetée, jamais reconstituée' },
+        { etape: 'Sauces froides maison (blanche, mayonnaise)', danger: 'Salmonella (œuf cru)', type: 'Biologique', mesure: 'Privilégier les ovoproduits pasteurisés ; à défaut œufs extra-frais, fabrication du jour, conservation ≤ +3 °C, DLC 24 h' },
+        { etape: 'Assemblage / manipulation manuelle', danger: 'Staphylocoque doré (manuportage par le personnel)', type: 'Biologique', mesure: 'Lavage des mains, port de gants si plaie, pas de manipulation à mains nues prolongée, maîtrise du temps hors froid' },
         { etape: 'Friture', danger: 'Composés polaires, acrylamide', type: 'Chimique', mesure: 'CCP — huile : composés polaires ≤ 25 %, T° ≤ 175 °C, renouvellement' },
         { etape: 'Maintien chaud', danger: 'Multiplication microbienne', type: 'Biologique', mesure: 'CCP — maintien ≥ 63 °C, limiter le temps de maintien' },
         { etape: 'Saladette / composants froids', danger: 'Croissance microbienne', type: 'Biologique', mesure: 'Bac ≤ +3 °C, réassort en petites quantités, étiquetage' },
-        { etape: 'Toutes étapes', danger: 'Allergènes (gluten, sésame, lait, œuf, soja…)', type: 'Allergène', mesure: 'Information consommateur, fiches produits, séparation' },
+        { etape: 'Crudités (salade, tomate, oignon)', danger: 'Listeria, contamination par la terre', type: 'Biologique', mesure: 'Lavage puis désinfection (eau de Javel alimentaire ou trempage), rinçage, stockage ≤ +3 °C' },
+        { etape: 'Vente à emporter / livraison', danger: 'Rupture de la chaîne du froid/chaud pendant le transport', type: 'Biologique', mesure: 'Sacs/caissons isothermes, séparation chaud/froid, délai de livraison court, pas de produit maintenu en zone tiède' },
+        { etape: 'Toutes étapes', danger: 'Allergènes (gluten, sésame, lait, œuf, soja, fruits à coque…)', type: 'Allergène', mesure: 'Information consommateur, fiches produits, séparation' },
         { etape: 'Toutes étapes', danger: 'Corps étrangers', type: 'Physique', mesure: 'Contrôle visuel, état du matériel' }
       ],
       ccp: [
         { nom: 'CCP 1 — Cuisson des viandes hachées', limite: '≥ 65 °C à cœur (cuisson complète, plus de jus rosé)', surveillance: 'Sonde à cœur / temps-température de l\'équipement', correction: 'Prolonger la cuisson, jeter si doute', verif: 'Étalonnage sonde', enreg: 'Fiche de cuisson' },
-        { nom: 'CCP 2 — Maîtrise des huiles de friture', limite: 'Composés polaires ≤ 25 %, T° ≤ 175 °C', surveillance: 'Bandelette / testeur composés polaires, contrôle visuel', correction: 'Filtration / renouvellement du bain', verif: 'Suivi des changements de bain', enreg: 'Registre huiles de friture' },
-        { nom: 'CCP 3 — Maintien en température', limite: 'Chaud ≥ 63 °C / saladette ≤ +3 °C', surveillance: 'Contrôle T° par service', correction: 'Retrait du produit, réglage équipement', verif: 'Contrôle thermomètres', enreg: 'Relevé de service' }
+        { nom: 'CCP 2 — Cuisson de la broche (kebab / döner)', limite: 'Trancher uniquement la couche extérieure cuite (≥ 70 °C en surface) ; broche entamée refroidie < 2 h ou jetée en fin de service', surveillance: 'Contrôle visuel de la cuisson, sonde en surface, suivi durée d\'exposition', correction: 'Recuire la tranche, jeter la broche en cas de doute, ne jamais reconstituer', verif: 'Étalonnage sonde, suivi des durées', enreg: 'Fiche de suivi broche' },
+        { nom: 'CCP 3 — Maîtrise des huiles de friture', limite: 'Composés polaires ≤ 25 %, T° ≤ 175 °C', surveillance: 'Bandelette / testeur composés polaires, contrôle visuel', correction: 'Filtration / renouvellement du bain', verif: 'Suivi des changements de bain', enreg: 'Registre huiles de friture' },
+        { nom: 'CCP 4 — Maintien en température', limite: 'Chaud ≥ 63 °C / saladette ≤ +3 °C', surveillance: 'Contrôle T° par service', correction: 'Retrait du produit, réglage équipement', verif: 'Contrôle thermomètres', enreg: 'Relevé de service' }
       ]
     },
     temperatures: [
@@ -349,17 +359,22 @@
       { denree: 'Composants froids en saladette', valeur: '≤ +3 °C' },
       { denree: 'Produits laitiers, sauces fraîches', valeur: '+4 °C' },
       { denree: 'Maintien chaud (produits prêts)', valeur: '≥ +63 °C' },
+      { denree: 'Broche kebab — surface tranchée', valeur: '≥ +70 °C (couche cuite uniquement)' },
       { denree: 'Huile de friture', valeur: '≤ 175 °C — composés polaires ≤ 25 %' },
-      { denree: 'Décongélation', valeur: 'En enceinte froide 0 à +4 °C' }
+      { denree: 'Décongélation', valeur: 'En enceinte froide 0 à +4 °C' },
+      { denree: 'Transport / livraison à emporter', valeur: 'Chaud ≥ +63 °C ou froid ≤ +3 °C (sac isotherme)' }
     ],
     autocontroles: [
       'Contrôle des températures (négatif, positif, saladettes) par service',
       'Contrôle à réception (surgelés ≤ -18 °C, frais, DLC)',
       'Cuisson à cœur des viandes hachées (≥ 65 °C)',
+      'Suivi de la broche kebab (cuisson de surface ≥ 70 °C, durée d\'exposition, sort de la broche en fin de service)',
       'Contrôle des huiles de friture (composés polaires)',
+      'Lavage-désinfection des crudités (enregistrement)',
       'Maintien chaud / froid pendant le service',
       'Nettoyage des machines à boissons et fontaines à glaçons',
       'Affichage des allergènes (par produit)',
+      'Maîtrise des températures en vente à emporter / livraison (sac isotherme, délais)',
       'Hygiène des emballages à emporter / livraison'
     ]
   };
@@ -690,7 +705,9 @@
     ],
     rapide: [
       { produit: 'Produits assemblés à la demande (burgers, sandwichs, wraps)', duree: 'Consommation immédiate' },
-      { produit: 'Crudités préparées / sauces maison', duree: '1 jour à ≤ +3 °C' },
+      { produit: 'Broche kebab entamée', duree: 'Le service — refroidie rapidement ou jetée, jamais reconstituée' },
+      { produit: 'Sauces froides maison à base d\'œuf cru (blanche, mayonnaise)', duree: '24 h à ≤ +3 °C (fabrication du jour)' },
+      { produit: 'Crudités lavées-désinfectées / sauces maison', duree: '1 jour à ≤ +3 °C' },
       { produit: 'Produits décongelés', duree: 'Du jour — jamais recongeler' },
       { produit: 'Bain de friture', duree: 'Selon composés polaires (≤ 25 %)' }
     ],
