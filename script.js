@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v202';
+var APP_BUILD = 'v203';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23124,6 +23124,12 @@ function pushSondesCloud() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return;
     if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON === 'undefined') return;
+    // ANTI-PERTE : ne JAMAIS écraser la config serveur avec une liste de capteurs
+    // VIDE. Sinon les relevés automatiques s'arrêtent en silence (cas vécu : un
+    // état transitoire vide pendant la manipulation a effacé la config cloud).
+    // Une config sans capteur n'a de toute façon aucune utilité côté serveur ;
+    // dès qu'un capteur est (ré)ajouté, le push repart normalement.
+    if (!(getSondesConfig() || []).length) return;
     var payload = {
       code_client: String(ETAB_ID), module: SONDES_CFG_MODULE,
       contenu: { sondes: getSondesConfig(), ubibotKey: getUbibotKey(), releves: getRelevesConfig(), maj: Date.now() },
