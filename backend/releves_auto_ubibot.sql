@@ -140,6 +140,7 @@ declare
   v_max   numeric;
   v_isNC  boolean;
   v_estab uuid;
+  v_ccid  text;
   n       integer := 0;
 begin
   for lec in
@@ -167,8 +168,8 @@ begin
     begin lv := (chan->>'last_values')::jsonb; exception when others then lv := null; end;
     if lv is null then continue; end if;
 
-    -- field1 = température (ou champ indiqué par la sonde)
-    v_temp := nullif(lv #>> array[coalesce(sonde->>'champ','field1'),'value'], '')::numeric;
+    -- field1 = température (ou champ indiqué par la sonde), arrondie à 0,1 °C
+    v_temp := round(nullif(lv #>> array[coalesce(sonde->>'champ','field1'),'value'], '')::numeric, 1);
     if v_temp is null then continue; end if;
 
     v_isNC := (v_min is not null and v_temp < v_min)
@@ -178,6 +179,13 @@ begin
     if v_estab is null then
       select establishment_id into v_estab
       from public.etablissements where code_acces = lec.code_client limit 1;
+    end if;
+
+    -- anti-doublon robuste (sans dépendre d'une contrainte ON CONFLICT)
+    v_ccid := 'ubibot:' || lec.code_client || ':' || lec.channel || ':' || lec.slot || ':' || lec.jour::text;
+    if exists (select 1 from public.controles_haccp
+               where code_client = lec.code_client and client_control_id = v_ccid) then
+      continue;
     end if;
 
     insert into public.controles_haccp
@@ -206,9 +214,8 @@ begin
         then coalesce(sonde->>'enceinte', sonde->>'nom', 'Enceinte')
              || ' : ' || v_temp::text || '°C (hors seuil)'
         else null end,
-      'ubibot:' || lec.code_client || ':' || lec.channel || ':' || lec.slot || ':' || lec.jour::text
-    )
-    on conflict (code_client, client_control_id) do nothing;
+      v_ccid
+    );
 
     n := n + 1;
   end loop;
