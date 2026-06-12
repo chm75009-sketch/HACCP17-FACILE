@@ -220,7 +220,10 @@
     html += chap('1', 'Présentation de l\'établissement et champ d\'application');
     html += sec('', 'Identification de l\'établissement',
       '<table class="info">' +
-      infoRow('Raison sociale', E.nom) + infoRow('Adresse', adr) + infoRow('SIRET', E.siret) +
+      infoRow('Raison sociale', E.nom) +
+      (E.formeJuridique ? infoRow('Forme juridique', E.formeJuridique + (E.capital ? ' — capital ' + E.capital : '')) : '') +
+      infoRow('Adresse', adr) + infoRow('SIRET', E.siret) +
+      (E.siren ? infoRow('SIREN', E.siren) : '') + (E.rcs ? infoRow('RCS', E.rcs) : '') +
       infoRow('Téléphone', E.tel) + infoRow('E-mail', E.email) +
       infoRow('Responsable de l\'hygiène', E.responsable) + infoRow('Secteur d\'activité', S.label) +
       infoRow('Eau potable réseau public', 'Oui') + infoRow('Date d\'établissement', dateStr) + '</table>');
