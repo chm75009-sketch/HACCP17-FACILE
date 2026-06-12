@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v201';
+var APP_BUILD = 'v202';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -1741,7 +1741,7 @@ function activerEssaiUniversel() {
   var m = document.createElement('div');
   m.id = 'essaiUnivModal';
   m.className = 'modal-overlay visible';
-  m.style.zIndex = '99998';
+  m.style.zIndex = '1000000';
   m.innerHTML =
     '<div class="modal-box" style="max-width:380px;text-align:left">' +
       '<div style="font-size:34px;text-align:center">🎁</div>' +
@@ -23090,6 +23090,7 @@ function _relevesBlockHtml() {
     + '<div style="font-size:12px;color:#475569;margin-bottom:4px">Heures des releves :</div>'
     + '<div style="display:flex;flex-wrap:wrap;align-items:center">' + hh + '</div>'
     + '<button onclick="enregistrerReleves()" style="width:100%;border:none;background:#0f766e;color:#fff;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px">Enregistrer les horaires</button>'
+    + '<div id="rel_save_msg" style="text-align:center;font-size:12.5px;font-weight:700;color:#16a34a;margin-top:6px;min-height:16px"></div>'
     + '<div style="color:#94a3b8;font-size:11px;margin-top:6px">&#9888;&#65039; Enregistrement automatique active apres branchement serveur (test capteur vendredi).</div>'
     + '</div>';
 }
@@ -23105,7 +23106,13 @@ function enregistrerReleves() {
   var sel = document.getElementById('rel_nb'); var nb = sel ? (parseInt(sel.value, 10) || 2) : 2;
   var heures = []; for (var h = 0; h < nb; h++) { var el = document.getElementById('rel_heure_' + h); heures.push(el && el.value ? el.value : ''); }
   setRelevesConfig(nb, heures);
-  if (typeof showToast === 'function') showToast('Horaires de releves enregistres.', 'ok', 2000);
+  var msg = document.getElementById('rel_save_msg');
+  if (msg) {
+    var hOK = heures.filter(Boolean);
+    msg.textContent = '✓ Horaires enregistrés' + (hOK.length ? ' : ' + hOK.join(' · ') : '');
+    setTimeout(function () { var m2 = document.getElementById('rel_save_msg'); if (m2) m2.textContent = ''; }, 5000);
+  }
+  if (typeof showToast === 'function') showToast('Horaires de relevés enregistrés.', 'ok', 2000);
 }
 
 function saveSondesConfig(arr) { _saveSondesRaw(arr); scheduleSondesPush(); }
