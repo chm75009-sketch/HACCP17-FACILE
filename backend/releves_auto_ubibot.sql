@@ -140,6 +140,7 @@ declare
   v_max   numeric;
   v_isNC  boolean;
   v_estab uuid;
+  v_secteur text;
   v_ccid  text;
   n       integer := 0;
 begin
@@ -180,6 +181,8 @@ begin
       select establishment_id into v_estab
       from public.etablissements where code_acces = lec.code_client limit 1;
     end if;
+    select secteur into v_secteur
+    from public.etablissements where code_acces = lec.code_client limit 1;
 
     -- anti-doublon robuste (sans dépendre d'une contrainte ON CONFLICT)
     v_ccid := 'ubibot:' || lec.code_client || ':' || lec.channel || ':' || lec.slot || ':' || lec.jour::text;
@@ -206,6 +209,8 @@ begin
         'signataire', 'Relevé automatique (capteur UbiBot)',
         'signe',      'Relevé automatique (capteur UbiBot)',
         'timestamp',  to_char(now() at time zone 'Europe/Paris', 'DD/MM/YYYY HH24:MI'),
+        'pageId',     'page-temperatures',
+        'secteur',    coalesce(v_secteur, ''),
         'source',     'ubibot',
         'auto',       true
       ),
