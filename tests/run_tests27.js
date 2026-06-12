@@ -71,6 +71,22 @@ ok(PMS_SECTEURS.bp.references.some(function (r) { return /Boulangerie|Pâtisseri
 // Restauration rapide : huiles de friture (composés polaires) + viande hachée
 ok(PMS_SECTEURS.rapide.haccp.ccp.some(function (c) { return /polaire/i.test(c.limite) || /polaire/i.test(c.nom); }), 'rapide: CCP huiles de friture (composés polaires)');
 ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /STEC|E\. coli/i.test(d.danger); }), 'rapide: danger E. coli (viande hachée)');
+// Enrichissements GBPH Restauration rapide :
+ok(PMS_SECTEURS.rapide.haccp.ccp.some(function (c) { return /broche|kebab|döner/i.test(c.nom); }), 'rapide: CCP broche kebab (cuisson de surface)');
+ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /broche|kebab|döner/i.test(d.etape); }), 'rapide: danger broche kebab (cœur froid)');
+ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /Salmonella/i.test(d.danger) && /œuf/i.test(d.mesure + d.etape); }), 'rapide: danger Salmonella sauces froides (œuf cru)');
+ok(PMS_SECTEURS.rapide.temperatures.some(function (t) { return /70 ?°C/.test(t.valeur); }), 'rapide: broche tranchée ≥ 70 °C');
+ok(PMS_SECTEURS.rapide.autocontroles.some(function (a) { return /livraison|isotherme/i.test(a); }), 'rapide: maîtrise T° en livraison / emporter');
+// Éléments vérifiés depuis le GBPH 2024 (pages BPHG) :
+ok(/TACT/.test(PMS_SECTEURS.rapide.bph.froidChaud), 'rapide: méthode de nettoyage TACT (GBPH)');
+ok(/ATP/.test(PMS_SECTEURS.rapide.bph.froidChaud), 'rapide: transport ATP classes C/F (GBPH)');
+ok(PMS_SECTEURS.rapide.references.some(function (r) { return /2024/.test(r) && /SNARR/i.test(r); }), 'rapide: référence GBPH SNARR 2024');
+ok(PMS_SECTEURS.rapide.references.some(function (r) { return /2017\/2158|acrylamide/i.test(r); }), 'rapide: référence acrylamide 2017/2158');
+// Valeurs réglementaires confirmées (cuisson volaille, refroidissement, DLC sandwichs SNARR) :
+ok(PMS_SECTEURS.rapide.haccp.ccp.some(function (c) { return /74 ?°C/.test(c.limite) && /volaille/i.test(c.limite); }), 'rapide: cuisson volaille ≥ 74 °C à cœur');
+ok(PMS_SECTEURS.rapide.temperatures.some(function (t) { return /74 ?°C/.test(t.valeur); }), 'rapide: T° cuisson volaille 74 °C');
+ok(PMS_SECTEURS.rapide.haccp.dangers.some(function (d) { return /< 2 h|moins de 2 h/i.test(d.mesure) && /63.*10|10.*°C/.test(d.mesure); }), 'rapide: refroidissement +63→+10 °C en < 2 h');
+ok(PMS_SECTEURS.rapide.dureesVie.some(function (p) { return /24 ?h/i.test(p.duree) && /sandwich/i.test(p.produit); }), 'rapide: DLC sandwichs 24 h (étude SNARR)');
 
 // Boucherie : Règlement 853/2004 + zone ≤ 12°C + sous-produits animaux
 ok(PMS_SECTEURS.boucherie.references.some(function (r) { return /853\/2004/.test(r); }), 'boucherie: référence Règlement 853/2004 (agrément)');
@@ -150,6 +166,12 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   ok(/852\/2004/.test(written), 'générateur: référence réglementaire affichée');
   ok(/Imprimer/.test(written), 'générateur: bouton Imprimer/PDF');
   ok(/seul responsable/i.test(written), 'générateur: clause de responsabilité (modèle)');
+  // Alignement structure « PMS pains » : chapitre 5 (prix) + PND document détaillé
+  ok(/allergènes et prix/i.test(written) && /Information sur les prix/i.test(written), 'générateur: chapitre 5 inclut l\'information sur les prix');
+  ok(/Plan de Nettoyage.{0,12}Désinfection.{0,12}document détaillé/i.test(written), 'générateur: PND document détaillé présent');
+  ok(/principe TACT/i.test(written), 'générateur: PND détaillé — méthode TACT');
+  ok(/Stockage des produits d.entretien/i.test(written), 'générateur: PND détaillé — stockage des produits d\'entretien');
+  ok(/émargement hebdomadaire/i.test(written), 'générateur: PND détaillé — fiche d\'émargement hebdomadaire');
 
   // secteur différent => contenu différent
   let w2 = G.buildPMSDocument('boucherie', fakeWin.ETAB);

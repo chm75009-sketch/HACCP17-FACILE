@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v194';
+var APP_BUILD = 'v200';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23202,7 +23202,7 @@ function _renderCapteursBeta() {
     sondes.forEach(function (s, i) {
       listeHtml += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;margin-bottom:6px;background:#fff">'
         + '<div style="font-size:13px"><strong>' + _echap(s.nom || 'Sonde') + '</strong> <span style="color:#64748b">→ ' + _echap(s.enceinte || '—') + '</span>'
-        + '<br><span style="color:#94a3b8;font-size:11px">canal ' + _echap(s.channel || '?') + ' · seuils ' + _echap(String(s.min)) + '°C à ' + _echap(String(s.max)) + '°C</span></div>'
+        + '<br><span style="color:#94a3b8;font-size:11px">canal ' + _echap(s.channel || '?') + ' · ' + (s.cle ? '🔑 clé propre' : '🔑 clé par défaut') + ' · seuils ' + _echap(String(s.min)) + '°C à ' + _echap(String(s.max)) + '°C</span></div>'
         + '<button onclick="supprimerSondeBeta(' + i + ')" style="border:none;background:#fee2e2;color:#b91c1c;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">Retirer</button>'
         + '</div>';
     });
@@ -23215,15 +23215,16 @@ function _renderCapteursBeta() {
     + '<div style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:14px">⚙️ Espace <strong>interne (BÊTA)</strong> — invisible pour vos clients. Sert à brancher et tester une sonde.</div>'
 
     + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">1. Clé du compte UbiBot</div>'
-    + '<div style="display:flex;gap:6px"><input id="cap_ubikey" type="text" value="' + _echap(getUbibotKey()) + '" placeholder="Account API key UbiBot" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">1. Clé de lecture par défaut (optionnel)</div>'
+    + '<div style="display:flex;gap:6px"><input id="cap_ubikey" type="text" value="' + _echap(getUbibotKey()) + '" placeholder="Clé de lecture API (par défaut)" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
     + '<button onclick="enregistrerCleUbibot()" style="border:none;background:#2563eb;color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">Enregistrer</button></div>'
-    + '<div style="color:#94a3b8;font-size:11px;margin-top:4px">Dans votre compte UbiBot → Profil → API key.</div></div>'
+    + '<div style="color:#94a3b8;font-size:11px;margin-top:4px">Utilisée seulement si un capteur n\'a pas sa propre clé. Sinon, indiquez la clé de chaque capteur ci-dessous.</div></div>'
 
     + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">2. Associer une sonde à un frigo</div>'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">2. Associer un capteur à un frigo</div>'
     + '<input id="cap_nom" placeholder="Nom (ex. Sonde frigo dessert)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
     + '<input id="cap_channel" placeholder="N° de canal UbiBot (channel id)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
+    + '<input id="cap_cle" placeholder="Clé de lecture API de CE capteur" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
     + '<select id="cap_enceinte" onchange="onCapEnceinteChange()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">' + encOpts + '</select>'
     + '<div style="display:flex;gap:6px;margin-bottom:8px"><input id="cap_min" type="number" step="0.1" placeholder="Seuil min °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
     + '<input id="cap_max" type="number" step="0.1" placeholder="Seuil max °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px"></div>'
@@ -23273,14 +23274,16 @@ function enregistrerCleUbibot() {
 function ajouterSondeBeta() {
   var nom = ((document.getElementById('cap_nom') || {}).value || '').trim();
   var channel = ((document.getElementById('cap_channel') || {}).value || '').trim();
+  var cle = ((document.getElementById('cap_cle') || {}).value || '').trim();
   var enceinte = ((document.getElementById('cap_enceinte') || {}).value || '').trim();
   var min = parseFloat((document.getElementById('cap_min') || {}).value);
   var max = parseFloat((document.getElementById('cap_max') || {}).value);
   if (!nom || !channel) { alert('Indiquez au moins un nom et le n° de canal.'); return; }
+  if (!cle && !getUbibotKey()) { alert('Indiquez la clé de lecture de ce capteur (ou une clé par défaut en haut).'); return; }
   if (isNaN(min)) min = (enceinte && /cong/i.test(enceinte)) ? -25 : 0;
   if (isNaN(max)) max = (enceinte && /cong/i.test(enceinte)) ? -18 : 4;
   var arr = getSondesConfig();
-  arr.push({ nom: nom, channel: channel, enceinte: enceinte, min: min, max: max });
+  arr.push({ nom: nom, channel: channel, cle: cle, enceinte: enceinte, min: min, max: max });
   saveSondesConfig(arr);
   _renderCapteursBeta();
   if (typeof showToast === 'function') showToast('Sonde associée.', 'ok', 2000);
