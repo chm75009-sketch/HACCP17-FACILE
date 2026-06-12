@@ -206,10 +206,12 @@
       '<li>3.4 — Analyse des dangers</li><li>3.5 — Points critiques (CCP)</li>' + (S.platsTemoins ? '<li>3.6 — Plats témoins & excédents</li>' : '') + '</ul>' +
       '<div class="toc-part">4. Traçabilité et gestion des non-conformités</div>' +
       '<ul><li>4.1 — Traçabilité & durées de conservation</li><li>4.2 — Produits non conformes</li><li>4.3 — Retrait / rappel & TIAC</li></ul>' +
-      '<div class="toc-part">5. Information du consommateur — allergènes</div>' +
+      '<div class="toc-part">5. Information du consommateur — allergènes et prix</div>' +
       '<div class="toc-part">6. Procédures de vérification et d\'autocontrôle</div>' +
       '<div class="toc-part">7. Documents d\'enregistrement (fiches & registres)</div>' +
       '<div class="toc-part">Validation du PMS</div>' +
+      '<div class="toc-part">Plan de Nettoyage & Désinfection (PND) — document détaillé</div>' +
+      '<ul><li>Méthode TACT · règles générales · plan par zone · stockage des produits · émargement hebdomadaire</li></ul>' +
       '<div class="toc-part">Annexes 1 à 9 — Fiches d\'enregistrement · Annexe 10 — Affichages · Annexe 11 — Affiches</div>' +
       '</div>');
 
@@ -309,12 +311,17 @@
       'noter les produits et symptômes, alerter la DD(ETS)PP, coopérer à l\'enquête.</div>' +
       '<p class="muted">' + esc(S.retraitRappel.contact) + '</p>');
 
-    // ════ 5. ALLERGÈNES ════
-    html += chap('5', 'Information du consommateur — allergènes');
-    html += sec('', 'Les 14 allergènes à déclaration obligatoire',
+    // ════ 5. ALLERGÈNES ET PRIX ════
+    html += chap('5', 'Information du consommateur — allergènes et prix');
+    html += sec('5.1', 'Les 14 allergènes à déclaration obligatoire',
       '<p>Conformément au Règlement (UE) n° 1169/2011 (INCO), l\'information sur la présence des 14 allergènes est mise à disposition ' +
       'du consommateur pour les denrées non préemballées : par affichage et/ou via un <b>registre des allergènes</b> consultable, tenu à jour par produit ' +
       '(voir Annexe 4). Les produits vendus décongelés portent la mention « décongelé ».</p>' + liste(S.allergenes));
+    html += sec('5.2', 'Information sur les prix',
+      '<p>Les prix sont portés à la connaissance du consommateur avant la commande, conformément aux obligations d\'affichage ' +
+      '(arrêté du 27 mars 1987 relatif à l\'affichage des prix dans les établissements servant des repas, denrées ou boissons). ' +
+      'Affichage <b>à l\'extérieur</b> (carte ou menu lisibles depuis la voie publique) et <b>à l\'intérieur</b> (carte remise au client). ' +
+      'Prix indiqués <b>taxes et service compris</b>. L\'origine des viandes bovines est affichée (décret n° 2002-1465).</p>');
 
     // ════ 6. VÉRIFICATION & AUTOCONTRÔLE ════
     html += chap('6', 'Procédures de vérification et d\'autocontrôle');
@@ -336,6 +343,48 @@
       '<tr><td>Date de mise en application</td><td></td></tr>' +
       '<tr><td>Signature de l\'exploitant</td><td style="height:34px"></td></tr>' +
       infoRow('Date de révision prévue', 'Annuelle, ou après tout changement majeur') + '</table>';
+
+    // ════════ PLAN DE NETTOYAGE & DÉSINFECTION — DOCUMENT DÉTAILLÉ ════════
+    html += '<div class="page-break"></div>';
+    html += chap('PND', 'Plan de Nettoyage & Désinfection — document détaillé');
+    html += sec('', 'Méthodologie — le principe TACT',
+      '<p>L\'efficacité du nettoyage-désinfection repose sur 4 facteurs complémentaires (méthode <b>TACT</b>) :</p>' +
+      tbl(['Facteur', 'Ce que cela signifie'], [
+        ['<b>T</b> — Température', 'Utiliser l\'eau à la température préconisée par le fournisseur du produit (souvent tiède).'],
+        ['<b>A</b> — Action mécanique', 'Frotter, brosser, racler : l\'action manuelle décolle les souillures.'],
+        ['<b>C</b> — Concentration', 'Respecter la dilution indiquée sur la fiche technique du produit (ni trop, ni trop peu).'],
+        ['<b>T</b> — Temps', 'Laisser agir le produit le temps de contact prescrit avant rinçage.']
+      ]) +
+      '<p class="muted">Réduire un facteur oblige à renforcer les autres. Les produits utilisés sont conformes aux normes CEN ' +
+      '(détergents et désinfectants contact alimentaire) et leurs fiches de données de sécurité (FDS) sont conservées sur place.</p>');
+    html += sec('', 'Règles générales d\'hygiène du nettoyage',
+      liste([
+        'Protocole en 5 étapes : pré-nettoyage (retirer les résidus) → lavage au détergent → rinçage → désinfection (temps de contact) → rinçage final et séchage.',
+        'Ne jamais mélanger deux produits (risque de dégagement toxique, ex. javel + acide).',
+        'Matériel de nettoyage propre, rangé, séché entre deux usages ; lavettes et balais à code couleur par zone.',
+        'Nettoyer du plus propre vers le plus sale, et du haut vers le bas.',
+        'Se laver les mains après toute opération de nettoyage avant de reprendre la manipulation des denrées.',
+        'Émarger le plan de nettoyage après chaque opération (preuve d\'application exigée par la DDPP).'
+      ]));
+    var pndZones = '<table><thead><tr><th>Quoi (zone / matériel)</th><th>Quand (fréquence)</th><th>Avec quoi (produit)</th><th>Comment (méthode)</th><th>Qui</th></tr></thead><tbody>';
+    (S.bph.nettoyage || []).forEach(function (n) {
+      pndZones += '<tr><td style="font-weight:600">' + esc(n.zone) + '</td><td>' + esc(n.freq) +
+        '</td><td>' + esc(n.produit) + '</td><td>' + esc(n.methode) + '</td><td><span style="color:#9ca3af">à désigner</span></td></tr>';
+    });
+    pndZones += '</tbody></table>';
+    html += sec('', 'Plan de nettoyage détaillé par zone (QQOQC)', pndZones);
+    html += sec('', 'Stockage des produits d\'entretien',
+      '<p>Les produits d\'entretien et de désinfection sont stockés dans un <b>local ou placard fermé, ventilé, séparé des denrées ' +
+      'alimentaires et des emballages</b>. Ils restent dans leur emballage d\'origine étiqueté, avec leur <b>fiche de données de sécurité (FDS)</b> ' +
+      'accessible. Les bidons entamés sont refermés ; aucun transvasement dans un contenant alimentaire. Le matériel de nettoyage ' +
+      '(seaux, balais, raclettes) y est rangé propre et sec.</p>');
+    var jours = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    var emRows = (S.bph.nettoyage || []).slice(0, 12).map(function (n) {
+      return [esc(n.zone)].concat(jours.map(function () { return '<div style="height:14px"></div>'; })).concat(['']);
+    });
+    html += sec('', 'Fiche d\'émargement hebdomadaire',
+      '<p class="muted">Cocher / viser chaque jour après l\'opération de nettoyage. Semaine du __ / __ / ____ .</p>' +
+      tbl(['Zone / matériel', 'L', 'M', 'M', 'J', 'V', 'S', 'D', 'Visa resp.'], emRows, 'form'));
 
     // ════════ ANNEXES — une annexe = une page A4 entière ════════
     html += '<div class="page-break"></div>';

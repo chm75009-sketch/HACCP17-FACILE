@@ -166,6 +166,12 @@ ok(PMS_SECTEURS.collective.autocontroles.some(function (a) { return /estampille/
   ok(/852\/2004/.test(written), 'générateur: référence réglementaire affichée');
   ok(/Imprimer/.test(written), 'générateur: bouton Imprimer/PDF');
   ok(/seul responsable/i.test(written), 'générateur: clause de responsabilité (modèle)');
+  // Alignement structure « PMS pains » : chapitre 5 (prix) + PND document détaillé
+  ok(/allergènes et prix/i.test(written) && /Information sur les prix/i.test(written), 'générateur: chapitre 5 inclut l\'information sur les prix');
+  ok(/Plan de Nettoyage.{0,12}Désinfection.{0,12}document détaillé/i.test(written), 'générateur: PND document détaillé présent');
+  ok(/principe TACT/i.test(written), 'générateur: PND détaillé — méthode TACT');
+  ok(/Stockage des produits d.entretien/i.test(written), 'générateur: PND détaillé — stockage des produits d\'entretien');
+  ok(/émargement hebdomadaire/i.test(written), 'générateur: PND détaillé — fiche d\'émargement hebdomadaire');
 
   // secteur différent => contenu différent
   let w2 = G.buildPMSDocument('boucherie', fakeWin.ETAB);
