@@ -61,6 +61,7 @@ declare
   v_heure  text;
   sonde    jsonb;
   v_chan   text;
+  v_skey   text;
   v_local  timestamptz := now();
   v_hts    timestamptz;
   v_reqid  bigint;
@@ -73,11 +74,11 @@ begin
     where module = '__sondes_config__'
     order by code_client, created_at desc
   loop
-    v_key    := cfg.contenu->>'ubibotKey';
+    v_key    := cfg.contenu->>'ubibotKey';   -- clé par défaut (optionnelle)
     v_sondes := cfg.contenu->'sondes';
     v_heures := coalesce(cfg.contenu#>'{releves,heures}', '["08:00","18:00"]'::jsonb);
-    if v_key is null or v_key = '' or v_sondes is null or jsonb_array_length(v_sondes) = 0 then
-      continue;
+    if v_sondes is null or jsonb_array_length(v_sondes) = 0 then
+      continue;   -- la clé est vérifiée par capteur (v_skey) plus bas
     end if;
 
     for v_heure in select jsonb_array_elements_text(v_heures)
@@ -93,6 +94,9 @@ begin
         loop
           v_chan := sonde->>'channel';
           if v_chan is null or v_chan = '' then continue; end if;
+          -- clé de lecture PROPRE au capteur, sinon clé par défaut de l'établissement
+          v_skey := coalesce(nullif(sonde->>'cle',''), v_key);
+          if v_skey is null or v_skey = '' then continue; end if;
           if exists (
             select 1 from public.ubibot_lectures
             where code_client = cfg.code_client and channel = v_chan
@@ -100,7 +104,7 @@ begin
           ) then continue; end if;
 
           select net.http_get(
-            url := 'https://api.ubibot.com/channels/' || v_chan || '?api_key=' || v_key
+            url := 'https://api.ubibot.com/channels/' || v_chan || '?api_key=' || v_skey
           ) into v_reqid;
 
           insert into public.ubibot_lectures
