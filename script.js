@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v200';
+var APP_BUILD = 'v201';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23197,7 +23197,7 @@ function _renderCapteursBeta() {
   enceintes.forEach(function (e) { var n = (e && (e.nom || e.name)) || ''; if (n) encOpts += '<option value="' + _echap(n) + '">' + _echap(n) + '</option>'; });
   var listeHtml = '';
   if (!sondes.length) {
-    listeHtml = '<div style="color:#64748b;font-size:13px;padding:8px 0">Aucune sonde associée pour l\'instant.</div>';
+    listeHtml = '<div style="color:#64748b;font-size:13px;padding:8px 0">Aucun capteur ajouté pour l\'instant. Remplissez le formulaire ci-dessus, puis « ➕ Ajouter ce capteur ».</div>';
   } else {
     sondes.forEach(function (s, i) {
       listeHtml += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;margin-bottom:6px;background:#fff">'
@@ -23221,17 +23221,18 @@ function _renderCapteursBeta() {
     + '<div style="color:#94a3b8;font-size:11px;margin-top:4px">Utilisée seulement si un capteur n\'a pas sa propre clé. Sinon, indiquez la clé de chaque capteur ci-dessous.</div></div>'
 
     + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">2. Associer un capteur à un frigo</div>'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">2. Ajouter un capteur (un par frigo / congélateur)</div>'
+    + '<div style="color:#64748b;font-size:11px;margin-bottom:8px;line-height:1.4">Remplissez ce formulaire pour <b>chaque</b> capteur, puis « + Ajouter ce capteur ». Recommencez autant de fois que vous avez de frigos/congélateurs.</div>'
     + '<input id="cap_nom" placeholder="Nom (ex. Sonde frigo dessert)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
     + '<input id="cap_channel" placeholder="N° de canal UbiBot (channel id)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
     + '<input id="cap_cle" placeholder="Clé de lecture API de CE capteur" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
     + '<select id="cap_enceinte" onchange="onCapEnceinteChange()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">' + encOpts + '</select>'
     + '<div style="display:flex;gap:6px;margin-bottom:8px"><input id="cap_min" type="number" step="0.1" placeholder="Seuil min °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
     + '<input id="cap_max" type="number" step="0.1" placeholder="Seuil max °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px"></div>'
-    + '<button onclick="ajouterSondeBeta()" style="width:100%;border:none;background:#16a34a;color:#fff;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer">+ Associer la sonde</button></div>'
+    + '<button onclick="ajouterSondeBeta()" style="width:100%;border:none;background:#16a34a;color:#fff;border-radius:8px;padding:12px;font-size:15px;font-weight:700;cursor:pointer">➕ Ajouter ce capteur</button></div>'
 
     + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#0f172a">3. Sondes associées</div>' + listeHtml + '</div>'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#0f172a">3. Capteurs ajoutés <span style="color:#16a34a">(' + sondes.length + ')</span></div>' + listeHtml + '</div>'
 
     + _relevesBlockHtml()
     + '<button onclick="rafraichirTemperaturesBeta()" style="width:100%;border:none;background:#0ea5e9;color:#fff;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer">🔄 Lire les températures maintenant</button>'
@@ -23286,7 +23287,7 @@ function ajouterSondeBeta() {
   arr.push({ nom: nom, channel: channel, cle: cle, enceinte: enceinte, min: min, max: max });
   saveSondesConfig(arr);
   _renderCapteursBeta();
-  if (typeof showToast === 'function') showToast('Sonde associée.', 'ok', 2000);
+  if (typeof showToast === 'function') showToast('Capteur ajouté.', 'ok', 2000);
 }
 function supprimerSondeBeta(i) {
   var arr = getSondesConfig();

@@ -146,6 +146,7 @@ declare
   v_estab uuid;
   v_secteur text;
   v_ccid  text;
+  v_slot_ts timestamptz;
   n       integer := 0;
 begin
   for lec in
@@ -188,6 +189,13 @@ begin
     select secteur into v_secteur
     from public.etablissements where code_acces = lec.code_client limit 1;
 
+    -- heure PROGRAMMÉE du relevé (le créneau) : sert de date du contrôle.
+    if lec.slot ~ '^[0-2][0-9]:[0-5][0-9]$' then
+      v_slot_ts := (lec.jour::text || ' ' || lec.slot)::timestamp at time zone 'Europe/Paris';
+    else
+      v_slot_ts := now();   -- tests forcés (slot 'TEST-…') : pas d'heure programmée
+    end if;
+
     -- anti-doublon robuste (sans dépendre d'une contrainte ON CONFLICT)
     v_ccid := 'ubibot:' || lec.code_client || ':' || lec.channel || ':' || lec.slot || ':' || lec.jour::text;
     if exists (select 1 from public.controles_haccp
@@ -212,13 +220,16 @@ begin
         )),
         'signataire', 'Relevé automatique (capteur UbiBot)',
         'signe',      'Relevé automatique (capteur UbiBot)',
-        'timestamp',  to_char(now() at time zone 'Europe/Paris', 'DD/MM/YYYY HH24:MI'),
+        'timestamp',  'Programmé ' || to_char(v_slot_ts at time zone 'Europe/Paris', 'DD/MM/YYYY HH24:MI')
+                      || ' · enregistré ' || to_char(now() at time zone 'Europe/Paris', 'HH24:MI'),
+        'heure_programmee', to_char(v_slot_ts at time zone 'Europe/Paris', 'HH24:MI'),
+        'heure_enregistree', to_char(now() at time zone 'Europe/Paris', 'HH24:MI'),
         'pageId',     'page-temperatures',
         'secteur',    coalesce(v_secteur, ''),
         'source',     'ubibot',
         'auto',       true
       ),
-      null, '[]'::jsonb, now(), v_isNC,
+      null, '[]'::jsonb, v_slot_ts, v_isNC,
       case when v_isNC
         then coalesce(sonde->>'enceinte', sonde->>'nom', 'Enceinte')
              || ' : ' || v_temp::text || '°C (hors seuil)'
