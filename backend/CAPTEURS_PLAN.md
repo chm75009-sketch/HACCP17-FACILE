@@ -47,3 +47,20 @@ via fournisseur (Twilio, OVH, Brevo) en option premium.
 6. Tester un releve automatique (verifier dans Mes Rapports / Pack DDPP).
 7. Construire la Brique 2 (supervision admin).
 8. Activer les alertes (Brique 3 : UbiBot natif + e-mail, SMS en option).
+
+## Journal du jour J (12/06/2026) — UbiBot WS1 Pro
+- Capteur déballé, activé (QR au dos), **connecté au WiFi (Bbox) et EN LIGNE**
+  (date synchronisée 2026, « AP » disparu, données T°/humidité dans le cloud).
+- Canal confirmé : **ID de la chaîne = 130779** (Info du canal). Capteur intégré
+  (1 seul câble = alimentation), donc **température = field1**.
+- Constat important : le **bouton « Lire » du téléphone ne peut PAS** lire l'API
+  UbiBot directement → bloqué par **CORS** (sécurité navigateur). Côté HACCP tout
+  est bon (clé OK, canal OK) ; la lecture doit passer par le **serveur**.
+- **Brique 1 LIVRÉE** : `backend/releves_auto_ubibot.sql` (pg_cron + pg_net, en
+  2 phases : lancer la requête → traiter la réponse → insérer le contrôle
+  « Températures enceintes » cloisonné, idempotent). Le serveur n'a pas la limite
+  CORS → c'est lui qui enregistre les relevés aux heures réglées, app fermée.
+- À FAIRE avec le client : coller le SQL dans Supabase, puis valider le 1ᵉʳ relevé
+  automatique (vérifier l'affichage dans « Mes Rapports / Pack DDPP » et ajuster
+  si besoin le format `contenu.temperatures`). Puis Brique 2 (supervision admin)
+  et Brique 3 (alertes).
