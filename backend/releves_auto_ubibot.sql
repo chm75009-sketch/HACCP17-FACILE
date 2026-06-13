@@ -154,6 +154,9 @@ declare
   v_temp  numeric;
   v_min   numeric;
   v_max   numeric;
+  v_champ text;
+  v_fi    integer;
+  v_fname text;
   v_isNC  boolean;
   v_estab uuid;
   v_secteur text;
@@ -186,8 +189,25 @@ begin
     begin lv := (chan->>'last_values')::jsonb; exception when others then lv := null; end;
     if lv is null then continue; end if;
 
-    -- field1 = température (ou champ indiqué par la sonde), arrondie à 0,1 °C
-    v_temp := round(nullif(lv #>> array[coalesce(sonde->>'champ','field1'),'value'], '')::numeric, 1);
+    -- Quel champ lire ? Par défaut field1 (capteur intégré du boîtier). Si la
+    -- sonde est marquée « externe » (sonde externe branchée, ex. congélateur),
+    -- on repère automatiquement le champ de la SONDE EXTERNE par son nom
+    -- (External / Probe / Sonde…), sinon on retombe sur field5 (emplacement
+    -- habituel de la sonde externe sur le WS1 Pro).
+    v_champ := coalesce(nullif(sonde->>'champ',''), 'field1');
+    if v_champ = 'externe' then
+      v_champ := null;
+      for v_fi in 1..12 loop
+        v_fname := chan->>('field' || v_fi);
+        if v_fname is not null and v_fname ~* '(ext|probe|sonde|external)' then
+          v_champ := 'field' || v_fi; exit;
+        end if;
+      end loop;
+      if v_champ is null then v_champ := 'field5'; end if;
+    end if;
+
+    -- température lue sur le champ retenu, arrondie à 0,1 °C
+    v_temp := round(nullif(lv #>> array[v_champ,'value'], '')::numeric, 1);
     if v_temp is null then continue; end if;
 
     v_isNC := (v_min is not null and v_temp < v_min)
