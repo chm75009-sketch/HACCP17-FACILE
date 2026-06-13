@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v205';
+var APP_BUILD = 'v206';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23248,6 +23248,44 @@ function _lireTemperaturesUbiBot() {
 function ouvrirCapteursBeta() { pullSondesCloud(function () { _renderCapteursBeta(); }); }
 function fermerCapteursBeta() { var ov = document.getElementById('capteurs_beta_overlay'); if (ov) ov.remove(); try { if (location.hash === '#capteurs') history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
 
+// Petite icône d'ambiance selon le type d'enceinte (cohérence visuelle module Températures)
+function _sondeIco(s) {
+  var t = ((s && (s.enceinte || s.nom)) || '').toLowerCase();
+  if (/cong/.test(t)) return '❄️';
+  if (/poiss/.test(t)) return '🐟';
+  if (/cr[eè]me|dessert|p[aâ]tiss|glace/.test(t)) return '🍰';
+  if (/viande|bouch|charcut/.test(t)) return '🥩';
+  if (/l[eé]gum|fruit/.test(t)) return '🥬';
+  if (/vitrine/.test(t)) return '🧊';
+  return '🌡️';
+}
+
+// Une carte par capteur, dans le MÊME style que les enceintes du module Températures
+// (bloc blanc à bordure bleue). Chaque capteur a SON propre nombre de relevés/jour.
+function _sondeCardHtml(s, i) {
+  var heures = (Array.isArray(s.heures) && s.heures.length) ? s.heures : getRelevesConfig().heures.slice();
+  var nb = heures.length || 2;
+  var hh = '';
+  for (var h = 0; h < nb; h++) {
+    hh += '<input type="time" id="sonde_h_' + i + '_' + h + '" onchange="onSondeHeureChange(' + i + ')" value="' + _echap(heures[h] || '') + '" style="padding:7px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:\'JetBrains Mono\',monospace">';
+  }
+  return '<div class="fblock" style="border-left:4px solid var(--blue)">'
+    + '<div class="fblock-title"><span>' + _sondeIco(s) + ' ' + _echap(s.nom || 'Sonde')
+    + ' <span style="color:var(--dim);font-weight:600">→ ' + _echap(s.enceinte || '—') + '</span></span>'
+    + '<button onclick="supprimerSondeBeta(' + i + ')" style="border:none;background:#fee2e2;color:#b91c1c;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">Retirer</button></div>'
+    + '<div class="tgrid" style="margin-bottom:12px">'
+    + '<div class="tcard"><div class="tcard-lbl">Canal</div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:800;font-size:14px;color:var(--blue)">' + _echap(s.channel || '?') + ' 🔑</div></div>'
+    + '<div class="tcard"><div class="tcard-lbl">Seuils</div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:800;font-size:14px;color:var(--blue)">' + _echap(String(s.min)) + ' → ' + _echap(String(s.max)) + '°C</div></div>'
+    + '</div>'
+    + '<div class="frow" style="margin:0">'
+    + '<div class="flabel">⏰ Relevés par jour (au choix)</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<input type="number" min="1" max="48" id="sonde_nb_' + i + '" value="' + nb + '" onchange="onSondeNbChange(' + i + ')" style="width:64px;padding:8px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;font-weight:800;text-align:center;font-family:\'JetBrains Mono\',monospace;color:var(--dark)">'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + hh + '</div>'
+    + '</div></div>'
+    + '</div>';
+}
+
 function _renderCapteursBeta() {
   var ov = document.getElementById('capteurs_beta_overlay');
   if (!ov) {
@@ -23262,47 +23300,66 @@ function _renderCapteursBeta() {
   enceintes.forEach(function (e) { var n = (e && (e.nom || e.name)) || ''; if (n) encOpts += '<option value="' + _echap(n) + '">' + _echap(n) + '</option>'; });
   var listeHtml = '';
   if (!sondes.length) {
-    listeHtml = '<div style="color:#64748b;font-size:13px;padding:8px 0">Aucun capteur ajouté pour l\'instant. Remplissez le formulaire ci-dessus, puis « ➕ Ajouter ce capteur ».</div>';
+    listeHtml = '<div style="color:var(--dim);font-size:13px;padding:8px 2px">Aucun capteur ajouté pour l\'instant. Remplissez la carte verte ci-dessus, puis « ➕ Ajouter ce capteur ».</div>';
   } else {
-    sondes.forEach(function (s, i) {
-      listeHtml += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;margin-bottom:6px;background:#fff">'
-        + '<div style="font-size:13px"><strong>' + _echap(s.nom || 'Sonde') + '</strong> <span style="color:#64748b">→ ' + _echap(s.enceinte || '—') + '</span>'
-        + '<br><span style="color:#94a3b8;font-size:11px">canal ' + _echap(s.channel || '?') + ' · ' + (s.cle ? '🔑 clé propre' : '🔑 clé par défaut') + ' · seuils ' + _echap(String(s.min)) + '°C à ' + _echap(String(s.max)) + '°C</span></div>'
-        + '<button onclick="supprimerSondeBeta(' + i + ')" style="border:none;background:#fee2e2;color:#b91c1c;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">Retirer</button>'
-        + '</div>';
-    });
+    sondes.forEach(function (s, i) { listeHtml += _sondeCardHtml(s, i); });
   }
   ov.innerHTML =
-    '<div style="max-width:560px;margin:24px auto;background:#f8fafc;border-radius:16px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'
+    '<div style="max-width:560px;margin:24px auto;background:var(--bg);border-radius:18px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-    + '<h2 style="margin:0;font-size:18px;color:#0f172a">🌡️ Capteurs de température</h2>'
-    + '<button onclick="fermerCapteursBeta()" style="border:none;background:#e2e8f0;border-radius:8px;padding:6px 12px;cursor:pointer">Fermer</button></div>'
-    + '<div style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:14px">⚙️ Espace <strong>interne (BÊTA)</strong> — invisible pour vos clients. Sert à brancher et tester une sonde.</div>'
+    + '<h2 style="margin:0;font-size:18px;color:var(--dark)">🌡️ Capteurs de température</h2>'
+    + '<button onclick="fermerCapteursBeta()" style="border:none;background:#e2e8f0;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer">Fermer</button></div>'
+    + '<div style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:14px">⚙️ Espace <strong>interne (BÊTA)</strong> — invisible pour vos clients. Branchez une sonde par enceinte ; le serveur enregistre les températures tout seul, aux heures choisies.</div>'
 
-    + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">1. Clé de lecture par défaut (optionnel)</div>'
-    + '<div style="display:flex;gap:6px"><input id="cap_ubikey" type="text" value="' + _echap(getUbibotKey()) + '" placeholder="Clé de lecture API (par défaut)" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
-    + '<button onclick="enregistrerCleUbibot()" style="border:none;background:#2563eb;color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">Enregistrer</button></div>'
-    + '<div style="color:#94a3b8;font-size:11px;margin-top:4px">Utilisée seulement si un capteur n\'a pas sa propre clé. Sinon, indiquez la clé de chaque capteur ci-dessous.</div></div>'
+    // Carte « Ajouter un capteur » — même esprit que « ajouter une enceinte » (verte)
+    + '<div class="fblock" style="border-left:4px solid var(--green)">'
+    + '<div class="fblock-title"><span>➕ Ajouter un capteur</span></div>'
+    + '<div class="frow"><div class="flabel">Nom du capteur</div><input id="cap_nom" class="finput" placeholder="Ex : Sonde frigo poisson"></div>'
+    + '<div class="frow"><div class="flabel">Enceinte associée</div><select id="cap_enceinte" class="fselect" onchange="onCapEnceinteChange()">' + encOpts + '</select></div>'
+    + '<div class="frow"><div class="flabel">N° de canal UbiBot</div><input id="cap_channel" class="finput" placeholder="channel id"></div>'
+    + '<div class="frow"><div class="flabel">Clé de lecture du capteur</div><input id="cap_cle" class="finput" placeholder="clé de lecture API de ce capteur"></div>'
+    + '<div class="tgrid" style="margin-bottom:14px">'
+    + '<div class="frow" style="margin:0"><div class="flabel">Seuil min °C</div><input id="cap_min" type="number" step="0.1" class="finput" placeholder="0"></div>'
+    + '<div class="frow" style="margin:0"><div class="flabel">Seuil max °C</div><input id="cap_max" type="number" step="0.1" class="finput" placeholder="4"></div>'
+    + '</div>'
+    + '<button onclick="ajouterSondeBeta()" style="width:100%;border:none;background:var(--green);color:#fff;border-radius:11px;padding:13px;font-size:15px;font-weight:800;cursor:pointer">➕ Ajouter ce capteur</button></div>'
 
-    + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">2. Ajouter un capteur (un par frigo / congélateur)</div>'
-    + '<div style="color:#64748b;font-size:11px;margin-bottom:8px;line-height:1.4">Remplissez ce formulaire pour <b>chaque</b> capteur, puis « + Ajouter ce capteur ». Recommencez autant de fois que vous avez de frigos/congélateurs.</div>'
-    + '<input id="cap_nom" placeholder="Nom (ex. Sonde frigo dessert)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
-    + '<input id="cap_channel" placeholder="N° de canal UbiBot (channel id)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
-    + '<input id="cap_cle" placeholder="Clé de lecture API de CE capteur" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">'
-    + '<select id="cap_enceinte" onchange="onCapEnceinteChange()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:6px">' + encOpts + '</select>'
-    + '<div style="display:flex;gap:6px;margin-bottom:8px"><input id="cap_min" type="number" step="0.1" placeholder="Seuil min °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">'
-    + '<input id="cap_max" type="number" step="0.1" placeholder="Seuil max °C" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px"></div>'
-    + '<button onclick="ajouterSondeBeta()" style="width:100%;border:none;background:#16a34a;color:#fff;border-radius:8px;padding:12px;font-size:15px;font-weight:700;cursor:pointer">➕ Ajouter ce capteur</button></div>'
+    // Liste des capteurs (une carte chacun, style enceinte)
+    + '<div style="font-weight:800;font-size:13px;color:var(--dark);margin:6px 2px 10px">Capteurs ajoutés <span style="color:var(--green)">(' + sondes.length + ')</span></div>'
+    + listeHtml
 
-    + '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#0f172a">3. Capteurs ajoutés <span style="color:#16a34a">(' + sondes.length + ')</span></div>' + listeHtml + '</div>'
-
-    + _relevesBlockHtml()
-    + '<button onclick="rafraichirTemperaturesBeta()" style="width:100%;border:none;background:#0ea5e9;color:#fff;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer">🔄 Lire les températures maintenant</button>'
+    + '<button onclick="rafraichirTemperaturesBeta()" style="width:100%;border:none;background:var(--blue);color:#fff;border-radius:11px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px">🔄 Lire les températures maintenant</button>'
     + '<div id="cap_resultats" style="margin-top:12px"></div>'
+
+    // Clé par défaut — optionnelle, discrète, tout en bas (la plupart des capteurs ont leur propre clé)
+    + '<details style="margin-top:14px;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:10px 12px">'
+    + '<summary style="font-size:12px;font-weight:700;color:var(--dim);cursor:pointer">Clé de lecture par défaut (optionnel)</summary>'
+    + '<div style="display:flex;gap:6px;margin-top:8px"><input id="cap_ubikey" type="text" value="' + _echap(getUbibotKey()) + '" placeholder="Clé de lecture API (par défaut)" class="finput" style="flex:1">'
+    + '<button onclick="enregistrerCleUbibot()" style="border:none;background:#2563eb;color:#fff;border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer">Enregistrer</button></div>'
+    + '<div style="color:var(--dim);font-size:11px;margin-top:6px">Utilisée seulement pour un capteur qui n\'a pas sa propre clé.</div></details>'
     + '</div>';
+}
+
+// Change le nombre de relevés/jour d'UN capteur (libre) → régénère ses heures.
+function onSondeNbChange(i) {
+  var el = document.getElementById('sonde_nb_' + i); if (!el) return;
+  var nb = parseInt(el.value, 10) || 1; if (nb < 1) nb = 1; if (nb > 48) nb = 48;
+  var arr = getSondesConfig(); if (!arr[i]) return;
+  var heures = (Array.isArray(arr[i].heures) && arr[i].heures.length) ? arr[i].heures.slice() : getRelevesConfig().heures.slice();
+  heures = heures.slice(0, nb);
+  var def = ['08:00', '18:00', '12:00', '15:00', '22:00', '06:00', '10:00', '14:00', '16:00', '20:00'];
+  while (heures.length < nb) heures.push(def[heures.length] || '12:00');
+  arr[i].heures = heures; saveSondesConfig(arr); _renderCapteursBeta();
+}
+
+// Enregistre les heures saisies pour UN capteur (auto-save à chaque modif).
+function onSondeHeureChange(i) {
+  var arr = getSondesConfig(); if (!arr[i]) return;
+  var nbEl = document.getElementById('sonde_nb_' + i);
+  var nb = nbEl ? (parseInt(nbEl.value, 10) || 1) : ((arr[i].heures || []).length || 2);
+  var heures = []; for (var h = 0; h < nb; h++) { var el = document.getElementById('sonde_h_' + i + '_' + h); heures.push(el && el.value ? el.value : ''); }
+  arr[i].heures = heures; saveSondesConfig(arr);
+  if (typeof showToast === 'function') showToast('Horaires du capteur enregistrés.', 'ok', 1500);
 }
 
 // Reprend automatiquement les seuils définis lors du paramétrage de l'enceinte.
@@ -23349,7 +23406,7 @@ function ajouterSondeBeta() {
   if (isNaN(min)) min = (enceinte && /cong/i.test(enceinte)) ? -25 : 0;
   if (isNaN(max)) max = (enceinte && /cong/i.test(enceinte)) ? -18 : 4;
   var arr = getSondesConfig();
-  arr.push({ nom: nom, channel: channel, cle: cle, enceinte: enceinte, min: min, max: max });
+  arr.push({ nom: nom, channel: channel, cle: cle, enceinte: enceinte, min: min, max: max, heures: getRelevesConfig().heures.slice() });
   saveSondesConfig(arr);
   _renderCapteursBeta();
   if (typeof showToast === 'function') showToast('Capteur ajouté.', 'ok', 2000);

@@ -57,7 +57,8 @@ declare
   cfg      record;
   v_key    text;
   v_sondes jsonb;
-  v_heures jsonb;
+  v_heures jsonb;       -- heures GLOBALES (repli pour capteurs sans heures propres)
+  v_sh     jsonb;       -- heures PROPRES au capteur courant (sinon repli global)
   v_heure  text;
   sonde    jsonb;
   v_chan   text;
@@ -82,22 +83,32 @@ begin
       continue;   -- la clé est vérifiée par capteur (v_skey) plus bas
     end if;
 
-    for v_heure in select jsonb_array_elements_text(v_heures)
+    -- une requête de lecture par capteur, à SES propres heures (chaque enceinte
+    -- sensible peut avoir plus de relevés). Repli sur les heures globales si le
+    -- capteur n'a pas encore d'heures propres (config antérieure).
+    for sonde in select * from jsonb_array_elements(v_sondes)
     loop
-      if v_heure !~ '^[0-2][0-9]:[0-5][0-9]$' then continue; end if;
-      v_hts := (v_jour::text || ' ' || v_heure)::timestamp at time zone 'Europe/Paris';
+      v_chan := sonde->>'channel';
+      if v_chan is null or v_chan = '' then continue; end if;
+      -- clé de lecture PROPRE au capteur, sinon clé par défaut de l'établissement
+      v_skey := coalesce(nullif(sonde->>'cle',''), v_key);
+      if v_skey is null or v_skey = '' then continue; end if;
 
-      if (v_local at time zone 'Europe/Paris') >= (v_hts at time zone 'Europe/Paris')
-         and v_local < v_hts + interval '9 minutes'
-      then
-        -- une requête de lecture par capteur (clé de lecture = par canal)
-        for sonde in select * from jsonb_array_elements(v_sondes)
-        loop
-          v_chan := sonde->>'channel';
-          if v_chan is null or v_chan = '' then continue; end if;
-          -- clé de lecture PROPRE au capteur, sinon clé par défaut de l'établissement
-          v_skey := coalesce(nullif(sonde->>'cle',''), v_key);
-          if v_skey is null or v_skey = '' then continue; end if;
+      v_sh := case
+                when jsonb_typeof(sonde->'heures') = 'array'
+                     and jsonb_array_length(sonde->'heures') > 0
+                then sonde->'heures'
+                else v_heures
+              end;
+
+      for v_heure in select jsonb_array_elements_text(v_sh)
+      loop
+        if v_heure !~ '^[0-2][0-9]:[0-5][0-9]$' then continue; end if;
+        v_hts := (v_jour::text || ' ' || v_heure)::timestamp at time zone 'Europe/Paris';
+
+        if (v_local at time zone 'Europe/Paris') >= (v_hts at time zone 'Europe/Paris')
+           and v_local < v_hts + interval '9 minutes'
+        then
           if exists (
             select 1 from public.ubibot_lectures
             where code_client = cfg.code_client and channel = v_chan
@@ -116,8 +127,8 @@ begin
           on conflict (code_client, channel, slot, jour) do nothing;
 
           n := n + 1;
-        end loop;
-      end if;
+        end if;
+      end loop;
     end loop;
   end loop;
 
