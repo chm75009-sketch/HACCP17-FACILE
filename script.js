@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v207';
+var APP_BUILD = 'v208';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23665,8 +23665,28 @@ function ouvrirTableauTemp() {
 }
 function fermerTableauTemp() { var m = document.getElementById('ttModal'); if (m) m.classList.remove('visible'); }
 function _ttMsg(t, err) { var e = document.getElementById('tt_msg'); if (e) { e.textContent = t || ''; e.style.color = err ? '#b91c1c' : '#0369a1'; } }
+// Charge ExcelJS à la demande (CDN principal + secours) — robuste en PWA/iPhone
+// où le script différé peut ne pas être encore prêt au moment du clic.
+var _ttExcelLoading = false, _ttExcelCbs = [];
+function _ttEnsureExcel(cb) {
+  if (typeof ExcelJS !== 'undefined') { cb(true); return; }
+  _ttExcelCbs.push(cb);
+  if (_ttExcelLoading) return;
+  _ttExcelLoading = true;
+  var urls = ['https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js', 'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'];
+  var i = 0;
+  function done(ok) { _ttExcelLoading = false; var cbs = _ttExcelCbs.slice(); _ttExcelCbs = []; cbs.forEach(function (f) { try { f(ok); } catch (e) {} }); }
+  function tryNext() {
+    if (typeof ExcelJS !== 'undefined') { done(true); return; }
+    if (i >= urls.length) { done(false); return; }
+    var s = document.createElement('script'); s.src = urls[i++];
+    s.onload = function () { (typeof ExcelJS !== 'undefined') ? done(true) : tryNext(); };
+    s.onerror = function () { tryNext(); };
+    document.head.appendChild(s);
+  }
+  tryNext();
+}
 function _ttPret() {
-  if (typeof ExcelJS === 'undefined') { _ttMsg('Bibliothèque Excel en cours de chargement, réessayez dans 2 s.', true); return false; }
   var cols = _ttColonnes();
   if (!cols.length) { _ttMsg('Aucune enceinte configurée : paramétrez d\'abord vos enceintes.', true); return false; }
   return cols;
@@ -23678,15 +23698,18 @@ function telechargerTableauPeriode() {
   if (!from || !to) { _ttMsg('Choisissez les deux dates.', true); return; }
   if (from > to) { var t = from; from = to; to = t; }
   _ttMsg('Préparation du tableau…');
-  _ttFetchControles(from, to).then(function (rows) {
-    var releves = _ttNormaliser(rows);
-    var wb = new ExcelJS.Workbook();
-    var ws = wb.addWorksheet('Relevés T°');
-    var pf = from.split('-'), pt = to.split('-');
-    var st = 'Fiche de relevé des températures — Période : du ' + pf[2] + '/' + pf[1] + '/' + pf[0] + ' au ' + pt[2] + '/' + pt[1] + '/' + pt[0];
-    _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st);
-    return _ttDownload(wb, 'Releves_temperatures_' + from + '_au_' + to + '.xlsx');
-  }).then(function () { _ttMsg('✓ Tableau téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+  _ttEnsureExcel(function (ok) {
+    if (!ok) { _ttMsg('Impossible de charger la bibliothèque Excel (vérifiez la connexion).', true); return; }
+    _ttFetchControles(from, to).then(function (rows) {
+      var releves = _ttNormaliser(rows);
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('Relevés T°');
+      var pf = from.split('-'), pt = to.split('-');
+      var st = 'Fiche de relevé des températures — Période : du ' + pf[2] + '/' + pf[1] + '/' + pf[0] + ' au ' + pt[2] + '/' + pt[1] + '/' + pt[0];
+      _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st);
+      return _ttDownload(wb, 'Releves_temperatures_' + from + '_au_' + to + '.xlsx');
+    }).then(function () { _ttMsg('✓ Tableau téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+  });
 }
 
 function telechargerTableauMois() {
@@ -23694,18 +23717,21 @@ function telechargerTableauMois() {
   var an = parseInt((document.getElementById('tt_annee') || {}).value, 10) || new Date().getFullYear();
   var from = an + '-01-01', to = an + '-12-31';
   _ttMsg('Préparation des 12 mois…');
-  _ttFetchControles(from, to).then(function (rows) {
-    var releves = _ttNormaliser(rows);
-    var wb = new ExcelJS.Workbook();
-    for (var mo = 0; mo < 12; mo++) {
-      var ws = wb.addWorksheet(MOIS_FR[mo]);
-      var nbJours = new Date(an, mo + 1, 0).getDate();
-      var jours = []; for (var j = 1; j <= nbJours; j++) jours.push(an + '-' + String(mo + 1).padStart(2, '0') + '-' + String(j).padStart(2, '0'));
-      var relMois = releves.filter(function (r) { return r.jour.indexOf(an + '-' + String(mo + 1).padStart(2, '0') + '-') === 0; });
-      _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an);
-    }
-    return _ttDownload(wb, 'Releves_temperatures_' + an + '.xlsx');
-  }).then(function () { _ttMsg('✓ Classeur ' + an + ' téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+  _ttEnsureExcel(function (ok) {
+    if (!ok) { _ttMsg('Impossible de charger la bibliothèque Excel (vérifiez la connexion).', true); return; }
+    _ttFetchControles(from, to).then(function (rows) {
+      var releves = _ttNormaliser(rows);
+      var wb = new ExcelJS.Workbook();
+      for (var mo = 0; mo < 12; mo++) {
+        var ws = wb.addWorksheet(MOIS_FR[mo]);
+        var nbJours = new Date(an, mo + 1, 0).getDate();
+        var jours = []; for (var j = 1; j <= nbJours; j++) jours.push(an + '-' + String(mo + 1).padStart(2, '0') + '-' + String(j).padStart(2, '0'));
+        var relMois = releves.filter(function (r) { return r.jour.indexOf(an + '-' + String(mo + 1).padStart(2, '0') + '-') === 0; });
+        _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an);
+      }
+      return _ttDownload(wb, 'Releves_temperatures_' + an + '.xlsx');
+    }).then(function () { _ttMsg('✓ Classeur ' + an + ' téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+  });
 }
 function rafraichirTemperaturesBeta() {
   var box = document.getElementById('cap_resultats');
