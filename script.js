@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v203';
+var APP_BUILD = 'v204';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -19832,7 +19832,7 @@ function testEffacerDonnees() {
       window.adminTab = function(tab) {
         adminCurrentTab = tab;
         // Mise à jour visuelle des onglets
-        ['demandes', 'clients', 'historique', 'essais'].forEach(function(t) {
+        ['demandes', 'clients', 'historique', 'essais', 'capteurs'].forEach(function(t) {
           var btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
           if (btn) {
             if (t === tab) {
@@ -19848,7 +19848,58 @@ function testEffacerDonnees() {
         else if (tab === 'clients') loadAdminClients();
         else if (tab === 'historique') loadAdminHistorique();
         else if (tab === 'essais') _refreshAdminListe();
+        else if (tab === 'capteurs') loadAdminCapteurs();
       };
+
+      // ── BRIQUE 2 — Supervision des capteurs de tous les clients ──
+      // Appelle la fonction serveur supervision_capteurs (protégée par le mot de
+      // passe admin) et affiche, par établissement + frigo, le dernier relevé,
+      // l'état (conforme / hors seuil / hors service) et l'heure.
+      function loadAdminCapteurs() {
+        var c = document.getElementById('adminContent');
+        if (!c || !window._supabase) { return; }
+        c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Chargement…</div>';
+        var pwd = (window.HACCP_CONFIG && window.HACCP_CONFIG.ADMIN_PASSWORD) ? window.HACCP_CONFIG.ADMIN_PASSWORD : '';
+        window._supabase.rpc('supervision_capteurs', { p_pwd: pwd }).then(function(res) {
+          if (res.error) {
+            c.innerHTML = '<div style="color:#fca5a5;padding:20px;text-align:center">Erreur : ' + escapeHtml(res.error.message)
+              + '<br><span style="font-size:11px;opacity:.7">Avez-vous exécuté le SQL « supervision_capteurs.sql » dans Supabase ?</span></div>';
+            return;
+          }
+          var rows = res.data || [];
+          if (!rows.length) {
+            c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Aucun capteur configuré chez vos clients pour l\'instant.</div>';
+            return;
+          }
+          var nbHS = rows.filter(function(r){ return r.hors_service; }).length;
+          var nbNC = rows.filter(function(r){ return !r.hors_service && !r.conforme; }).length;
+          var html = '<div style="display:flex;gap:8px;margin-bottom:12px;font-size:12px">'
+            + '<span style="background:rgba(34,197,94,0.15);color:#22c55e;padding:4px 10px;border-radius:8px;font-weight:700">' + rows.length + ' capteur(s)</span>'
+            + (nbNC ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:4px 10px;border-radius:8px;font-weight:700">' + nbNC + ' hors seuil</span>' : '')
+            + (nbHS ? '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:4px 10px;border-radius:8px;font-weight:700">' + nbHS + ' hors service</span>' : '')
+            + '</div><div style="display:flex;flex-direction:column;gap:8px">';
+          rows.forEach(function(r) {
+            var col, etat;
+            if (r.hors_service) { col = '#f59e0b'; etat = '⚠️ Hors service (plus de relevé)'; }
+            else if (r.conforme) { col = '#22c55e'; etat = '🟢 Conforme'; }
+            else { col = '#ef4444'; etat = '🔴 Hors seuil'; }
+            var date = '—';
+            try { if (r.derniere) date = new Date(r.derniere).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) {}
+            html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid ' + col + ';border-radius:10px;padding:12px 14px">'
+              + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+              + '<div style="font-weight:700;font-size:14px;color:white">' + escapeHtml(r.etablissement || r.code_client || '') + '</div>'
+              + '<div style="font-size:22px;font-weight:800;color:' + col + ';white-space:nowrap">' + (r.temperature ? escapeHtml(String(r.temperature)) + ' °C' : '—') + '</div>'
+              + '</div>'
+              + '<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">' + escapeHtml(r.frigo || '') + ' · ' + etat + '</div>'
+              + '<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Dernier relevé : ' + date + '</div>'
+              + '</div>';
+          });
+          html += '</div>';
+          c.innerHTML = html;
+        }).catch(function() {
+          c.innerHTML = '<div style="color:#fca5a5;padding:20px;text-align:center">Erreur de chargement de la supervision.</div>';
+        });
+      }
 
       function escapeHtml(s) {
         return String(s || '').replace(/[&<>"']/g, function(c) {

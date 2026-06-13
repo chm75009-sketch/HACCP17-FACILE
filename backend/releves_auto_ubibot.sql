@@ -63,6 +63,7 @@ declare
   v_chan   text;
   v_skey   text;
   v_local  timestamptz := now();
+  v_jour   date := (now() at time zone 'Europe/Paris')::date;  -- DATE DE PARIS (pas UTC)
   v_hts    timestamptz;
   v_reqid  bigint;
   n        integer := 0;
@@ -84,7 +85,7 @@ begin
     for v_heure in select jsonb_array_elements_text(v_heures)
     loop
       if v_heure !~ '^[0-2][0-9]:[0-5][0-9]$' then continue; end if;
-      v_hts := (current_date::text || ' ' || v_heure)::timestamp at time zone 'Europe/Paris';
+      v_hts := (v_jour::text || ' ' || v_heure)::timestamp at time zone 'Europe/Paris';
 
       if (v_local at time zone 'Europe/Paris') >= (v_hts at time zone 'Europe/Paris')
          and v_local < v_hts + interval '9 minutes'
@@ -100,7 +101,7 @@ begin
           if exists (
             select 1 from public.ubibot_lectures
             where code_client = cfg.code_client and channel = v_chan
-              and slot = v_heure and jour = current_date
+              and slot = v_heure and jour = v_jour
           ) then continue; end if;
 
           select net.http_get(
@@ -111,7 +112,7 @@ begin
             (request_id, code_client, establishment_id, sondes, channel, slot, jour)
           values
             (v_reqid, cfg.code_client, cfg.establishment_id,
-             jsonb_build_array(sonde), v_chan, v_heure, current_date)
+             jsonb_build_array(sonde), v_chan, v_heure, v_jour)
           on conflict (code_client, channel, slot, jour) do nothing;
 
           n := n + 1;
