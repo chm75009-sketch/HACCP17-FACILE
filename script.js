@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v208';
+var APP_BUILD = 'v209';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23511,15 +23511,18 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
   var totalCols = 1 + nSub + 2; // Date + sous-colonnes + Observations + Signature
   var last = _ttColLetter(totalCols);
 
-  // Index des relevés : clé jour|enceinteIdx|subIdx
-  var map = {}, obsJour = {};
+  // Index des relevés : clé jour|enceinteIdx|subIdx. Appariement robuste :
+  // 1) par CANAL (le plus fiable), 2) par NOM normalisé (accents/espaces tolérés).
+  var map = {}, obsJour = {}, matched = 0;
   releves.forEach(function (rel) {
     var ci = -1;
-    for (var i = 0; i < cols.length; i++) {
-      if (cols[i].nom && rel.enceinte && cols[i].nom === rel.enceinte) { ci = i; break; }
-      if (cols[i].channel && rel.channel && cols[i].channel === rel.channel) { ci = i; break; }
+    for (var i = 0; i < cols.length; i++) { if (cols[i].channel && rel.channel && String(cols[i].channel) === String(rel.channel)) { ci = i; break; } }
+    if (ci < 0) {
+      var rn = _ttNorm(rel.enceinte);
+      if (rn) for (var k = 0; k < cols.length; k++) { var cn = _ttNorm(cols[k].nom); if (cn && (cn === rn || cn.indexOf(rn) >= 0 || rn.indexOf(cn) >= 0)) { ci = k; break; } }
     }
     if (ci < 0) return;
+    matched++;
     var si = _ttSubIndex(cols[ci], rel.hour);
     map[rel.jour + '|' + ci + '|' + si] = rel;
     if (rel.isNC && rel.temp != null) {
@@ -23609,7 +23612,9 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
   ws.getColumn(totalCols).width = 14;
   ws.getRow(hdr1).height = 30;
   ws.views = [{ state: 'frozen', xSplit: 1, ySplit: hdr3 }];
+  return matched;
 }
+function _ttNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
 
 function _ttEntete() {
   var E = (typeof ETAB !== 'undefined' && ETAB) ? ETAB : {};
@@ -23700,15 +23705,16 @@ function telechargerTableauPeriode() {
   _ttMsg('Préparation du tableau…');
   _ttEnsureExcel(function (ok) {
     if (!ok) { _ttMsg('Impossible de charger la bibliothèque Excel (vérifiez la connexion).', true); return; }
+    var diag = { found: 0, matched: 0 };
     _ttFetchControles(from, to).then(function (rows) {
-      var releves = _ttNormaliser(rows);
+      var releves = _ttNormaliser(rows); diag.found = releves.length;
       var wb = new ExcelJS.Workbook();
       var ws = wb.addWorksheet('Relevés T°');
       var pf = from.split('-'), pt = to.split('-');
       var st = 'Fiche de relevé des températures — Période : du ' + pf[2] + '/' + pf[1] + '/' + pf[0] + ' au ' + pt[2] + '/' + pt[1] + '/' + pt[0];
-      _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st);
+      diag.matched = _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st);
       return _ttDownload(wb, 'Releves_temperatures_' + from + '_au_' + to + '.xlsx');
-    }).then(function () { _ttMsg('✓ Tableau téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+    }).then(function () { _ttMsg(diag.found ? ('✓ Téléchargé — ' + diag.found + ' relevé(s) trouvé(s), ' + diag.matched + ' reporté(s).') : '⚠️ Aucun relevé trouvé sur cette période.', !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
   });
 }
 
@@ -23719,18 +23725,19 @@ function telechargerTableauMois() {
   _ttMsg('Préparation des 12 mois…');
   _ttEnsureExcel(function (ok) {
     if (!ok) { _ttMsg('Impossible de charger la bibliothèque Excel (vérifiez la connexion).', true); return; }
+    var diag = { found: 0, matched: 0 };
     _ttFetchControles(from, to).then(function (rows) {
-      var releves = _ttNormaliser(rows);
+      var releves = _ttNormaliser(rows); diag.found = releves.length;
       var wb = new ExcelJS.Workbook();
       for (var mo = 0; mo < 12; mo++) {
         var ws = wb.addWorksheet(MOIS_FR[mo]);
         var nbJours = new Date(an, mo + 1, 0).getDate();
         var jours = []; for (var j = 1; j <= nbJours; j++) jours.push(an + '-' + String(mo + 1).padStart(2, '0') + '-' + String(j).padStart(2, '0'));
         var relMois = releves.filter(function (r) { return r.jour.indexOf(an + '-' + String(mo + 1).padStart(2, '0') + '-') === 0; });
-        _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an);
+        diag.matched += _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an);
       }
       return _ttDownload(wb, 'Releves_temperatures_' + an + '.xlsx');
-    }).then(function () { _ttMsg('✓ Classeur ' + an + ' téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+    }).then(function () { _ttMsg(diag.found ? ('✓ ' + an + ' téléchargé — ' + diag.found + ' relevé(s) trouvé(s), ' + diag.matched + ' reporté(s).') : '⚠️ Aucun relevé trouvé sur ' + an + '.', !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
   });
 }
 function rafraichirTemperaturesBeta() {
