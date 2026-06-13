@@ -157,6 +157,10 @@ declare
   v_champ text;
   v_fi    integer;
   v_fname text;
+  v_best  text;
+  v_bdist numeric;
+  v_cval  numeric;
+  v_d     numeric;
   v_isNC  boolean;
   v_estab uuid;
   v_secteur text;
@@ -190,20 +194,31 @@ begin
     if lv is null then continue; end if;
 
     -- Quel champ lire ? Par défaut field1 (capteur intégré du boîtier). Si la
-    -- sonde est marquée « externe » (sonde externe branchée, ex. congélateur),
-    -- on repère automatiquement le champ de la SONDE EXTERNE par son nom
-    -- (External / Probe / Sonde…), sinon on retombe sur field5 (emplacement
-    -- habituel de la sonde externe sur le WS1 Pro).
+    -- sonde est marquée « externe », le boîtier peut exposer PLUSIEURS sondes
+    -- externes (EXT1, EXT2, RS485…). On choisit la sonde externe de TEMPÉRATURE
+    -- dont la valeur correspond le mieux aux seuils de l'enceinte (min/max) —
+    -- ainsi une sonde de congélateur (-25/-18) prend bien EXT2 à -18 °C et pas
+    -- EXT1 resté à l'air ambiant. Repli sur field5 si rien n'est trouvé.
     v_champ := coalesce(nullif(sonde->>'champ',''), 'field1');
     if v_champ = 'externe' then
-      v_champ := null;
-      for v_fi in 1..12 loop
+      v_best := null; v_bdist := null;
+      for v_fi in 1..16 loop
         v_fname := chan->>('field' || v_fi);
-        if v_fname is not null and v_fname ~* '(ext|probe|sonde|external)' then
-          v_champ := 'field' || v_fi; exit;
+        if v_fname is null then continue; end if;
+        if v_fname !~* 'temp' then continue; end if;                          -- que les températures
+        if v_fname !~* '(ext|probe|sonde|external|rs485)' then continue; end if; -- que les sondes externes
+        v_cval := nullif(lv #>> array['field' || v_fi,'value'], '')::numeric;
+        if v_cval is null then continue; end if;
+        if v_min is not null and v_max is not null then
+          if v_cval < v_min then v_d := v_min - v_cval;
+          elsif v_cval > v_max then v_d := v_cval - v_max;
+          else v_d := 0; end if;
+        else
+          v_d := abs(v_cval);
         end if;
+        if v_bdist is null or v_d < v_bdist then v_bdist := v_d; v_best := 'field' || v_fi; end if;
       end loop;
-      if v_champ is null then v_champ := 'field5'; end if;
+      v_champ := coalesce(v_best, 'field5');
     end if;
 
     -- température lue sur le champ retenu, arrondie à 0,1 °C
