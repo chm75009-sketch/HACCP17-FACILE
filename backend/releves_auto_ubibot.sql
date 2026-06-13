@@ -227,6 +227,7 @@ begin
         'heure_enregistree', to_char(now() at time zone 'Europe/Paris', 'HH24:MI'),
         'pageId',     'page-temperatures',
         'secteur',    coalesce(v_secteur, ''),
+        'channel',    lec.channel,
         'source',     'ubibot',
         'auto',       true
       ),
