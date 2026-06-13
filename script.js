@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v204';
+var APP_BUILD = 'v205';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23126,18 +23126,18 @@ function getUbibotKey() { try { return lsGet(UBIBOT_KEY_LS) || ''; } catch (e) {
 function setUbibotKey(k) { try { lsSet(UBIBOT_KEY_LS, String(k || '')); } catch (e) {} }
 var RELEVES_LS_KEY = 'haccp_releves_config';
 function getRelevesConfig() {
-  try { var c = JSON.parse(lsGet(RELEVES_LS_KEY) || 'null'); if (c && typeof c === 'object') { return { nb: (c.nb >= 1 && c.nb <= 6) ? c.nb : 2, heures: Array.isArray(c.heures) ? c.heures : ['08:00', '18:00'] }; } } catch (e) {}
+  try { var c = JSON.parse(lsGet(RELEVES_LS_KEY) || 'null'); if (c && typeof c === 'object') { return { nb: (c.nb >= 1 && c.nb <= 48) ? c.nb : 2, heures: Array.isArray(c.heures) ? c.heures : ['08:00', '18:00'] }; } } catch (e) {}
   return { nb: 2, heures: ['08:00', '18:00'] };
 }
 function setRelevesConfig(nb, heures) { try { lsSet(RELEVES_LS_KEY, JSON.stringify({ nb: nb, heures: heures })); } catch (e) {} scheduleSondesPush(); }
 function _relevesBlockHtml() {
   var cfg = getRelevesConfig();
-  var nbOpts = ''; for (var k = 1; k <= 6; k++) { nbOpts += '<option value="' + k + '"' + (k === cfg.nb ? ' selected' : '') + '>' + k + ' releve' + (k > 1 ? 's' : '') + ' / jour</option>'; }
+  // Nombre de relevés / jour : LIBRE (saisie directe, sans limite de 6).
   var hh = ''; for (var h = 0; h < cfg.nb; h++) { hh += '<input type="time" id="rel_heure_' + h + '" value="' + _echap(cfg.heures[h] || '') + '" style="padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin:0 6px 6px 0">'; }
   return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px">'
     + '<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0f172a">&#9200; Releves automatiques</div>'
     + '<div style="color:#6b7280;font-size:11px;margin-bottom:8px;line-height:1.4">Le serveur enregistrera la temperature tout seul, aux heures choisies (meme app fermee). Par defaut : matin + fin de journee.</div>'
-    + '<select id="rel_nb" onchange="onRelevesNbChange()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:8px">' + nbOpts + '</select>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><input type="number" id="rel_nb" min="1" max="48" value="' + cfg.nb + '" onchange="onRelevesNbChange()" style="width:80px;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px"><span style="font-size:13px;color:#475569">relevé(s) / jour (nombre au choix)</span></div>'
     + '<div style="font-size:12px;color:#475569;margin-bottom:4px">Heures des releves :</div>'
     + '<div style="display:flex;flex-wrap:wrap;align-items:center">' + hh + '</div>'
     + '<button onclick="enregistrerReleves()" style="width:100%;border:none;background:#0f766e;color:#fff;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px">Enregistrer les horaires</button>'
@@ -23148,6 +23148,7 @@ function _relevesBlockHtml() {
 function onRelevesNbChange() {
   var sel = document.getElementById('rel_nb'); if (!sel) return;
   var nb = parseInt(sel.value, 10) || 2;
+  if (nb < 1) nb = 1; if (nb > 48) nb = 48; sel.value = nb;
   var cfg = getRelevesConfig(); var heures = cfg.heures.slice(0, nb);
   var def = ['08:00', '18:00', '12:00', '15:00', '22:00', '06:00'];
   while (heures.length < nb) heures.push(def[heures.length] || '12:00');
