@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v209';
+var APP_BUILD = 'v210';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23277,6 +23277,7 @@ function _sondeCardHtml(s, i) {
     + '<div class="tcard"><div class="tcard-lbl">Canal</div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:800;font-size:14px;color:var(--blue)">' + _echap(s.channel || '?') + ' 🔑</div></div>'
     + '<div class="tcard"><div class="tcard-lbl">Seuils</div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:800;font-size:14px;color:var(--blue)">' + _echap(String(s.min)) + ' → ' + _echap(String(s.max)) + '°C</div></div>'
     + '</div>'
+    + '<div style="font-size:11px;color:var(--dim);margin-bottom:8px">' + (s.champ === 'externe' ? '📍 Lecture : sonde externe branchée' : '📍 Lecture : capteur intégré (boîtier)') + '</div>'
     + '<div class="frow" style="margin:0">'
     + '<div class="flabel">⏰ Relevés par jour (au choix)</div>'
     + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
@@ -23318,6 +23319,7 @@ function _renderCapteursBeta() {
     + '<div class="frow"><div class="flabel">Enceinte associée</div><select id="cap_enceinte" class="fselect" onchange="onCapEnceinteChange()">' + encOpts + '</select></div>'
     + '<div class="frow"><div class="flabel">N° de canal UbiBot</div><input id="cap_channel" class="finput" placeholder="channel id"></div>'
     + '<div class="frow"><div class="flabel">Clé de lecture du capteur</div><input id="cap_cle" class="finput" placeholder="clé de lecture API de ce capteur"></div>'
+    + '<div class="frow"><div class="flabel">Température à enregistrer</div><select id="cap_source" class="fselect"><option value="">Capteur intégré (boîtier)</option><option value="externe">Sonde externe branchée (frigo / congélateur)</option></select></div>'
     + '<div class="tgrid" style="margin-bottom:14px">'
     + '<div class="frow" style="margin:0"><div class="flabel">Seuil min °C</div><input id="cap_min" type="number" step="0.1" class="finput" placeholder="0"></div>'
     + '<div class="frow" style="margin:0"><div class="flabel">Seuil max °C</div><input id="cap_max" type="number" step="0.1" class="finput" placeholder="4"></div>'
@@ -23400,6 +23402,7 @@ function ajouterSondeBeta() {
   var channel = ((document.getElementById('cap_channel') || {}).value || '').trim();
   var cle = ((document.getElementById('cap_cle') || {}).value || '').trim();
   var enceinte = ((document.getElementById('cap_enceinte') || {}).value || '').trim();
+  var source = ((document.getElementById('cap_source') || {}).value || '').trim();
   var min = parseFloat((document.getElementById('cap_min') || {}).value);
   var max = parseFloat((document.getElementById('cap_max') || {}).value);
   if (!nom || !channel) { alert('Indiquez au moins un nom et le n° de canal.'); return; }
@@ -23407,7 +23410,7 @@ function ajouterSondeBeta() {
   if (isNaN(min)) min = (enceinte && /cong/i.test(enceinte)) ? -25 : 0;
   if (isNaN(max)) max = (enceinte && /cong/i.test(enceinte)) ? -18 : 4;
   var arr = getSondesConfig();
-  arr.push({ nom: nom, channel: channel, cle: cle, enceinte: enceinte, min: min, max: max, heures: getRelevesConfig().heures.slice() });
+  arr.push({ nom: nom, channel: channel, cle: cle, enceinte: enceinte, champ: (source === 'externe' ? 'externe' : ''), min: min, max: max, heures: getRelevesConfig().heures.slice() });
   saveSondesConfig(arr);
   _renderCapteursBeta();
   if (typeof showToast === 'function') showToast('Capteur ajouté.', 'ok', 2000);
