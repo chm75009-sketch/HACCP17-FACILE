@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v206';
+var APP_BUILD = 'v207';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23329,6 +23329,7 @@ function _renderCapteursBeta() {
     + listeHtml
 
     + '<button onclick="rafraichirTemperaturesBeta()" style="width:100%;border:none;background:var(--blue);color:#fff;border-radius:11px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px">🔄 Lire les températures maintenant</button>'
+    + '<button onclick="ouvrirTableauTemp()" style="width:100%;border:none;background:#0f766e;color:#fff;border-radius:11px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;margin-top:8px">📊 Tableau des températures (Excel)</button>'
     + '<div id="cap_resultats" style="margin-top:12px"></div>'
 
     // Clé par défaut — optionnelle, discrète, tout en bas (la plupart des capteurs ont leur propre clé)
@@ -23414,6 +23415,297 @@ function ajouterSondeBeta() {
 function supprimerSondeBeta(i) {
   var arr = getSondesConfig();
   if (i >= 0 && i < arr.length) { arr.splice(i, 1); saveSondesConfig(arr); _renderCapteursBeta(); }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TABLEAU DES TEMPÉRATURES — Excel téléchargeable (auto-rempli depuis le capteur)
+//  Structure 100 % construite depuis le paramétrage du client : nombre
+//  d'enceintes, code, nom, seuils, fréquence de relevés. Les températures
+//  relevées (capteur + saisies) se reportent dans la bonne case. Deux formats :
+//   • Par mois : un classeur avec un onglet par mois (archive annuelle).
+//   • Période au choix : une feuille du jour J au jour K (1 jour ou plus).
+// ════════════════════════════════════════════════════════════════════════════
+var MOIS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+function _ttDateLoc(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function _ttHM(h) { var m = String(h || '').match(/(\d{1,2}):(\d{2})/); return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : 0; }
+function _ttColLetter(n) { var s = ''; while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
+
+// Colonnes = enceintes configurées + leur fréquence (depuis le capteur associé).
+function _ttColonnes() {
+  var enceintes = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
+  var capteurs = getSondesConfig();
+  return enceintes.map(function (e, i) {
+    var nom = (e && (e.nom || e.name)) || ('Enceinte N°' + (i + 1));
+    var cap = null;
+    for (var k = 0; k < capteurs.length; k++) { if (((capteurs[k].enceinte || '') === nom)) { cap = capteurs[k]; break; } }
+    var heures = (cap && Array.isArray(cap.heures)) ? cap.heures.slice().filter(Boolean) : [];
+    var nb = heures.length || 1;
+    var subs;
+    if (nb <= 1) subs = [{ label: 'Jour' }];
+    else if (nb === 2) subs = [{ label: 'Matin' }, { label: 'Soir' }];
+    else subs = heures.map(function (h) { return { label: h }; });
+    var mn = cap && isFinite(cap.min) ? cap.min : null;
+    var mx = cap && isFinite(cap.max) ? cap.max : ((e && e.seuil != null && isFinite(e.seuil)) ? e.seuil : null);
+    return { code: 'E' + (i + 1), nom: nom, channel: (cap && cap.channel) || '', min: mn, max: mx, nb: nb, heures: heures, subs: subs, seuilTxt: _ttSeuilTexte(mn, mx) };
+  });
+}
+function _ttSeuilTexte(mn, mx) {
+  var f = function (v) { return (v < 0 ? '' : '+') + v; };
+  if (mn != null && mx != null) { if (mn < 0 && mx < 0) return 'Seuil : ≤ ' + mx + ' °C'; return 'Seuil : ' + f(mn) + ' à ' + f(mx) + ' °C'; }
+  if (mx != null) return 'Seuil : ≤ ' + f(mx) + ' °C';
+  return 'Seuil : —';
+}
+// Quel sous-créneau (Matin/Soir/heure) pour un relevé donné.
+function _ttSubIndex(col, hour) {
+  if (col.subs.length === 1) return 0;
+  if (col.nb === 2) { return (parseInt(String(hour || '00:00').split(':')[0], 10) < 14) ? 0 : 1; }
+  var idx = col.heures.indexOf(hour); if (idx >= 0) return idx;
+  var rm = _ttHM(hour), best = 0, bd = 1e9;
+  col.heures.forEach(function (h, j) { var d = Math.abs(_ttHM(h) - rm); if (d < bd) { bd = d; best = j; } });
+  return best;
+}
+
+// Récupère les contrôles « Températures enceintes » sur une plage (Supabase).
+function _ttFetchControles(dateFrom, dateTo) {
+  return new Promise(function (resolve) {
+    try {
+      if (typeof ETAB_ID === 'undefined' || !ETAB_ID || typeof SUPABASE_URL === 'undefined') { resolve([]); return; }
+      var dMin = new Date(dateFrom + 'T00:00:00').toISOString();
+      var dMax = new Date(dateTo + 'T23:59:59').toISOString();
+      var url = SUPABASE_URL + '/rest/v1/controles_haccp'
+        + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
+        + '&module=eq.' + encodeURIComponent('Températures enceintes')
+        + '&date_controle=gte.' + encodeURIComponent(dMin)
+        + '&date_controle=lte.' + encodeURIComponent(dMax)
+        + '&select=contenu,date_controle,recorded_at&order=date_controle.asc&limit=20000';
+      fetch(url, { cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) { resolve(Array.isArray(rows) ? rows : []); })
+        .catch(function () { resolve([]); });
+    } catch (e) { resolve([]); }
+  });
+}
+// Aplatit les contrôles en relevés unitaires : { jour, hour, enceinte, channel, temp, isNC }.
+function _ttNormaliser(rows) {
+  var out = [];
+  (rows || []).forEach(function (r) {
+    var c = r.contenu; if (typeof c === 'string') { try { c = JSON.parse(c); } catch (e) { c = null; } }
+    if (!c) return;
+    var when = r.date_controle || r.recorded_at; var d = new Date(when);
+    var jour = _ttDateLoc(d);
+    var hh = c.heure_programmee || (String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
+    var temps = Array.isArray(c.temperatures) ? c.temperatures : [];
+    temps.forEach(function (t) {
+      if (t == null) return;
+      var raw = (t.temp === '' || t.temp == null) ? null : parseFloat(String(t.temp).replace(',', '.'));
+      out.push({ jour: jour, hour: hh, enceinte: String(t.type || '').trim(), channel: c.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme') });
+    });
+  });
+  return out;
+}
+
+// Construit une feuille ExcelJS pour une liste de jours (YYYY-MM-DD) + relevés.
+function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
+  var nSub = 0; cols.forEach(function (c) { nSub += c.subs.length; });
+  var totalCols = 1 + nSub + 2; // Date + sous-colonnes + Observations + Signature
+  var last = _ttColLetter(totalCols);
+
+  // Index des relevés : clé jour|enceinteIdx|subIdx
+  var map = {}, obsJour = {};
+  releves.forEach(function (rel) {
+    var ci = -1;
+    for (var i = 0; i < cols.length; i++) {
+      if (cols[i].nom && rel.enceinte && cols[i].nom === rel.enceinte) { ci = i; break; }
+      if (cols[i].channel && rel.channel && cols[i].channel === rel.channel) { ci = i; break; }
+    }
+    if (ci < 0) return;
+    var si = _ttSubIndex(cols[ci], rel.hour);
+    map[rel.jour + '|' + ci + '|' + si] = rel;
+    if (rel.isNC && rel.temp != null) {
+      (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ') hors seuil');
+    }
+  });
+
+  // En-têtes haut de feuille
+  ws.getCell('A1').value = titre;
+  ws.mergeCells('A1:' + last + '1');
+  ws.getCell('A1').font = { bold: true, size: 9 };
+  ws.getCell('A1').alignment = { wrapText: true, vertical: 'middle' };
+  ws.getCell('A2').value = sousTitre;
+  ws.mergeCells('A2:' + last + '2');
+  ws.getCell('A2').font = { bold: true, size: 11 };
+  ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+
+  var hdr1 = 4, hdr2 = 5, hdr3 = 6, first = 7;
+  ws.getCell('A' + hdr1).value = 'Date';
+  ws.mergeCells('A' + hdr1 + ':A' + hdr3);
+
+  var thin = { style: 'thin', color: { argb: 'FFBFC7D2' } };
+  var border = { top: thin, left: thin, bottom: thin, right: thin };
+  var center = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+  var col = 2;
+  cols.forEach(function (c) {
+    var c1 = _ttColLetter(col), c2 = _ttColLetter(col + c.subs.length - 1);
+    ws.getCell(c1 + hdr1).value = c.code + '\n' + c.nom;
+    if (c.subs.length > 1) ws.mergeCells(c1 + hdr1 + ':' + c2 + hdr1);
+    ws.getCell(c1 + hdr2).value = c.seuilTxt;
+    if (c.subs.length > 1) ws.mergeCells(c1 + hdr2 + ':' + c2 + hdr2);
+    c.subs.forEach(function (s, j) {
+      var cc = _ttColLetter(col + j);
+      ws.getCell(cc + hdr3).value = s.label;
+    });
+    col += c.subs.length;
+  });
+  var obsL = _ttColLetter(col), sigL = _ttColLetter(col + 1);
+  ws.getCell(obsL + hdr1).value = 'Observations'; ws.mergeCells(obsL + hdr1 + ':' + obsL + hdr3);
+  ws.getCell(sigL + hdr1).value = 'Signature'; ws.mergeCells(sigL + hdr1 + ':' + sigL + hdr3);
+
+  // Style des en-têtes
+  for (var rr = hdr1; rr <= hdr3; rr++) {
+    for (var cc = 1; cc <= totalCols; cc++) {
+      var cell = ws.getCell(rr, cc);
+      cell.border = border; cell.alignment = center;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF4FB' } };
+      cell.font = { bold: true, size: (rr === hdr2 ? 8 : 9), color: { argb: rr === hdr2 ? 'FF0369A1' : 'FF0A0E1A' } };
+    }
+  }
+
+  // Lignes de données
+  jours.forEach(function (jour, idx) {
+    var row = first + idx;
+    var parts = jour.split('-');
+    ws.getCell('A' + row).value = parts[2] + '/' + parts[1] + '/' + parts[0];
+    ws.getCell('A' + row).alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getCell('A' + row).border = border;
+    ws.getCell('A' + row).font = { size: 9 };
+    var cidx = 2;
+    cols.forEach(function (c, ci) {
+      c.subs.forEach(function (s, si) {
+        var cell = ws.getCell(row, cidx);
+        var rel = map[jour + '|' + ci + '|' + si];
+        if (rel && rel.temp != null) {
+          cell.value = rel.temp;
+          if (rel.isNC) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE2E2' } }; cell.font = { bold: true, color: { argb: 'FFB91C1C' }, size: 9 }; }
+          else cell.font = { size: 9 };
+        }
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = border;
+        cidx++;
+      });
+    });
+    var oc = ws.getCell(row, totalCols - 1);
+    oc.value = (obsJour[jour] || []).join(' ; ');
+    oc.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    oc.border = border; oc.font = { size: 8, color: { argb: 'FFB91C1C' } };
+    ws.getCell(row, totalCols).border = border;
+  });
+
+  // Largeurs
+  ws.getColumn(1).width = 12;
+  for (var w = 2; w <= totalCols - 2; w++) ws.getColumn(w).width = 9.5;
+  ws.getColumn(totalCols - 1).width = 42;
+  ws.getColumn(totalCols).width = 14;
+  ws.getRow(hdr1).height = 30;
+  ws.views = [{ state: 'frozen', xSplit: 1, ySplit: hdr3 }];
+}
+
+function _ttEntete() {
+  var E = (typeof ETAB !== 'undefined' && ETAB) ? ETAB : {};
+  var l = [];
+  if (E.nom) l.push(E.nom);
+  if (E.adresse) l.push(E.adresse + (E.cp ? ' — ' + E.cp + ' ' + (E.ville || '') : ''));
+  if (E.siret) l.push('SIRET ' + E.siret);
+  if (E.responsable) l.push('Responsable : ' + E.responsable);
+  return l.join(' — ') || 'Fiche de relevé des températures';
+}
+function _ttDownload(wb, nom) {
+  return wb.xlsx.writeBuffer().then(function (buf) {
+    var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom;
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  });
+}
+function _ttJoursEntre(from, to) {
+  var jours = []; var d = new Date(from + 'T00:00:00'); var end = new Date(to + 'T00:00:00');
+  var guard = 0; while (d <= end && guard < 3660) { jours.push(_ttDateLoc(d)); d.setDate(d.getDate() + 1); guard++; }
+  return jours;
+}
+
+function ouvrirTableauTemp() {
+  var existing = document.getElementById('ttModal'); if (existing) { existing.classList.add('visible'); return; }
+  var today = _ttDateLoc(new Date());
+  var monthAgo = _ttDateLoc(new Date(Date.now() - 30 * 86400000));
+  var an = new Date().getFullYear();
+  var m = document.createElement('div');
+  m.id = 'ttModal'; m.className = 'modal-overlay visible'; m.style.zIndex = '100001';
+  m.innerHTML =
+    '<div class="modal-box" style="max-width:400px">'
+    + '<div class="modal-ico">📊</div>'
+    + '<div class="modal-title">Tableau des températures (Excel)</div>'
+    + '<div class="modal-desc">Construit automatiquement depuis vos enceintes et vos capteurs. Téléchargeable à tout moment.</div>'
+    + '<div style="background:#f0f9ff;border-radius:12px;padding:12px;margin:14px 0">'
+    + '<div style="font-size:12px;font-weight:700;color:#0369a1;margin-bottom:8px">📅 Par mois (archive de l\'année)</div>'
+    + '<div class="frow" style="margin-bottom:8px"><div class="flabel">Année</div><input type="number" id="tt_annee" class="finput" value="' + an + '" min="2024" max="2100"></div>'
+    + '<button class="btn-p" style="width:100%" onclick="telechargerTableauMois()">Télécharger l\'année (12 onglets)</button>'
+    + '</div>'
+    + '<div style="background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:8px">🗓️ Période au choix (1 jour ou plus)</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    + '<div class="frow"><div class="flabel">Du</div><input type="date" id="tt_from" class="finput" value="' + monthAgo + '"></div>'
+    + '<div class="frow"><div class="flabel">Au</div><input type="date" id="tt_to" class="finput" value="' + today + '"></div>'
+    + '</div>'
+    + '<button class="btn-p" style="width:100%;margin-top:10px;background:#16a34a" onclick="telechargerTableauPeriode()">Télécharger la période</button>'
+    + '</div>'
+    + '<button class="modal-btn-skip" onclick="fermerTableauTemp()">Fermer</button>'
+    + '<div id="tt_msg" style="text-align:center;font-size:12.5px;font-weight:700;color:#0369a1;margin-top:8px;min-height:16px"></div>'
+    + '</div>';
+  document.body.appendChild(m);
+}
+function fermerTableauTemp() { var m = document.getElementById('ttModal'); if (m) m.classList.remove('visible'); }
+function _ttMsg(t, err) { var e = document.getElementById('tt_msg'); if (e) { e.textContent = t || ''; e.style.color = err ? '#b91c1c' : '#0369a1'; } }
+function _ttPret() {
+  if (typeof ExcelJS === 'undefined') { _ttMsg('Bibliothèque Excel en cours de chargement, réessayez dans 2 s.', true); return false; }
+  var cols = _ttColonnes();
+  if (!cols.length) { _ttMsg('Aucune enceinte configurée : paramétrez d\'abord vos enceintes.', true); return false; }
+  return cols;
+}
+
+function telechargerTableauPeriode() {
+  var cols = _ttPret(); if (!cols) return;
+  var from = (document.getElementById('tt_from') || {}).value, to = (document.getElementById('tt_to') || {}).value;
+  if (!from || !to) { _ttMsg('Choisissez les deux dates.', true); return; }
+  if (from > to) { var t = from; from = to; to = t; }
+  _ttMsg('Préparation du tableau…');
+  _ttFetchControles(from, to).then(function (rows) {
+    var releves = _ttNormaliser(rows);
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('Relevés T°');
+    var pf = from.split('-'), pt = to.split('-');
+    var st = 'Fiche de relevé des températures — Période : du ' + pf[2] + '/' + pf[1] + '/' + pf[0] + ' au ' + pt[2] + '/' + pt[1] + '/' + pt[0];
+    _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st);
+    return _ttDownload(wb, 'Releves_temperatures_' + from + '_au_' + to + '.xlsx');
+  }).then(function () { _ttMsg('✓ Tableau téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+}
+
+function telechargerTableauMois() {
+  var cols = _ttPret(); if (!cols) return;
+  var an = parseInt((document.getElementById('tt_annee') || {}).value, 10) || new Date().getFullYear();
+  var from = an + '-01-01', to = an + '-12-31';
+  _ttMsg('Préparation des 12 mois…');
+  _ttFetchControles(from, to).then(function (rows) {
+    var releves = _ttNormaliser(rows);
+    var wb = new ExcelJS.Workbook();
+    for (var mo = 0; mo < 12; mo++) {
+      var ws = wb.addWorksheet(MOIS_FR[mo]);
+      var nbJours = new Date(an, mo + 1, 0).getDate();
+      var jours = []; for (var j = 1; j <= nbJours; j++) jours.push(an + '-' + String(mo + 1).padStart(2, '0') + '-' + String(j).padStart(2, '0'));
+      var relMois = releves.filter(function (r) { return r.jour.indexOf(an + '-' + String(mo + 1).padStart(2, '0') + '-') === 0; });
+      _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an);
+    }
+    return _ttDownload(wb, 'Releves_temperatures_' + an + '.xlsx');
+  }).then(function () { _ttMsg('✓ Classeur ' + an + ' téléchargé.'); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
 }
 function rafraichirTemperaturesBeta() {
   var box = document.getElementById('cap_resultats');
