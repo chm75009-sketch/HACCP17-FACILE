@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v233';
+var APP_BUILD = 'v234';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23803,7 +23803,7 @@ function _ttFeuilleDetail(ws, cols, releves, titre) {
   var border = { top: thin, left: thin, bottom: thin, right: thin };
   ws.getCell('A1').value = titre; ws.mergeCells('A1:H1');
   ws.getCell('A1').font = { bold: true, size: 9 }; ws.getCell('A1').alignment = { wrapText: true, vertical: 'middle' };
-  ws.getCell('A2').value = 'Détail de chaque relevé — Source = Capteur (automatique) ou Manuel (agent)';
+  ws.getCell('A2').value = 'Détail de chaque relevé — Source : 🟦 bleu = CAPTEUR (auto) · ⬜ gris = MANUEL (agent)';
   ws.mergeCells('A2:H2'); ws.getCell('A2').font = { bold: true, size: 11 }; ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
   var hdr = ['Date', 'Heure', 'Enceinte', 'T° relevée (°C)', 'Seuil', 'Conformité', 'Source', 'Émargement'];
   hdr.forEach(function (h, i) {
@@ -23834,7 +23834,7 @@ function _ttFeuilleDetail(ws, cols, releves, titre) {
       c.alignment = { horizontal: (i === 3 ? 'center' : 'left'), vertical: 'middle', wrapText: true };
       if (i === 3 && typeof v === 'number') c.numFmt = '0.0';
       c.font = (i === 5 && rel.isNC) ? { size: 9, bold: true, color: { argb: 'FFB91C1C' } } : { size: 9 };
-      if (i === 6) c.font = { size: 9, color: { argb: rel.auto ? 'FF0369A1' : 'FF15803D' } }; // bleu=capteur, vert=manuel
+      if (i === 6) { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rel.auto ? 'FFDBEAFE' : 'FFD9DEE3' } }; c.font = { size: 9, bold: true }; } // 🟦 bleu = capteur, ⬜ gris = manuel
     });
     r++;
   });
@@ -23869,9 +23869,14 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
   ws.getCell('A3').value = 'Généré le ' + new Date().toLocaleString('fr-FR') + ' · HACCP Pro ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?') + ' · ' + (releves ? releves.length : 0) + ' relevé(s)' + (_ncFeuille ? ' · ⚠️ ' + _ncFeuille + ' NON CONFORME(S) — voir cases rouges et colonne Observations' : ' · ✓ aucune non-conformité');
   ws.mergeCells('A3:' + last + '3');
   ws.getCell('A3').font = { italic: true, bold: !!_ncFeuille, size: 8, color: { argb: _ncFeuille ? 'FFB91C1C' : 'FF15803D' } };
+  // Légende des couleurs (ligne dédiée).
+  ws.getCell('A4').value = 'Légende :  🟦 fond bleu = relevé CAPTEUR  ·  ⬜ fond gris = relevé MANUEL  ·  chiffre ROUGE = hors seuil (NC)  ·  H.L. = capteur hors ligne';
+  ws.mergeCells('A4:' + last + '4');
+  ws.getCell('A4').font = { italic: true, size: 8, color: { argb: 'FF334155' } };
+  ws.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' };
   ws.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
 
-  var hdr1 = 4, hdr2 = 5, hdr3 = 6, first = 7;
+  var hdr1 = 5, hdr2 = 6, hdr3 = 7, first = 8; // ligne 4 = légende des couleurs
   ws.getCell('A' + hdr1).value = 'Date';
   ws.mergeCells('A' + hdr1 + ':A' + hdr3);
 
@@ -23922,12 +23927,14 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
         if (rel && rel.temp != null) {
           cell.value = rel.temp;          // nombre (négatifs affichés avec le signe −)
           cell.numFmt = '0.0';
-          if (rel.isNC) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE2E2' } }; cell.font = { bold: true, color: { argb: 'FFB91C1C' }, size: 9 }; }
-          else cell.font = { size: 9 };
+          // FOND = SOURCE (toujours visible) : 🔵 bleu = capteur, 🟠 orange = manuel.
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rel.auto ? 'FFDBEAFE' : 'FFD9DEE3' } };
+          // TEXTE rouge gras = hors seuil (NC). On voit donc source ET conformité.
+          cell.font = rel.isNC ? { bold: true, size: 9, color: { argb: 'FFB91C1C' } } : { size: 9, color: { argb: 'FF0A0E1A' } };
         } else if (rel && rel.offline) {
           cell.value = 'H.L.';            // capteur Hors Ligne (pas de mesure fiable)
           cell.font = { italic: true, size: 8, color: { argb: 'FF92400E' } };
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }; // fond bleu = capteur
         }
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         cell.border = border;
@@ -23940,12 +23947,16 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
     oc.border = border; oc.font = { size: 8, color: { argb: 'FFB91C1C' } };
     // Émargement : SÉPARÉ capteur (auto) et manuel (noms des signataires).
     var sc = ws.getCell(row, totalCols);
-    var _sg = sigJour[jour], _sgParts = [];
+    var _sg = sigJour[jour], _sgParts = [], _au = false, _nb = 0;
     if (_sg) {
-      if (_sg.auto) _sgParts.push('🤖 Capteur (auto)');
-      var _noms = Object.keys(_sg.noms || {}); if (_noms.length) _sgParts.push('✍️ Manuel : ' + _noms.join(', '));
+      _au = !!_sg.auto; var _noms = Object.keys(_sg.noms || {}); _nb = _noms.length;
+      if (_au) _sgParts.push('🤖 Capteur (auto)');
+      if (_nb) _sgParts.push('✍️ Manuel : ' + _noms.join(', '));
     }
     sc.value = _sgParts.join(' · ');
+    // Fond émargement selon la source (cohérent avec les valeurs) : bleu capteur / orange manuel.
+    if (_au && !_nb) sc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+    else if (_nb && !_au) sc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9DEE3' } };
     sc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     sc.border = border; sc.font = { size: 8, color: { argb: 'FF334155' } };
   });
