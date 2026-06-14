@@ -188,6 +188,11 @@
         style="display:inline-flex;align-items:center;gap:5px;background:rgba(220,38,38,.18);border:1px solid rgba(248,113,113,.5);color:#fca5a5;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap">🔓<span style="font-size:11px">Quitter</span></button>
     </div>
   </div>
+  <!-- NAV-1 — Boutons flottants d'aide à la navigation (additifs, n'altèrent aucune
+       logique existante). « Retour » rejoue le clic du bouton retour de la page ;
+       « Haut » ramène en haut du contenu. Ils n'apparaissent que quand on a défilé. -->
+  <button id="floatBack" type="button" aria-label="Retour" style="display:none">← Retour</button>
+  <button id="floatTop" type="button" aria-label="Remonter en haut" style="display:none">↑</button>
   <div class="scroll" id="scrollArea">
     <!-- HOME -->
     <!-- PAGE ONBOARDING -->

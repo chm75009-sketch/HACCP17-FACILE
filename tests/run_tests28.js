@@ -108,6 +108,18 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ctx.showConfirm = _origSC;
 }
 
+// ── I) NAV-2 : les boutons « Fermer » en croix (✕) sont agrandis + libellés ──
+{
+  function _mkBtn(txt) { return { textContent: txt, style: {}, _at: {}, getAttribute: function (k) { return this._at[k] !== undefined ? this._at[k] : null; }, setAttribute: function (k, v) { this._at[k] = v; } }; }
+  var bx = _mkBtn('✕');
+  ctx._agrandirFermer({ querySelectorAll: function () { return [bx]; } });
+  ok(bx.style.minWidth === '42px' && bx.style.minHeight === '42px', 'NAV: bouton ✕ agrandi (42px)');
+  ok(bx.getAttribute('aria-label') === 'Fermer', 'NAV: bouton ✕ reçoit aria-label « Fermer »');
+  var bn = _mkBtn('Valider');
+  ctx._agrandirFermer({ querySelectorAll: function () { return [bn]; } });
+  ok(!bn.style.minWidth, 'NAV: un bouton normal (« Valider ») n\'est PAS modifié');
+}
+
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 console.log('════════════════════════════════════════');

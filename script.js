@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v241';
+var APP_BUILD = 'v242';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -1598,6 +1598,33 @@ function _a11yLabelsAuto(root) {
     });
   } catch (e) {}
 }
+// NAV-2 — Agrandit/rend lisibles les boutons « Fermer » en croix (✕ / ×), souvent
+// minuscules et stylés un par un. Additif : on ne touche qu'aux boutons dont le
+// contenu EST exactement une croix (donc des boutons de fermeture), on garantit une
+// zone de tap confortable et un libellé d'accessibilité.
+function _agrandirFermer(root) {
+  try {
+    var scope = (root && root.querySelectorAll) ? root : document;
+    var liste = [];
+    if (scope.matches && scope.matches('button')) liste.push(scope);
+    if (scope.querySelectorAll) scope.querySelectorAll('button').forEach(function (b) { liste.push(b); });
+    liste.forEach(function (b) {
+      if (b.__fermerOk) return;
+      var t = (b.textContent || '').replace(/\s+/g, '');
+      if (t === '✕' || t === '×') {
+        b.__fermerOk = true;
+        b.style.minWidth = '42px';
+        b.style.minHeight = '42px';
+        b.style.fontSize = '22px';
+        b.style.lineHeight = '1';
+        if (!b.style.display || b.style.display === 'inline' || b.style.display === 'block') b.style.display = 'inline-flex';
+        b.style.alignItems = 'center';
+        b.style.justifyContent = 'center';
+        if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', 'Fermer');
+      }
+    });
+  } catch (e) {}
+}
 document.addEventListener('DOMContentLoaded', function() {
   var okBtn = document.getElementById('confirmOk');
   var cancelBtn = document.getElementById('confirmCancel');
@@ -1625,6 +1652,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (n.nodeType === 1 && n.querySelector && (n.querySelector('.frow') || n.classList.contains('frow') || n.querySelector('.fblock'))) {
               found = true;
             }
+            // NAV-2 — agrandir les boutons « Fermer » des modales créées au runtime
+            if (n.nodeType === 1 && ((n.matches && n.matches('button')) || (n.querySelector && n.querySelector('button')))) {
+              try { _agrandirFermer(n); } catch (e) {}
+            }
           });
         }
       });
@@ -1644,6 +1675,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   attachAllLocInputs();
   try { _a11yLabelsAuto(document); } catch (e) {} // a11y : labelliser tous les champs au chargement
+  try { _agrandirFermer(document); } catch (e) {} // NAV-2 : agrandir les boutons « Fermer » (✕) au chargement
   // Observer les ajouts dynamiques (modules qui créent des inputs au runtime)
   try {
     var obs = new MutationObserver(function(mutations) {
@@ -24279,4 +24311,41 @@ function _confirmSuppr(msg, cb) {
     w.__confirmWrap = true;
     window[n] = w;
   });
+})();
+
+// ════════════════════════════════════════════════════════════════════════
+// NAV-1 — Boutons flottants d'aide à la navigation (purement additifs).
+//  • #floatBack : rejoue le clic du bouton « ← Retour » de la page active
+//    (donc strictement le même comportement, aucune logique dupliquée).
+//  • #floatTop  : ramène en haut du contenu (#scrollArea).
+//  Tous deux n'apparaissent qu'une fois qu'on a défilé, et #floatBack
+//  uniquement sur les pages qui possèdent déjà un bouton retour.
+// ════════════════════════════════════════════════════════════════════════
+(function () {
+  function _navActiveBack() {
+    var p = document.querySelector('.page.active');
+    return p ? p.querySelector('.btn-back, .back-home, .btn-retour-haut') : null;
+  }
+  function _navWire() {
+    var sa = document.getElementById('scrollArea');
+    var fb = document.getElementById('floatBack');
+    var ft = document.getElementById('floatTop');
+    var tb = document.getElementById('appTopbar');
+    if (!sa || !fb || !ft) return;
+    fb.addEventListener('click', function () { var b = _navActiveBack(); if (b) b.click(); });
+    ft.addEventListener('click', function () { try { sa.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { sa.scrollTop = 0; } });
+    function _maj() {
+      var descendu = sa.scrollTop > 140;
+      var b = _navActiveBack();
+      if (b && descendu) {
+        try { fb.style.top = ((tb ? tb.offsetHeight : 56) + 8) + 'px'; } catch (e) {}
+        fb.style.display = 'inline-flex';
+      } else { fb.style.display = 'none'; }
+      ft.style.display = descendu ? 'inline-flex' : 'none';
+    }
+    sa.addEventListener('scroll', _maj, { passive: true });
+    _maj();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _navWire);
+  else _navWire();
 })();

@@ -100,6 +100,17 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--dark);min-
 .mod-header::before{content:'';position:absolute;bottom:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.07);pointer-events:none}
 .btn-back{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:30px;padding:8px 18px;font-size:13px;font-weight:700;color:white;cursor:pointer;margin-bottom:16px;font-family:'Outfit',sans-serif;transition:background .15s;position:relative;z-index:2}
 .btn-back:hover{background:rgba(255,255,255,.25)}
+/* NAV-1 — Boutons flottants de navigation (Retour toujours accessible + Remonter en haut).
+   Apparaissent quand on a défilé. z-index sous la topbar (300) pour ne jamais la masquer. */
+#floatBack{position:fixed;left:12px;top:64px;z-index:295;align-items:center;gap:6px;background:var(--dark);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:30px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Outfit',sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.35);-webkit-tap-highlight-color:transparent}
+#floatBack:active{transform:scale(.96)}
+#floatTop{position:fixed;right:10px;top:50%;transform:translateY(-50%);z-index:295;width:42px;height:42px;border-radius:50%;align-items:center;justify-content:center;background:var(--dark);color:#fff;border:1px solid rgba(255,255,255,.25);font-size:18px;font-weight:900;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:.92;-webkit-tap-highlight-color:transparent}
+#floatTop:active{opacity:1}
+/* NAV-1 — On masque les anciens boutons flottants (petit rond retour qui chevauchait
+   le logo, et l'ancien « haut » limité à la présentation) : remplacés par #floatBack/#floatTop
+   ci-dessus, plus clairs. La logique JS (appGoBack/_navStack, bouton précédent du téléphone)
+   reste intacte. */
+#btnAppBack, #btnScrollTop{display:none !important}
 .mod-header-ico{position:absolute;top:16px;right:20px;font-size:60px;opacity:.14;pointer-events:none}
 .mod-header-num{font-size:11px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.8px;position:relative;z-index:1}
 .mod-header-title{font-weight:900;font-size:21px;line-height:1.15;margin:4px 0 6px;position:relative;z-index:1}
