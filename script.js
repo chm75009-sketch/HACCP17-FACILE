@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v212';
+var APP_BUILD = 'v213';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -12923,23 +12923,44 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       (getDonneesPeriode('page-temperatures', dateFrom, dateTo) || []).forEach(function(s){
         var _dS=''; try{ _dS=new Date(s.timestamp).toLocaleString('fr-FR'); }catch(eD){}
         var arr = (s.data && Array.isArray(s.data.temperatures)) ? s.data.temperatures : [];
-        arr.forEach(function(e){ e._sessDate=_dS; encs.push(e); });
+        arr.forEach(function(e){ e._sessDate=_dS; e._sessTs=s.timestamp; encs.push(e); });
       });
       var filled = encs.filter(function(e){ return e.temp || e.type !== '—'; });
       if (filled.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
       else {
-        filled.forEach(function(enc, ei) {
-          var bc = enc.isNC ? '#dc2626' : '#0891b2';
-          html += '<div style="margin:8px;border:1.5px solid ' + bc + ';border-radius:8px;overflow:hidden">';
-          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">Enceinte N' + (ei+1) + (enc.precision?' — '+esc(enc.precision):'') + (enc.refNum?' ('+esc(enc.refNum)+')':'') + (enc._sessDate?' · 📅 '+enc._sessDate:'') + '</div>';
+        // V… — REGROUPER PAR ENCEINTE : une seule carte par enceinte (fini les
+        // « Enceinte N1…N21 » pour une même enceinte relevée plusieurs fois).
+        var _grp = {}, _ord = [];
+        filled.forEach(function(e){
+          var key = (e.type || '—') + '|' + (e.precision || '');
+          if (!_grp[key]) { _grp[key] = []; _ord.push(key); }
+          _grp[key].push(e);
+        });
+        var _sondes = (typeof getSondesConfig === 'function') ? getSondesConfig() : [];
+        _ord.forEach(function(key, gi){
+          var list = _grp[key].slice().sort(function(a,b){ return new Date(a._sessTs||0) - new Date(b._sessTs||0); });
+          var e0 = list[0];
+          var anyNC = list.some(function(x){ return x.isNC; });
+          var bc = anyNC ? '#dc2626' : '#0891b2';
+          // seuil : depuis l'enceinte, sinon depuis le capteur associé (min/max)
+          var seuilTxt = _seuilTemp(e0);
+          if (!seuilTxt || seuilTxt === '—') {
+            for (var k=0;k<_sondes.length;k++){ if ((_sondes[k].enceinte||'')===e0.type){ var mn=_sondes[k].min, mx=_sondes[k].max; if (mn!=null && mx!=null) seuilTxt=((mn<0?'':'+')+mn)+' à '+((mx<0?'':'+')+mx)+'°C'; break; } }
+          }
+          var nbNC = list.filter(function(x){return x.isNC;}).length;
+          html += '<div style="margin:8px;border:1.5px solid ' + bc + ';border-radius:8px;overflow:hidden;page-break-inside:avoid">';
+          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">' + esc(e0.type || ('Enceinte N' + (gi+1))) + (e0.precision?' — '+esc(e0.precision):'') + (e0.refNum?' ('+esc(e0.refNum)+')':'') + '<span style="font-weight:600;opacity:.9"> · ' + list.length + ' relevé(s)' + (nbNC?' · ' + nbNC + ' NC':'') + (seuilTxt && seuilTxt!=='—' ? ' · seuil ' + esc(seuilTxt) : '') + '</span></div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
-          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Type</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + enc.type + '</td></tr>';
-          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">T° relevée</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (enc.temp?enc.temp+'°C':'—') + ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + _seuilTemp(enc) + ')</span></td></tr>';
-          html += '<tr><td style="padding:4px 8px;font-weight:600">Conformité</td><td style="padding:4px 8px;color:' + (enc.isNC?'#dc2626':'#16a34a') + ';font-weight:700">' + enc.conf + '</td></tr>';
-          if (enc.isNC) html += '<tr style="background:#fff8f8"><td style="padding:4px 8px;color:#dc2626;font-weight:700">Action</td><td style="padding:4px 8px;color:#dc2626;font-weight:700">' + (enc.action||'A définir') + '</td></tr>';
+          html += '<tr style="background:#f8fafc"><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700;width:42%">Date / heure</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">T° relevée</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Conformité</td></tr>';
+          list.forEach(function(enc){
+            html += '<tr>'
+              + '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">' + (enc._sessDate||'—') + '</td>'
+              + '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;font-weight:700">' + (enc.temp?enc.temp+'°C':'—') + '</td>'
+              + '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;color:' + (enc.isNC?'#dc2626':'#16a34a') + ';font-weight:700">' + (enc.conf || (enc.isNC?'Non conforme':'Conforme')) + (enc.isNC && enc.action?' — '+esc(enc.action):'') + '</td>'
+              + '</tr>';
+          });
           html += '</table></div>';
         });
-
       }
       html += '</div>'; return;
     }
