@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v224';
+var APP_BUILD = 'v225';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -12968,6 +12968,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           _grp[key].push(e);
         });
         var _sondes = (typeof getSondesConfig === 'function') ? getSondesConfig() : [];
+        var _encCfgAll = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
         _ord.forEach(function(key, gi){
           var list = _grp[key].slice().sort(function(a,b){ return new Date(a._sessTs||0) - new Date(b._sessTs||0); });
           var e0 = list[0];
@@ -12988,9 +12989,19 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           }
           var nbNC = list.filter(function(x){return x.isNC;}).length;
           html += '<div style="margin:8px;border:1.5px solid ' + bc + ';border-radius:8px;overflow:hidden;page-break-inside:avoid">';
-          var _titre = e0.nom || e0.type || ('Enceinte N' + (gi+1));
-          var _typeExtra = (e0.type && (typeof _ttNorm !== 'function' || _ttNorm(e0.type) !== _ttNorm(_titre))) ? ' · ' + esc(e0.type) : '';
-          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">' + esc(_titre) + _typeExtra + (e0.precision?' — '+esc(e0.precision):'') + (e0.refNum?' ('+esc(e0.refNum)+')':'') + '<span style="font-weight:600;opacity:.9"> · ' + list.length + ' relevé(s)' + (nbNC?' · ' + nbNC + ' NC':'') + (seuilTxt && seuilTxt!=='—' ? ' · seuil ' + esc(seuilTxt) : '') + '</span></div>';
+          // NUMÉRO d'enceinte sur CHAQUE carte (pas seulement celle sous capteur) :
+          // numéro = position dans la config des enceintes (sinon ordre d'affichage).
+          var _label = e0.nom || e0.type || '';
+          var _num = null, _idN = (typeof _ttNorm === 'function') ? _ttNorm(_label) : String(_label).toLowerCase();
+          for (var _q = 0; _q < _encCfgAll.length; _q++) { var _cnq = (typeof _ttNorm === 'function') ? _ttNorm((_encCfgAll[_q].nom || _encCfgAll[_q].name) || '') : ''; if (_cnq && _cnq === _idN) { _num = _q + 1; break; } }
+          if (_num == null) _num = gi + 1;
+          var _entete;
+          if (/^enceinte\s*n[°o]?\s*\d/i.test(_label)) {
+            _entete = esc(_label) + (e0.type && (typeof _ttNorm !== 'function' || _ttNorm(e0.type) !== _ttNorm(_label)) ? ' · ' + esc(e0.type) : '');
+          } else {
+            _entete = 'Enceinte N°' + _num + (_label ? ' — ' + esc(_label) : '');
+          }
+          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">' + _entete + (e0.precision?' — '+esc(e0.precision):'') + (e0.refNum?' ('+esc(e0.refNum)+')':'') + '<span style="font-weight:600;opacity:.9"> · ' + list.length + ' relevé(s)' + (nbNC?' · ' + nbNC + ' NC':'') + (seuilTxt && seuilTxt!=='—' ? ' · seuil ' + esc(seuilTxt) : '') + '</span></div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           html += '<tr style="background:#f8fafc"><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700;width:32%">Date / heure</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">T° relevée</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Conformité</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Saisie / Émargement</td></tr>';
           list.forEach(function(enc){
