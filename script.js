@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v215';
+var APP_BUILD = 'v216';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -2681,6 +2681,10 @@ function collecterDonneesTemperatures() {
     var refNumEl = document.getElementById('enc_ref_num_' + id);
     var refNum = refNumEl ? refNumEl.value || '' : '';
     var typeTxt = typeEl && typeEl.selectedIndex > 0 ? typeEl.options[typeEl.selectedIndex].text : '—';
+    // Nom de l'enceinte (titre du bloc, sans l'icône) — nécessaire pour la
+    // colonne du Tableau Excel des températures (appariement par nom d'enceinte).
+    var titleSpan = block.querySelector('.fblock-title span');
+    var encNom = titleSpan ? titleSpan.textContent.replace(/^[^0-9A-Za-zÀ-ÿ]+/, '').trim() : '';
     var isNC = ncEl ? ncEl.style.display !== 'none' : false;
     var actionTxt = (actionTypeEl && actionTypeEl.value) ? actionTypeEl.value : ((actionDetailEl && actionDetailEl.value) ? actionDetailEl.value : '');
     enceintes.push({
@@ -2688,6 +2692,7 @@ function collecterDonneesTemperatures() {
       precision: precisionEl ? precisionEl.value || '' : '',
       refNum: refNum,
       type: typeTxt,
+      nom: encNom,
       temp: tempEl ? tempEl.value : '',
       conf: confEl ? confEl.textContent.trim() : '—',
       isNC: isNC,
@@ -23551,9 +23556,13 @@ function _ttFetchControles(dateFrom, dateTo) {
       if (typeof ETAB_ID === 'undefined' || !ETAB_ID || typeof SUPABASE_URL === 'undefined') { resolve([]); return; }
       var dMin = new Date(dateFrom + 'T00:00:00').toISOString();
       var dMax = new Date(dateTo + 'T23:59:59').toISOString();
+      // Le module porte un nom différent selon la source : « Températures enceintes »
+      // (relevés capteur UbiBot, côté serveur) et « Températures Enceintes Froides »
+      // (relevé manuel, titre du module). On récupère les deux pour ne rien perdre.
+      var modulesTemp = '("Températures enceintes","Températures Enceintes Froides")';
       var url = SUPABASE_URL + '/rest/v1/controles_haccp'
         + '?code_client=eq.' + encodeURIComponent(String(ETAB_ID))
-        + '&module=eq.' + encodeURIComponent('Températures enceintes')
+        + '&module=in.' + encodeURIComponent(modulesTemp)
         + '&date_controle=gte.' + encodeURIComponent(dMin)
         + '&date_controle=lte.' + encodeURIComponent(dMax)
         + '&select=contenu,date_controle,recorded_at&order=date_controle.asc&limit=20000';
@@ -23579,7 +23588,8 @@ function _ttNormaliser(rows) {
     temps.forEach(function (t) {
       if (t == null) return;
       var raw = (t.temp === '' || t.temp == null) ? null : parseFloat(String(t.temp).replace(',', '.'));
-      out.push({ jour: jour, hour: hh, enceinte: String(t.type || '').trim(), channel: c.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme'), sig: sig });
+      // Identité de l'enceinte : nom (relevé manuel) puis type (relevé capteur UbiBot).
+      out.push({ jour: jour, hour: hh, enceinte: String(t.nom || t.type || '').trim(), channel: c.channel || t.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme'), sig: sig });
     });
   });
   return out;
