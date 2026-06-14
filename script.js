@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v236';
+var APP_BUILD = 'v237';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -19814,10 +19814,10 @@ function testEffacerDonnees() {
           showStatus('⚠️ Merci de renseigner au moins : nom de l\'établissement, responsable et e-mail.', 'err');
           return;
         }
-        // 3) SIRET : exactement 14 chiffres (espaces/points tolérés) — preuve DDPP.
+        // 3) SIREN (9 chiffres) OU SIRET (14 chiffres) — espaces/points tolérés (preuve DDPP).
         var _siretD = (((document.getElementById('insc_siret') || {}).value) || '').replace(/\D/g, '');
-        if (_siretD.length !== 14) {
-          showStatus('⚠️ Le SIRET doit comporter exactement 14 chiffres.', 'err');
+        if (_siretD.length !== 9 && _siretD.length !== 14) {
+          showStatus('⚠️ Indiquez un SIREN (9 chiffres) ou un SIRET (14 chiffres).', 'err');
           try { (document.getElementById('insc_siret') || {}).focus(); } catch (e) {}
           return;
         }
