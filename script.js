@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v223';
+var APP_BUILD = 'v224';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23569,6 +23569,7 @@ function _ttMatchEnc(rel, enceintes, capteurs) {
 function _ttResultatTexte(diag, okLabel, vide) {
   if (!diag || !diag.found) return vide;
   var s = '✓ ' + okLabel + ' — ' + diag.found + ' relevé(s) trouvé(s), ' + (diag.matched || 0) + ' reporté(s).';
+  if (diag.nc) s += ' ⚠️ ' + diag.nc + ' non conforme(s)';
   if (diag.merged) s += ' (' + diag.merged + ' regroupé(s) dans un même créneau)';
   var keys = diag.orphans ? Object.keys(diag.orphans) : [];
   if (keys.length) {
@@ -23748,6 +23749,7 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
     if (remplace) { map[key] = rel; if (!prev) matched++; }
     if (rel.sig) (sigJour[rel.jour] = sigJour[rel.jour] || {})[rel.sig] = true; // émargement du jour
     if (rel.isNC && rel.temp != null) {
+      if (diag) diag.nc = (diag.nc || 0) + 1; // total non-conformités (signalement)
       (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ') hors seuil');
     }
   });
@@ -23762,10 +23764,11 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
   ws.mergeCells('A2:' + last + '2');
   ws.getCell('A2').font = { bold: true, size: 11 };
   ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
-  // Tampon de génération (date + version) — pour vérifier la version qui a produit le fichier
-  ws.getCell('A3').value = 'Généré le ' + new Date().toLocaleString('fr-FR') + ' · HACCP Pro ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?') + ' · ' + (releves ? releves.length : 0) + ' relevé(s) sur la période';
+  // Tampon de génération (date + version) + SIGNALEMENT des non-conformités en tête.
+  var _ncFeuille = (releves || []).filter(function (r) { return r.isNC && r.temp != null; }).length;
+  ws.getCell('A3').value = 'Généré le ' + new Date().toLocaleString('fr-FR') + ' · HACCP Pro ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?') + ' · ' + (releves ? releves.length : 0) + ' relevé(s)' + (_ncFeuille ? ' · ⚠️ ' + _ncFeuille + ' NON CONFORME(S) — voir cases rouges et colonne Observations' : ' · ✓ aucune non-conformité');
   ws.mergeCells('A3:' + last + '3');
-  ws.getCell('A3').font = { italic: true, size: 8, color: { argb: 'FF64748B' } };
+  ws.getCell('A3').font = { italic: true, bold: !!_ncFeuille, size: 8, color: { argb: _ncFeuille ? 'FFB91C1C' : 'FF15803D' } };
   ws.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
 
   var hdr1 = 4, hdr2 = 5, hdr3 = 6, first = 7;
