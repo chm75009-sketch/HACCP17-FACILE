@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v221';
+var APP_BUILD = 'v222';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23600,10 +23600,19 @@ function _ttColonnes(releves) {
     var cfgHeures = (cap && Array.isArray(cap.heures)) ? cap.heures.filter(Boolean) : [];
     var hours;
     if (cfgHeures.length) {
-      // Colonnes = créneaux PARAMÉTRÉS du capteur (stables et lisibles). Chaque
-      // relevé réel se range dans le créneau le plus proche (snap, cf. _ttSubIndex)
-      // → fini l'explosion d'une colonne par minute (07:52 / 08:00 / 08:03…).
+      // Colonnes = créneaux PARAMÉTRÉS du capteur (stables et lisibles). Un relevé
+      // PROCHE d'un créneau (≤ 20 min) s'y range (fini l'explosion 07:52/08:00/08:03).
+      // Un relevé HORS créneau (ex. test à 15h) garde SA propre colonne (regroupée
+      // par 30 min) → on ne masque jamais un relevé fait en dehors des horaires.
       var _hu = {}; cfgHeures.forEach(function (h) { _hu[h] = true; });
+      var _slotsM = cfgHeures.map(function (h) { return _ttHM(h); });
+      var _TOL = 20;
+      if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) {
+        if (!h) return;
+        var m = _ttHM(h), pres = false;
+        for (var z = 0; z < _slotsM.length; z++) { if (Math.abs(m - _slotsM[z]) <= _TOL) { pres = true; break; } }
+        if (!pres) _hu[_ttRound30(h)] = true;
+      });
       hours = Object.keys(_hu).sort();
     } else {
       // Pas de créneaux paramétrés : on déduit des données, regroupées par 30 min.
