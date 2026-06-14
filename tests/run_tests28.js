@@ -132,6 +132,15 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ok(Array.isArray(t) && t.length > 0 && t.every(function (m) { return m.cat === 'quotidien' && m.ddpp; }), 'TDB: tâches du jour = modules quotidiens DDPP du secteur');
 }
 
+// ── K) TDB V2 : rappels périodiques (échéances + statut) ──
+{
+  ok(ctx._tdbAddDays('2026-01-01', 31) === '2026-02-01', 'TDB-périodique: calcul d\'échéance (+31 j)');
+  ok(ctx._tdbPerioStatut('', 'mensuel', '2026-03-01').etat === 'jamais', 'TDB-périodique: jamais fait → « jamais »');
+  ok(ctx._tdbPerioStatut('2026-01-01', 'mensuel', '2026-03-01').etat === 'retard', 'TDB-périodique: échéance dépassée → « retard »');
+  ok(ctx._tdbPerioStatut('2026-02-05', 'mensuel', '2026-03-01').etat === 'bientot', 'TDB-périodique: échéance < 7 j → « bientôt »');
+  ok(ctx._tdbPerioStatut('2026-03-01', 'mensuel', '2026-03-05').etat === 'ajour', 'TDB-périodique: dans les temps → « à jour »');
+}
+
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 console.log('════════════════════════════════════════');

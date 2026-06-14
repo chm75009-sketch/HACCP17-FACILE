@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v244';
+var APP_BUILD = 'v245';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -15671,8 +15671,9 @@ function renderBarometre() {
   } catch(e) {
     host.innerHTML = '';
   }
-  // TDB — rafraîchir le tableau de bord « À faire aujourd'hui » en même temps.
+  // TDB — rafraîchir les tableaux de bord (quotidien + périodique) en même temps.
   try { if (typeof renderTdbAfaire === 'function') renderTdbAfaire(); } catch (eTdb) {}
+  try { if (typeof renderTdbPerio === 'function') renderTdbPerio(); } catch (eTdb2) {}
 }
 function _baroEsc(s) {
   return String(s == null ? '' : s)
@@ -15778,7 +15779,149 @@ function renderTdbAfaire() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// MODULE ÉQUIPE — registre des personnes (utilisateurs des modules)
+// TDB V2 — Rappels PÉRIODIQUES (hebdo / mensuel / trimestriel / annuel)
+// Tâches à intervalles réguliers, avec échéance et FRÉQUENCE PERSONNALISABLE.
+//  • Tâches reliées à un module (nuisibles, déchets, analyses micro, documents) :
+//    « dernier fait » détecté automatiquement via l'historique.
+//  • Tâches sans contrôle dédié (grand nettoyage, étalonnage thermomètres, PMS,
+//    test refroidissement…) : bouton « ✓ Fait » (case à cocher) qui horodate.
+//  • Une tâche en retard ou jamais faite reste AFFICHÉE EN ROUGE jusqu'à réalisation.
+//  ⚠️ Les fréquences par défaut sont des SUGGESTIONS prudentes, librement modifiables
+//    par l'utilisateur — l'app n'affirme aucune obligation légale chiffrée.
+// ══════════════════════════════════════════════════════════════════
+var _TDB_PERIO_KEY = 'haccp_tdb_perio';
+var _TDB_PERIO_FREQ = { hebdo: 7, mensuel: 30, trimestriel: 91, semestriel: 182, annuel: 365 };
+var _TDB_PERIO_FREQ_LBL = { hebdo: 'Chaque semaine', mensuel: 'Chaque mois', trimestriel: 'Chaque trimestre', semestriel: 'Chaque semestre', annuel: 'Chaque année' };
+// Libellés d'historique pour les tâches périodiques reliées à un module.
+var _TDB_PERIO_LABELS = {
+  nuisibles:        ['Suivi nuisibles'],
+  dechets:          ['Déchets & Biodéchets'],
+  documents:        ['Contrôle documentaire'],
+  'analyses-micro': ['Analyses Microbiologiques']
+};
+// Liste par défaut (id, libellé, fréquence par défaut, moduleId si relié à un contrôle,
+// secteurs facultatifs). Personnalisable côté utilisateur (fréquence + « fait »).
+function _tdbPerioDefaut() {
+  var sect = (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? SECTEUR_ACTIF : '';
+  var base = [
+    { id: 'nuisibles',     label: 'Suivi nuisibles / dératisation',                   freq: 'trimestriel', moduleId: 'nuisibles' },
+    { id: 'grand_menage',  label: 'Grand nettoyage / nettoyage approfondi',           freq: 'mensuel' },
+    { id: 'verif_dlc',     label: 'Vérification des DLC / rotation des stocks',        freq: 'mensuel' },
+    { id: 'etalonnage',    label: 'Vérification / étalonnage des thermomètres',        freq: 'annuel' },
+    { id: 'docs',          label: 'Vérif. documents obligatoires (agrément, formations, contrats)', freq: 'annuel', moduleId: 'documents' },
+    { id: 'pms',           label: 'Mise à jour du Plan de Maîtrise Sanitaire (PMS)',   freq: 'annuel' }
+  ];
+  if (sect === 'bp') base.splice(1, 0, { id: 'test_refroid', label: 'Test de refroidissement (2–3 produits)', freq: 'trimestriel' });
+  if (sect === 'collective') base.push({ id: 'analyses', label: 'Analyses microbiologiques', freq: 'mensuel', moduleId: 'analyses-micro' });
+  return base;
+}
+function _tdbPerioConf() {
+  try { var c = JSON.parse(lsGet(_TDB_PERIO_KEY) || '{}'); return (c && typeof c === 'object') ? c : {}; } catch (e) { return {}; }
+}
+function _tdbPerioSaveConf(c) { try { lsSet(_TDB_PERIO_KEY, JSON.stringify(c || {})); } catch (e) {} }
+function _tdbAddDays(iso, n) { var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().split('T')[0]; }
+function _tdbDateFr(iso) { if (!iso) return '—'; var p = String(iso).split('-'); return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : iso; }
+// Dernier « fait » d'une tâche reliée à un module (date max dans l'historique, secteur actif).
+function _tdbPerioLastModule(moduleId) {
+  var labels = _TDB_PERIO_LABELS[moduleId] || [];
+  if (!labels.length) return '';
+  var best = '';
+  try {
+    var hist = JSON.parse(lsGet('haccp_historique') || '[]');
+    if (!Array.isArray(hist)) hist = [];
+    if (typeof _secteurActifMatch === 'function') hist = hist.filter(function (en) { return _secteurActifMatch(en); });
+    hist.forEach(function (en) { if (en && en.module && en.date && labels.indexOf(en.module) > -1 && en.date > best) best = en.date; });
+  } catch (e) {}
+  return best;
+}
+// Statut d'une tâche à partir de son dernier « fait », de sa fréquence et de la date du jour.
+function _tdbPerioStatut(lastDone, freq, today) {
+  var days = _TDB_PERIO_FREQ[freq] || 30;
+  if (!lastDone) return { etat: 'jamais', next: null };
+  var next = _tdbAddDays(lastDone, days);
+  if (today > next) return { etat: 'retard', next: next };
+  if (next <= _tdbAddDays(today, 7)) return { etat: 'bientot', next: next };
+  return { etat: 'ajour', next: next };
+}
+// Marquer une tâche manuelle comme faite aujourd'hui.
+function _tdbPerioFait(id) {
+  var c = _tdbPerioConf();
+  c[id] = c[id] || {};
+  c[id].lastDone = new Date().toISOString().split('T')[0];
+  _tdbPerioSaveConf(c);
+  renderTdbPerio();
+}
+// Changer la fréquence d'une tâche (personnalisation).
+function _tdbPerioFreqChange(id, val) {
+  if (!_TDB_PERIO_FREQ[val]) return;
+  var c = _tdbPerioConf();
+  c[id] = c[id] || {};
+  c[id].freq = val;
+  _tdbPerioSaveConf(c);
+  renderTdbPerio();
+}
+function renderTdbPerio() {
+  var host = document.getElementById('tdbPerio');
+  if (!host) return;
+  try {
+    var conf = _tdbPerioConf();
+    var today = new Date().toISOString().split('T')[0];
+    var taches = _tdbPerioDefaut().map(function (t) {
+      var cf = conf[t.id] || {};
+      var freq = cf.freq || t.freq;
+      var last = t.moduleId ? _tdbPerioLastModule(t.moduleId) : (cf.lastDone || '');
+      // une coche manuelle plus récente que l'historique l'emporte (cas rare)
+      if (cf.lastDone && cf.lastDone > last) last = cf.lastDone;
+      var st = _tdbPerioStatut(last, freq, today);
+      return { t: t, freq: freq, last: last, st: st };
+    });
+    var rang = { jamais: 0, retard: 1, bientot: 2, ajour: 3 };
+    taches.sort(function (a, b) { return rang[a.st.etat] - rang[b.st.etat]; });
+    var enRetard = taches.filter(function (x) { return x.st.etat === 'jamais' || x.st.etat === 'retard'; }).length;
+    var coulH = enRetard === 0 ? '#16a34a' : '#dc2626';
+    var etatH = enRetard === 0 ? 'À jour' : (enRetard + ' en retard');
+    var html = '<div style="background:white;border-radius:16px;padding:14px 16px 10px;box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      + '<div style="font-size:13px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:6px">📅 Rappels périodiques</div>'
+      + '<div style="font-size:10px;font-weight:800;color:' + coulH + ';background:' + coulH + '1a;padding:3px 9px;border-radius:20px">' + _baroEsc(etatH) + '</div>'
+      + '</div>'
+      + '<div style="font-size:10.5px;color:#9ca3af;margin-bottom:10px">Fréquences modifiables. Échéance = dernier fait + fréquence.</div>';
+    var STY = {
+      jamais:  { ic: '⬜', c: '#dc2626', bg: '#fff7f7', bd: '#fee2e2', txt: 'Jamais fait' },
+      retard:  { ic: '⚠️', c: '#dc2626', bg: '#fff7f7', bd: '#fee2e2', txt: 'En retard' },
+      bientot: { ic: '🔔', c: '#b45309', bg: '#fffbeb', bd: '#fde68a', txt: 'Bientôt' },
+      ajour:   { ic: '✅', c: '#16a34a', bg: '#f0fdf4', bd: '#dcfce7', txt: 'À jour' }
+    };
+    taches.forEach(function (x) {
+      var s = STY[x.st.etat];
+      var detail = x.st.etat === 'jamais' ? 'À planifier' :
+        (x.st.etat === 'retard' ? ('À refaire (échéance dépassée : ' + _tdbDateFr(x.st.next) + ')') :
+        ('Prochaine échéance : ' + _tdbDateFr(x.st.next)));
+      // sélecteur de fréquence
+      var sel = '<select onchange="_tdbPerioFreqChange(\'' + x.t.id + '\',this.value)" onclick="event.stopPropagation()" style="font-size:10.5px;font-weight:700;color:#374151;border:1px solid #e5e7eb;border-radius:8px;padding:3px 6px;background:#fff">';
+      ['hebdo', 'mensuel', 'trimestriel', 'semestriel', 'annuel'].forEach(function (f) {
+        sel += '<option value="' + f + '"' + (f === x.freq ? ' selected' : '') + '>' + _TDB_PERIO_FREQ_LBL[f] + '</option>';
+      });
+      sel += '</select>';
+      // action : module → ouvrir ; manuel → bouton « ✓ Fait »
+      var action = x.t.moduleId
+        ? '<button onclick="event.stopPropagation();openModule(\'' + x.t.moduleId + '\')" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:9px;padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap">Ouvrir ›</button>'
+        : '<button onclick="event.stopPropagation();_tdbPerioFait(\'' + x.t.id + '\')" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:9px;padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap">✓ Fait</button>';
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:6px;border-radius:11px;background:' + s.bg + ';border:1px solid ' + s.bd + '">'
+        + '<div style="font-size:18px;flex-shrink:0">' + s.ic + '</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:12.5px;font-weight:700;color:#1f2937">' + _baroEsc(x.t.label) + '</div>'
+        + '<div style="font-size:10.5px;font-weight:700;color:' + s.c + ';margin:1px 0 4px">' + s.txt + ' · ' + _baroEsc(detail) + '</div>'
+        + sel
+        + '</div>'
+        + action
+        + '</div>';
+    });
+    html += '</div>';
+    host.innerHTML = html;
+  } catch (e) { host.innerHTML = ''; }
+}
+
 // ══════════════════════════════════════════════════════════════════
 var EQUIPE_KEY = 'haccp_equipe';
 var EQUIPE_MAJ_KEY = 'haccp_equipe_maj';      // horodatage de la dernière modif locale (pour la fusion cloud)
