@@ -42,6 +42,24 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   var l2 = (cols2[0] && cols2[0].subs ? cols2[0].subs.map(function (s) { return s.label; }) : []);
   ok(l2.filter(function (x) { return x === '16:45'; }).length === 2, 'Excel: 2 relevés à la même minute → 2 colonnes (aucun relevé masqué)');
 }
+// ── E) VERROU : AUCUN relevé ne peut être perdu (matched + merged + orphelins == total) ──
+{
+  var rel = [];
+  for (var d = 1; d <= 5; d++) {
+    var j = '2026-06-0' + d;
+    rel.push({ jour: j, hour: '08:00', enceinte: 'Enceinte N°1', temp: -19, isNC: false, auto: true, sig: 'Relevé auto. (UbiBot)' });
+    rel.push({ jour: j, hour: '08:00', enceinte: 'Enceinte N°1', temp: -12, isNC: true, auto: false, sig: 'Mounir' }); // même minute → 2e colonne
+    rel.push({ jour: j, hour: '14:33', enceinte: 'Enceinte N°2', temp: 3, isNC: false, auto: false, sig: 'Léa' });
+    rel.push({ jour: j, hour: '19:05', enceinte: 'Enceinte N°1', temp: -20, isNC: false, auto: true, sig: 'Relevé auto. (UbiBot)' }); // hors créneau
+  }
+  rel.push({ jour: '2026-06-03', hour: '10:00', enceinte: '', temp: 5, isNC: false }); // sans nom → signalé orphelin
+  var diag = { found: rel.length, matched: 0, merged: 0, orphans: {} };
+  var cols = ctx._ttColonnes(rel);
+  ctx._ttIndexer(cols, rel, diag);
+  var orphTot = Object.keys(diag.orphans).reduce(function (a, k) { return a + diag.orphans[k]; }, 0);
+  var compte = diag.matched + diag.merged + orphTot;
+  ok(compte === rel.length, 'VERROU: tous les relevés comptabilisés (' + compte + '/' + rel.length + ') — aucun perdu');
+}
 
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');

@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v230';
+var APP_BUILD = 'v231';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23585,10 +23585,15 @@ function _ttResultatTexte(diag, okLabel, vide) {
   if (diag.merged) s += ' (' + diag.merged + ' regroupé(s) dans un même créneau)';
   if (diag.tronque) s += ' ⚠️ LIMITE ATTEINTE (100000) — données tronquées, téléchargez par périodes plus courtes.';
   var keys = diag.orphans ? Object.keys(diag.orphans) : [];
+  var orphTot = keys.reduce(function (a, k) { return a + diag.orphans[k]; }, 0);
   if (keys.length) {
-    var tot = keys.reduce(function (a, k) { return a + diag.orphans[k]; }, 0);
-    s += ' ⚠️ ' + tot + ' non reporté(s) — enceinte(s) sans correspondance : ' + keys.map(function (k) { return k + ' (' + diag.orphans[k] + ')'; }).join(', ') + '.';
+    s += ' ⚠️ ' + orphTot + ' non reporté(s) — enceinte(s) sans correspondance : ' + keys.map(function (k) { return k + ' (' + diag.orphans[k] + ')'; }).join(', ') + '.';
   }
+  // VERROU — auto-certification : chaque relevé doit être comptabilisé
+  // (placé + regroupé/documenté + signalé). Sinon, alerte explicite.
+  var compte = (diag.matched || 0) + (diag.merged || 0) + orphTot;
+  if (compte >= diag.found) s += ' 🔒 Tous les relevés sont comptabilisés (' + compte + '/' + diag.found + ').';
+  else s += ' ⛔ ANOMALIE : ' + (diag.found - compte) + ' relevé(s) non comptabilisé(s) — contactez le support, ne supprimez rien.';
   return s;
 }
 
@@ -23720,17 +23725,13 @@ function _ttNormaliser(rows) {
   return out;
 }
 
-// Construit une feuille ExcelJS pour une liste de jours (YYYY-MM-DD) + relevés.
-// `diag` (optionnel) accumule matched + orphans (filet anti-perte n°1).
-function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
-  var nSub = 0; cols.forEach(function (c) { nSub += c.subs.length; });
-  var totalCols = 1 + nSub + 2; // Date + sous-colonnes + Observations + Signature
-  var last = _ttColLetter(totalCols);
-
-  // Index des relevés : clé jour|enceinteIdx|subIdx. Appariement robuste :
-  // 1) par CANAL (le plus fiable), 2) par NOM normalisé (accents/espaces tolérés).
+// VERROU RELEVÉS — placement PUR (sans ExcelJS), donc testable. Garantit que CHAQUE
+// relevé est comptabilisé : soit placé dans sa case (matched), soit documenté en
+// Observations en cas de collision (merged), soit signalé orphelin (diag.orphans).
+// Invariant : matched + merged + Σorphans === nombre de relevés. (cf. test round 28)
+function _ttIndexer(cols, releves, diag) {
   var map = {}, obsJour = {}, sigJour = {}, matched = 0, occUsed = {};
-  releves.forEach(function (rel) {
+  (releves || []).forEach(function (rel) {
     var ci = -1;
     for (var i = 0; i < cols.length; i++) { if (cols[i].channel && rel.channel && String(cols[i].channel) === String(rel.channel)) { ci = i; break; } }
     if (ci < 0) {
@@ -23738,15 +23739,13 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
       if (rn) for (var k = 0; k < cols.length; k++) { var cn = _ttNorm(cols[k].nom); if (cn && (cn === rn || cn.indexOf(rn) >= 0 || rn.indexOf(cn) >= 0)) { ci = k; break; } }
     }
     if (ci < 0) {
-      // n°1 — filet anti-perte : relevé sans colonne correspondante → on le signale
-      // au lieu de l'abandonner en silence.
+      // filet anti-perte : relevé sans colonne → signalé (jamais abandonné en silence).
       if (diag) { var nm = String(rel.enceinte || '').trim() || '(sans nom)'; (diag.orphans = diag.orphans || {})[nm] = (diag.orphans[nm] || 0) + 1; }
       return;
     }
     var src = rel.auto ? '(capteur)' : '(manuel)';
     var h = rel.hour || '';
-    // Place le relevé dans une sous-colonne DÉDIÉE de cette heure (multiplicité) → on
-    // reporte CHAQUE relevé (manuel + capteur) sans jamais fusionner.
+    // sous-colonne DÉDIÉE de cette heure (multiplicité) → chaque relevé sa case.
     var idxs = []; cols[ci].subs.forEach(function (s, idx) { if ((s.hour || '') === h) idxs.push(idx); });
     var si;
     if (idxs.length) {
@@ -23755,15 +23754,15 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
       si = idxs[used < idxs.length ? used : idxs.length - 1];
       occUsed[okk] = used + 1;
     } else {
-      si = _ttSubIndex(cols[ci], rel.hour); // repli (colonne « Jour » / heure absente)
+      si = _ttSubIndex(cols[ci], rel.hour); // repli (colonne « Jour »/heure absente)
     }
     var key = rel.jour + '|' + ci + '|' + si;
     var prev = map[key];
     if (!prev) {
       map[key] = rel; matched++;
     } else {
-      // Repli très rare : 2 relevés dans la même case malgré la multiplicité. On ne
-      // masque jamais une NC ; l'autre valeur est documentée AVEC sa source.
+      // Repli ultra-rare : 2 relevés dans la même case. NC jamais masquée ; l'autre
+      // valeur documentée AVEC sa source (capteur/manuel).
       var garde, jete;
       if (!!rel.isNC && !prev.isNC) { garde = rel; jete = prev; }
       else if (!rel.isNC && !!prev.isNC) { garde = prev; jete = rel; }
@@ -23775,18 +23774,32 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
         (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + jete.temp + '°C (' + jete.hour + ' ' + (jete.auto ? '(capteur)' : '(manuel)') + ') aussi relevé' + (jete.isNC ? ' — hors seuil' : ''));
       }
     }
-    // Émargement du jour, SÉPARÉ capteur / manuel
+    // Émargement du jour, SÉPARÉ capteur / manuel.
     var sg = sigJour[rel.jour] || (sigJour[rel.jour] = { auto: false, noms: {} });
     if (rel.auto) sg.auto = true; else if (rel.sig) sg.noms[rel.sig] = true;
     if (rel.isNC && rel.temp != null) {
-      if (diag) diag.nc = (diag.nc || 0) + 1; // total non-conformités (signalement)
+      if (diag) diag.nc = (diag.nc || 0) + 1;
       (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ' ' + src + ') hors seuil');
     }
-    if (rel.offline) { // capteur hors ligne sur ce créneau → on le documente
+    if (rel.offline) {
       (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' capteur hors ligne (' + rel.hour + ')');
     }
   });
   if (diag) diag.matched = (diag.matched || 0) + matched;
+  return { map: map, obsJour: obsJour, sigJour: sigJour };
+}
+
+// Construit une feuille ExcelJS pour une liste de jours (YYYY-MM-DD) + relevés.
+// `diag` (optionnel) accumule matched + orphans (filet anti-perte n°1).
+function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
+  var nSub = 0; cols.forEach(function (c) { nSub += c.subs.length; });
+  var totalCols = 1 + nSub + 2; // Date + sous-colonnes + Observations + Signature
+  var last = _ttColLetter(totalCols);
+
+  // Placement des relevés via la fonction PURE _ttIndexer (VERROU : chaque relevé
+  // comptabilisé). Voir invariant matched+merged+orphans === nb relevés.
+  var _ix = _ttIndexer(cols, releves, diag);
+  var map = _ix.map, obsJour = _ix.obsJour, sigJour = _ix.sigJour;
 
   // En-têtes haut de feuille
   ws.getCell('A1').value = titre;
