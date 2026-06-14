@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v228';
+var APP_BUILD = 'v229';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23755,13 +23755,24 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
     var si = _ttSubIndex(cols[ci], rel.hour);
     var key = rel.jour + '|' + ci + '|' + si;
     var prev = map[key];
-    // n°4 — anti-collision même enceinte/heure/jour : garder le relevé MANUEL (signé)
-    // plutôt que l'automatique ; à type égal, garder celui qui porte une température.
-    var remplace = !prev
-      || (prev.auto && !rel.auto)
-      || (prev.auto === rel.auto && (prev.temp == null) && (rel.temp != null));
-    if (prev && diag) diag.merged = (diag.merged || 0) + 1; // collision créneau → 1 relevé regroupé
-    if (remplace) { map[key] = rel; if (!prev) matched++; }
+    if (!prev) {
+      map[key] = rel; matched++;
+    } else {
+      // Collision même enceinte/minute (ex. relevé manuel + relevé capteur à 16:45).
+      // RÈGLE HACCP : ne JAMAIS masquer une non-conformité → la NC l'emporte dans la
+      // case ; sinon on garde celui qui porte une température. L'autre valeur n'est PAS
+      // perdue : elle est documentée en Observations.
+      var garde, jete;
+      if (!!rel.isNC && !prev.isNC) { garde = rel; jete = prev; }
+      else if (!rel.isNC && !!prev.isNC) { garde = prev; jete = rel; }
+      else if (rel.temp != null && prev.temp == null) { garde = rel; jete = prev; }
+      else { garde = prev; jete = rel; }
+      map[key] = garde;
+      if (diag) diag.merged = (diag.merged || 0) + 1;
+      if (jete && jete.temp != null) {
+        (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + jete.temp + '°C (' + jete.hour + ') aussi relevé' + (jete.isNC ? ' — hors seuil' : ''));
+      }
+    }
     if (rel.sig) (sigJour[rel.jour] = sigJour[rel.jour] || {})[rel.sig] = true; // émargement du jour
     if (rel.isNC && rel.temp != null) {
       if (diag) diag.nc = (diag.nc || 0) + 1; // total non-conformités (signalement)
