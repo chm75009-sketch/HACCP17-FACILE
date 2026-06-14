@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v243';
+var APP_BUILD = 'v244';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -15671,11 +15671,110 @@ function renderBarometre() {
   } catch(e) {
     host.innerHTML = '';
   }
+  // TDB — rafraîchir le tableau de bord « À faire aujourd'hui » en même temps.
+  try { if (typeof renderTdbAfaire === 'function') renderTdbAfaire(); } catch (eTdb) {}
 }
 function _baroEsc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TDB — Tableau de bord « À faire aujourd'hui »
+// Liste les contrôles QUOTIDIENS attendus pour le secteur actif et indique, pour
+// chacun, s'il a déjà été fait aujourd'hui (détecté via haccp_historique — local,
+// hors-ligne, même source que le baromètre). Ce qui reste à faire est mis en
+// évidence et ne disparaît que lorsque le contrôle est réalisé. Additif : aucune
+// logique existante n'est modifiée. (V2 à venir : tâches périodiques + cases à
+// cocher manuelles avec échéances — voir ROADMAP.md.)
+// ══════════════════════════════════════════════════════════════════
+// Correspondance id de module ↔ libellé(s) écrits dans l'historique (sauvegarderHistorique).
+var _TDB_LABELS = {
+  reception:            ['Réception & Traçabilité', 'Traçabilité produits'],
+  temperatures:         ['Températures enceintes'],
+  hygiene:              ['Hygiène & Tenue'],
+  nettoyage:            ['Nettoyage ouverture', 'Nettoyage fermeture'],
+  cuisson:              ['Cuisson & Remise T'],
+  refroidissement:      ['Refroidissement rapide'],
+  huiles:               ['Huiles de friture'],
+  etiquetage:           ['Étiquetage interne'],
+  pertes:               ['Pertes & Invendus'],
+  'plat-temoin':        ['Plat Témoin'],
+  'liaison-thermique':  ['Liaison Thermique'],
+  'registre-convives':  ['Registre Convives']
+};
+// Tâches quotidiennes attendues pour le secteur actif (mêmes règles que renderMods).
+function _tdbTaches() {
+  if (typeof MODULES === 'undefined' || !MODULES) return [];
+  var sect = (typeof SECTEUR_ACTIF !== 'undefined' && SECTEUR_ACTIF) ? SECTEUR_ACTIF : '';
+  return MODULES.filter(function (m) {
+    if (m.cat !== 'quotidien') return false;
+    if (!m.ddpp) return false;                                   // on ne « rappelle » que les contrôles réglementaires
+    if (m.secteurs && m.secteurs.indexOf(sect) === -1) return false;
+    return true;
+  });
+}
+// Ensemble des libellés de contrôles déjà faits AUJOURD'HUI (secteur actif).
+function _tdbFaitsSet() {
+  var set = {};
+  try {
+    var today = new Date().toISOString().split('T')[0];
+    var hist = JSON.parse(lsGet('haccp_historique') || '[]');
+    if (!Array.isArray(hist)) hist = [];
+    if (typeof _secteurActifMatch === 'function') hist = hist.filter(function (en) { return _secteurActifMatch(en); });
+    hist.forEach(function (en) { if (en && en.date === today && en.module) set[en.module] = true; });
+  } catch (e) {}
+  return set;
+}
+// Un module est-il « fait » aujourd'hui ? (un de ses libellés présent dans le set)
+function _tdbEstFait(m, set) {
+  if (!m || !set) return false;
+  var labels = _TDB_LABELS[m.id] || [m.name];
+  for (var i = 0; i < labels.length; i++) { if (set[labels[i]]) return true; }
+  return false;
+}
+function renderTdbAfaire() {
+  var host = document.getElementById('tdbAfaire');
+  if (!host) return;
+  try {
+    var taches = _tdbTaches();
+    if (!taches.length) { host.innerHTML = ''; return; }
+    var set = _tdbFaitsSet();
+    var faits = 0;
+    var lignes = taches.map(function (m) {
+      var ok = _tdbEstFait(m, set);
+      if (ok) faits++;
+      return { m: m, ok: ok };
+    });
+    // À faire d'abord, faits ensuite
+    lignes.sort(function (a, b) { return (a.ok === b.ok) ? 0 : (a.ok ? 1 : -1); });
+    var total = taches.length;
+    var reste = total - faits;
+    var couleur = reste === 0 ? '#16a34a' : (faits === 0 ? '#dc2626' : '#f59e0b');
+    var titreEtat = reste === 0 ? 'Tout est fait aujourd\'hui 🎉' : (reste + ' contrôle' + (reste > 1 ? 's' : '') + ' à faire');
+    var html = '<div style="background:white;border-radius:16px;padding:14px 16px 10px;box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+      + '<div style="font-size:13px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:6px">📋 À faire aujourd\'hui</div>'
+      + '<div style="font-size:10px;font-weight:800;color:' + couleur + ';background:' + couleur + '1a;padding:3px 9px;border-radius:20px">' + faits + '/' + total + ' · ' + _baroEsc(titreEtat) + '</div>'
+      + '</div>';
+    lignes.forEach(function (l) {
+      var m = l.m;
+      var ico = l.ok ? '✅' : '⬜';
+      var coul = l.ok ? '#16a34a' : '#dc2626';
+      var bg = l.ok ? '#f0fdf4' : '#fff7f7';
+      var nom = (m.name || '').replace(/^[^—]*—\s*/, '');  // raccourci lisible
+      html += '<div onclick="openModule(\'' + m.id + '\')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:6px;border-radius:11px;background:' + bg + ';cursor:pointer;border:1px solid ' + (l.ok ? '#dcfce7' : '#fee2e2') + '">'
+        + '<div style="font-size:18px;flex-shrink:0">' + ico + '</div>'
+        + '<div style="font-size:18px;flex-shrink:0">' + m.ico + '</div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:700;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _baroEsc(nom) + '</div>'
+        + '<div style="font-size:10.5px;font-weight:700;color:' + coul + '">' + (l.ok ? 'Fait' : 'À faire') + '</div></div>'
+        + '<div style="color:#d1d5db;font-size:18px;flex-shrink:0">›</div>'
+      + '</div>';
+    });
+    html += '</div>';
+    host.innerHTML = html;
+  } catch (e) { host.innerHTML = ''; }
 }
 
 // ══════════════════════════════════════════════════════════════════

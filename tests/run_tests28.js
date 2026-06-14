@@ -120,6 +120,18 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ok(!bn.style.minWidth, 'NAV: un bouton normal (« Valider ») n\'est PAS modifié');
 }
 
+// ── J) TDB : tableau de bord « À faire aujourd'hui » ──
+{
+  var mTemp = { id: 'temperatures', name: 'Relevé — Températures', ico: '🌡️', cat: 'quotidien', ddpp: true };
+  ok(ctx._tdbEstFait(mTemp, { 'Températures enceintes': true }) === true, 'TDB: contrôle détecté « fait » via son libellé d\'historique');
+  ok(ctx._tdbEstFait(mTemp, {}) === false, 'TDB: contrôle « à faire » si absent de l\'historique du jour');
+  var mNet = { id: 'nettoyage', name: 'Nettoyage', ico: '🧹', cat: 'quotidien', ddpp: true };
+  ok(ctx._tdbEstFait(mNet, { 'Nettoyage fermeture': true }) === true, 'TDB: nettoyage reconnu via l\'un de ses 2 libellés (ouverture/fermeture)');
+  ctx.SECTEUR_ACTIF = 'resto';
+  var t = ctx._tdbTaches();
+  ok(Array.isArray(t) && t.length > 0 && t.every(function (m) { return m.cat === 'quotidien' && m.ddpp; }), 'TDB: tâches du jour = modules quotidiens DDPP du secteur');
+}
+
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 console.log('════════════════════════════════════════');
