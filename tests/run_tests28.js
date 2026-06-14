@@ -130,6 +130,12 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ctx.SECTEUR_ACTIF = 'resto';
   var t = ctx._tdbTaches();
   ok(Array.isArray(t) && t.length > 0 && t.every(function (m) { return m.cat === 'quotidien' && m.ddpp; }), 'TDB: tâches du jour = modules quotidiens DDPP du secteur');
+  // _tdbStatutMap : statut « fait/à faire » par module (sert à décorer les boutons, anti-doublon)
+  ctx.localStorage.setItem('haccp_historique', JSON.stringify([]));
+  ok(ctx._tdbStatutMap().temperatures === 'afaire', 'TDB-statut: sans historique → « à faire »');
+  var auj = new Date().toISOString().split('T')[0];
+  ctx.localStorage.setItem('haccp_historique', JSON.stringify([{ date: auj, module: 'Températures enceintes', secteur: 'resto' }]));
+  ok(ctx._tdbStatutMap().temperatures === 'fait', 'TDB-statut: contrôle fait aujourd\'hui → « fait » (statut porté par le bouton, pas de liste en double)');
 }
 
 // ── K) TDB V2 : rappels périodiques (échéances + statut) ──

@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v246';
+var APP_BUILD = 'v247';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -7406,12 +7406,18 @@ function renderMods(cat) {
     if (m.secteurs && m.secteurs.indexOf(sect) === -1) return false;
     return true;
   });
+  // Statut RÉEL « fait / à faire aujourd'hui » (remplace les anciens badges statiques
+  // « Auj. 3 / OK » qui étaient trompeurs). Seuls les contrôles quotidiens suivis ont
+  // un statut ; les autres modules n'affichent plus de badge factice.
+  var _statut = (typeof _tdbStatutMap === 'function') ? _tdbStatutMap() : {};
   grid.innerHTML = mods.map(function(m, i) {
+    var st = _statut[m.id];
+    var badge = st ? ('<div class="mod-badge' + (st === 'afaire' ? ' alert' : '') + '" style="background:' + (st === 'fait' ? '#dcfce7' : '#fee2e2') + ';color:' + (st === 'fait' ? '#15803d' : '#dc2626') + '">' + (st === 'fait' ? '✅ Fait' : '⬜ À faire') + '</div>') : '';
     return '<button class="mod ' + m.color + '" onclick="openModule(\'' + m.id + '\')" style="animation-delay:' + (i*0.04) + 's">' +
       '<div class="mod-ico">' + m.ico + '</div>' +
       '<div class="mod-name">' + m.name + '</div>' +
       (m.fn ? '<div class="mod-fn">' + m.fn + '</div>' : '') +
-      '<div class="mod-badge' + (m.alert?' alert':m.option?' option':'') + '">' + m.badge + '</div>' +
+      badge +
       (m.ddpp ? '<div class="mod-ddpp">🔴 DDPP</div>' : '') +
       '<div class="mod-freq">' + m.freq + '</div>' +
       '</button>';
@@ -15671,9 +15677,11 @@ function renderBarometre() {
   } catch(e) {
     host.innerHTML = '';
   }
-  // TDB — rafraîchir les tableaux de bord (quotidien + périodique) en même temps.
+  // TDB — rafraîchir le résumé du jour + les rappels périodiques + les pastilles de
+  // statut sur les boutons du mode guidé (la grille experte est décorée par renderMods).
   try { if (typeof renderTdbAfaire === 'function') renderTdbAfaire(); } catch (eTdb) {}
   try { if (typeof renderTdbPerio === 'function') renderTdbPerio(); } catch (eTdb2) {}
+  try { if (typeof _tdbMajGuide === 'function') _tdbMajGuide(); } catch (eTdb3) {}
 }
 function _baroEsc(s) {
   return String(s == null ? '' : s)
@@ -15743,6 +15751,41 @@ function _tdbToggleOpen(which) {
   if (which === 'perio') { if (typeof renderTdbPerio === 'function') renderTdbPerio(); }
   else { if (typeof renderTdbAfaire === 'function') renderTdbAfaire(); }
 }
+// Statut « fait / à faire aujourd'hui » par module suivi (pour décorer les boutons).
+function _tdbStatutMap() {
+  var map = {};
+  try {
+    var set = _tdbFaitsSet();
+    _tdbTaches().forEach(function (m) { map[m.id] = _tdbEstFait(m, set) ? 'fait' : 'afaire'; });
+  } catch (e) {}
+  return map;
+}
+// Décore les cartes du MODE GUIDÉ (« Que voulez-vous faire ? ») d'une pastille
+// ✅ Fait / ⬜ À faire, sans dupliquer une liste séparée. (La grille EXPERTE est, elle,
+// décorée directement dans renderMods.)
+function _tdbMajGuide() {
+  try {
+    var map = _tdbStatutMap();
+    var cards = document.querySelectorAll('#page-guide [onclick^="openModule("]');
+    Array.prototype.forEach.call(cards, function (card) {
+      if (card.closest && card.closest('#modsGrid')) return;   // grille experte : gérée par renderMods
+      var oc = card.getAttribute('onclick') || '';
+      var mm = oc.match(/openModule\('([^']+)'\)/);
+      if (!mm) return;
+      var st = map[mm[1]];
+      var chip = card.querySelector('.tdb-chip');
+      if (!st) { if (chip) chip.parentNode.removeChild(chip); return; }
+      if (!chip) {
+        chip = document.createElement('div');
+        chip.className = 'tdb-chip';
+        chip.style.cssText = 'flex-shrink:0;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap;margin-left:4px';
+        if (card.lastElementChild) card.insertBefore(chip, card.lastElementChild); else card.appendChild(chip);
+      }
+      if (st === 'fait') { chip.textContent = '✅ Fait'; chip.style.background = '#dcfce7'; chip.style.color = '#15803d'; }
+      else { chip.textContent = '⬜ À faire'; chip.style.background = '#fee2e2'; chip.style.color = '#dc2626'; }
+    });
+  } catch (e) {}
+}
 function renderTdbAfaire() {
   var host = document.getElementById('tdbAfaire');
   if (!host) return;
@@ -15750,43 +15793,18 @@ function renderTdbAfaire() {
     var taches = _tdbTaches();
     if (!taches.length) { host.innerHTML = ''; return; }
     var set = _tdbFaitsSet();
-    var faits = 0;
-    var lignes = taches.map(function (m) {
-      var ok = _tdbEstFait(m, set);
-      if (ok) faits++;
-      return { m: m, ok: ok };
-    });
-    // À faire d'abord, faits ensuite
-    lignes.sort(function (a, b) { return (a.ok === b.ok) ? 0 : (a.ok ? 1 : -1); });
-    var total = taches.length;
-    var reste = total - faits;
+    var faits = taches.filter(function (m) { return _tdbEstFait(m, set); }).length;
+    var total = taches.length, reste = total - faits;
     var couleur = reste === 0 ? '#16a34a' : (faits === 0 ? '#dc2626' : '#f59e0b');
-    var titreEtat = reste === 0 ? 'Tout est fait aujourd\'hui 🎉' : (reste + ' contrôle' + (reste > 1 ? 's' : '') + ' à faire');
-    var open = _tdbOpen('afaire');
-    var html = '<div style="background:white;border-radius:16px;padding:' + (open ? '14px 16px 10px' : '12px 16px') + ';box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">'
-      + '<div onclick="_tdbToggleOpen(\'afaire\')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;' + (open ? 'margin-bottom:10px' : '') + '">'
-      + '<div style="font-size:13px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:6px">📋 À faire aujourd\'hui</div>'
-      + '<div style="display:flex;align-items:center;gap:8px">'
-      + '<div style="font-size:10px;font-weight:800;color:' + couleur + ';background:' + couleur + '1a;padding:3px 9px;border-radius:20px">' + faits + '/' + total + ' · ' + _baroEsc(titreEtat) + '</div>'
-      + '<div style="color:#9ca3af;font-size:13px;font-weight:900">' + (open ? '▾' : '▸') + '</div>'
-      + '</div>'
+    var txt = reste === 0 ? 'tous faits 🎉' : (reste + ' à faire');
+    // Résumé COMPACT uniquement. Le statut « fait / à faire » de chaque contrôle est
+    // porté directement par les boutons des modules (mode guidé + grille experte), pour
+    // éviter tout doublon avec ces écrans. Voir renderMods + _tdbMajGuide.
+    host.innerHTML = '<div style="background:white;border-radius:14px;padding:11px 14px;box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff;display:flex;align-items:center;gap:10px">'
+      + '<div style="font-size:16px;flex-shrink:0">📋</div>'
+      + '<div style="flex:1;font-size:12.5px;font-weight:800;color:#1f2937">Contrôles du jour</div>'
+      + '<div style="font-size:11px;font-weight:800;color:' + couleur + ';background:' + couleur + '1a;padding:4px 11px;border-radius:20px">' + faits + '/' + total + ' · ' + _baroEsc(txt) + '</div>'
       + '</div>';
-    if (open) lignes.forEach(function (l) {
-      var m = l.m;
-      var ico = l.ok ? '✅' : '⬜';
-      var coul = l.ok ? '#16a34a' : '#dc2626';
-      var bg = l.ok ? '#f0fdf4' : '#fff7f7';
-      var nom = (m.name || '').replace(/^[^—]*—\s*/, '');  // raccourci lisible
-      html += '<div onclick="openModule(\'' + m.id + '\')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:6px;border-radius:11px;background:' + bg + ';cursor:pointer;border:1px solid ' + (l.ok ? '#dcfce7' : '#fee2e2') + '">'
-        + '<div style="font-size:18px;flex-shrink:0">' + ico + '</div>'
-        + '<div style="font-size:18px;flex-shrink:0">' + m.ico + '</div>'
-        + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:700;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _baroEsc(nom) + '</div>'
-        + '<div style="font-size:10.5px;font-weight:700;color:' + coul + '">' + (l.ok ? 'Fait' : 'À faire') + '</div></div>'
-        + '<div style="color:#d1d5db;font-size:18px;flex-shrink:0">›</div>'
-      + '</div>';
-    });
-    html += '</div>';
-    host.innerHTML = html;
   } catch (e) { host.innerHTML = ''; }
 }
 
