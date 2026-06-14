@@ -33,6 +33,15 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ok(labs.indexOf('16:45') > -1 && labs.indexOf('17:00') > -1, 'Excel: 2 relevés capteur affichés à leur heure exacte (16:45 | 17:00)');
   ok(labs.indexOf('Matin') === -1 && labs.indexOf('Soir') === -1 && labs.indexOf('Jour') === -1, 'Excel: plus de libellés Jour/Matin/Soir quand l\'heure est connue');
 }
+// ── D) Multiplicité : 2 relevés à la même minute (capteur + manuel) → 2 colonnes ──
+{
+  var cols2 = ctx._ttColonnes([
+    { jour: '2026-06-14', hour: '16:45', enceinte: 'Enceinte N°1', temp: -13.4, isNC: true, auto: true },
+    { jour: '2026-06-14', hour: '16:45', enceinte: 'Enceinte N°1', temp: -20, isNC: false, auto: false }
+  ]);
+  var l2 = (cols2[0] && cols2[0].subs ? cols2[0].subs.map(function (s) { return s.label; }) : []);
+  ok(l2.filter(function (x) { return x === '16:45'; }).length === 2, 'Excel: 2 relevés à la même minute → 2 colonnes (aucun relevé masqué)');
+}
 
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
