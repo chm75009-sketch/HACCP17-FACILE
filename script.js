@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v226';
+var APP_BUILD = 'v227';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -2207,7 +2207,7 @@ window.secteurVerrouille = function(secteur) {
     'boucherie': 'Boucherie & Charcuterie',
     'collective': 'Restauration collective'
   };
-  var nom = noms[secteur] || secteur;
+  var nom = _echap(noms[secteur] || secteur);
   // Construire popup
   var existing = document.getElementById('popupSecteurVerrouille');
   if (existing) existing.remove();
@@ -2812,8 +2812,8 @@ function imprimerCuisson() {
   // Header
   html += '<div style="background:linear-gradient(135deg,#dc2626,#f87171);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   html += '<div style="font-weight:800;font-size:15px">Cuisson & Remise en Temperature</div>';
-  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + getNowStr() + '</div>';
-  html += '<div style="font-size:11px;opacity:.85">Émargement : ' + (signataire || '—') + '</div>';
+  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + _echap(ETAB.nom||'') + ' — ' + getNowStr() + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Émargement : ' + _echap(signataire || '—') + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
@@ -2938,7 +2938,7 @@ function imprimerTemperatures(dataOverride, signataireOverride, tsOverride) {
   var html = '<div style="padding:0 16px 20px;font-family:Arial,sans-serif">';
   html += '<div style="background:linear-gradient(135deg,#0891b2,#22d3ee);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   html += '<div style="font-weight:800;font-size:15px">Temperatures Enceintes Froides</div>';
-  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + (tsOverride || getNowStr()) + '</div>';
+  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + _echap(ETAB.nom||'') + ' — ' + (tsOverride || getNowStr()) + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Émargement : ' + (signataire || '—') + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
@@ -3154,7 +3154,7 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
       html += '<div class="bloc-section-title">📋 Identification</div>';
       html += '<table class="bloc-table">';
       idents.forEach(function(f) {
-        html += '<tr><td>' + f.label + '</td><td>' + f.valeur + '</td></tr>';
+        html += '<tr><td>' + _echap(f.label) + '</td><td>' + _echap(f.valeur) + '</td></tr>';
       });
       html += '</table></div>';
     }
@@ -3239,13 +3239,13 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
       // V113 — A1 : entête 3 colonnes pour aligner l'action en face de la NC
       html += '<tr><th style="text-align:left;font-size:11px;color:#6b7280;font-weight:700;padding:4px 8px;background:#f9fafb">Élément</th><th style="text-align:left;font-size:11px;color:#6b7280;font-weight:700;padding:4px 8px;background:#f9fafb">Constat</th><th style="text-align:left;font-size:11px;color:#6b7280;font-weight:700;padding:4px 8px;background:#f9fafb">Action corrective</th></tr>';
       mesures.forEach(function(m) {
-        html += '<tr><td>' + m.label + '</td><td><strong>' + m.valeur + '</strong></td><td style="color:#9ca3af">—</td></tr>';
+        html += '<tr><td>' + _echap(m.label) + '</td><td><strong>' + _echap(m.valeur) + '</strong></td><td style="color:#9ca3af">—</td></tr>';
       });
       statutsBloc.forEach(function(s) {
-        var actCell = s.action ? '<td style="color:#c2410c;font-weight:600">' + s.action + '</td>' : '<td style="color:#9ca3af">—</td>';
+        var actCell = s.action ? '<td style="color:#c2410c;font-weight:600">' + _echap(s.action) + '</td>' : '<td style="color:#9ca3af">—</td>';
         // V-NC16 — afficher la non-conformité constatée précise sous le statut
-        var statutCell = s.statut + (s.constat ? '<div style="font-size:10px;font-weight:600;margin-top:1px">' + s.constat + '</div>' : '');
-        html += '<tr><td>' + s.label + '</td><td class="' + s.cls + '">' + statutCell + '</td>' + actCell + '</tr>';
+        var statutCell = _echap(s.statut) + (s.constat ? '<div style="font-size:10px;font-weight:600;margin-top:1px">' + _echap(s.constat) + '</div>' : '');
+        html += '<tr><td>' + _echap(s.label) + '</td><td class="' + s.cls + '">' + statutCell + '</td>' + actCell + '</tr>';
       });
       var confEl = bloc.querySelector('.conformite-badge');
       if (confEl && confEl.textContent.trim() && confEl.textContent.indexOf('Saisissez') === -1 && confEl.textContent.indexOf('Sélectionnez') === -1) {
@@ -3280,10 +3280,10 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
         actionsAffichees = true;
       }
       auMoinsUneActionRemplie = true;
-      if (typeVal) html += '<div class="action-row"><div class="lbl">Action</div><div>' + typeVal + '</div></div>';
-      if (detailVal) html += '<div class="action-row"><div class="lbl">Précisions</div><div>' + detailVal + '</div></div>';
-      if (respVal) html += '<div class="action-row"><div class="lbl">Responsable</div><div>' + respVal + '</div></div>';
-      if (heureVal) html += '<div class="action-row"><div class="lbl">Heure</div><div>' + heureVal + '</div></div>';
+      if (typeVal) html += '<div class="action-row"><div class="lbl">Action</div><div>' + _echap(typeVal) + '</div></div>';
+      if (detailVal) html += '<div class="action-row"><div class="lbl">Précisions</div><div>' + _echap(detailVal) + '</div></div>';
+      if (respVal) html += '<div class="action-row"><div class="lbl">Responsable</div><div>' + _echap(respVal) + '</div></div>';
+      if (heureVal) html += '<div class="action-row"><div class="lbl">Heure</div><div>' + _echap(heureVal) + '</div></div>';
     });
     if (actionsAffichees) html += '</div>';
 
@@ -3307,7 +3307,7 @@ function genererRapportParBlocHTML(pageId, titre, blocs, type) {
     html += '<div class="section-title">📝 Observations</div>';
     html += '<table class="bloc-table">';
     data.observations.forEach(function(obs) {
-      html += '<tr><td>' + obs.label + '</td><td>' + obs.valeur + '</td></tr>';
+      html += '<tr><td>' + _echap(obs.label) + '</td><td>' + _echap(obs.valeur) + '</td></tr>';
     });
     html += '</table>';
   }
@@ -3394,9 +3394,9 @@ function imprimerModuleAplat(pageId, titre, dataOverride) {
 
   // En-tête
   html += '<div class="header">';
-  html += '<h2>' + (titre||data.module||pageId) + '</h2>';
-  html += '<div class="meta">Date : ' + data.timestamp + ' | Operateur : ' + (data.signe||'Non renseigne') + '</div>';
-  html += '<div class="meta">' + data.etab + ' | Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[data.secteur] && SECTEURS_CONFIG[data.secteur].label)) || data.secteur || '—') + '</div>';
+  html += '<h2>' + _echap(titre||data.module||pageId) + '</h2>';
+  html += '<div class="meta">Date : ' + _echap(data.timestamp) + ' | Opérateur : ' + _echap(data.signe||'Non renseigné') + '</div>';
+  html += '<div class="meta">' + _echap(data.etab) + ' | Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[data.secteur] && SECTEURS_CONFIG[data.secteur].label)) || data.secteur || '—') + '</div>';
   html += '</div>';
 
   // 1. Informations saisies
@@ -8864,8 +8864,9 @@ function fmtTemp(v) {
   if (v === null || v === undefined) return '';
   var s = String(v).trim();
   if (s === '') return '';
-  // Retirer °C/°c et espaces, garder le signe et les chiffres
-  s = s.replace(/°\s*c/ig, '').replace(/\s+/g, '');
+  // Retirer °C/°c et espaces, garder le signe et les chiffres. Virgule FR → point
+  // (sinon parseFloat("3,5") = 3 → décimale perdue dans les PDF).
+  s = s.replace(/°\s*c/ig, '').replace(/\s+/g, '').replace(',', '.');
   if (s === '' || isNaN(parseFloat(s))) return String(v); // non numérique → tel quel
   var n = parseFloat(s);
   return (n >= 0 ? '+' : '') + n + '°C';
@@ -11049,7 +11050,7 @@ function imprimerHuilesData(friteuses, signataire, ts) {
   function estNC(f) {
     var c = String(f.conformite || '').toLowerCase();
     if (c.indexOf('nc') > -1 || c.indexOf('✗') > -1 || c.indexOf('non conf') > -1) return true;
-    var t = parseFloat(f.temp), p = parseFloat(f.tpm);
+    var t = parseFloat(String(f.temp == null ? '' : f.temp).replace(',', '.')), p = parseFloat(String(f.tpm == null ? '' : f.tpm).replace(',', '.'));
     if (!isNaN(t) && t > 175) return true;
     if (!isNaN(p) && p > 25) return true;
     return false;
@@ -12920,7 +12921,7 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
   // Page de garde
   html += '<div style="background:linear-gradient(135deg,#1e1b4b,#4338ca);color:white;padding:20px 16px;border-radius:10px;margin-bottom:20px;text-align:center">';
   html += '<div style="font-size:20px;font-weight:900;margin-bottom:8px">📋 ' + (isFiltre ? 'EXPORT PERSONNALISÉ' : 'PACK DDPP') + '</div>';
-  html += '<div style="font-size:14px;font-weight:700">' + (ETAB.nom||'') + '</div>';
+  html += '<div style="font-size:14px;font-weight:700">' + esc(ETAB.nom||'') + '</div>';
   html += '<div style="font-size:12px;opacity:.9;margin-top:4px">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   html += '<div style="font-size:12px;opacity:.85;margin-top:4px">Période : ' + dateLabel + '</div>';
   html += '<div style="font-size:11px;opacity:.75;margin-top:4px">Généré le ' + getNowStr() + '</div>';
@@ -14783,7 +14784,7 @@ async function chargerControlesCloudCache() {
       }
       var pid = (contenu && contenu.pageId) ? contenu.pageId : null;
       // Clé anti-doublon : même module + même heure de contrôle d'origine = même contrôle
-      var cle = (pid || r.module || '') + '|' + ((contenu && contenu.timestamp) ? contenu.timestamp : ts) + '|' + ((contenu && (contenu.signe || contenu.signataire)) || '');
+      var cle = (pid || r.module || '') + '|' + ((contenu && contenu.timestamp) ? contenu.timestamp : ts) + '|' + ((contenu && (contenu.signe || contenu.signataire)) || '') + '|' + ((contenu && contenu.uid) || '') + '|' + ((contenu && contenu.channel) || '');
       if (seen[cle]) {
         // DOUBLON détecté. Un re-push a pu RÉPARTIR les photos d'un même contrôle sur
         // plusieurs lignes (ex. le bon de livraison sur l'une, l'étiquette produit sur
@@ -17160,7 +17161,7 @@ function imprimerMatrice() {
   ct.style.cssText = 'padding:16px';
   var header = '<div style="background:linear-gradient(135deg,#065f46,#10b981);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   header += '<div style="font-weight:800;font-size:15px">Matrice Allergenes</div>';
-  header += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + getNowStr() + '</div>';
+  header += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + _echap(ETAB.nom||'') + ' — ' + getNowStr() + '</div>';
   header += '</div>';
   ct.innerHTML = header + matriceEl.outerHTML;
 
@@ -23582,6 +23583,7 @@ function _ttResultatTexte(diag, okLabel, vide) {
   var s = '✓ ' + okLabel + ' — ' + diag.found + ' relevé(s) trouvé(s), ' + (diag.matched || 0) + ' reporté(s).';
   if (diag.nc) s += ' ⚠️ ' + diag.nc + ' non conforme(s)';
   if (diag.merged) s += ' (' + diag.merged + ' regroupé(s) dans un même créneau)';
+  if (diag.tronque) s += ' ⚠️ LIMITE ATTEINTE (100000) — données tronquées, téléchargez par périodes plus courtes.';
   var keys = diag.orphans ? Object.keys(diag.orphans) : [];
   if (keys.length) {
     var tot = keys.reduce(function (a, k) { return a + diag.orphans[k]; }, 0);
@@ -23694,7 +23696,7 @@ function _ttFetchControles(dateFrom, dateTo) {
         + '&module=in.' + encodeURIComponent(modulesTemp)
         + '&date_controle=gte.' + encodeURIComponent(dMin)
         + '&date_controle=lte.' + encodeURIComponent(dMax)
-        + '&select=contenu,date_controle,recorded_at&order=date_controle.asc&limit=20000';
+        + '&select=contenu,date_controle,recorded_at&order=date_controle.asc&limit=100000';
       fetch(url, { cache: 'no-store', headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() } })
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (rows) { resolve(Array.isArray(rows) ? rows : []); })
@@ -23968,7 +23970,7 @@ function telechargerTableauPeriode() {
     _ttSync(function () {
       var diag = { found: 0, matched: 0, orphans: {} };
       _ttFetchControles(from, to).then(function (rows) {
-        var releves = _ttNormaliser(rows); diag.found = releves.length;
+        var releves = _ttNormaliser(rows); diag.found = releves.length; if (rows && rows.length >= 100000) diag.tronque = true;
         var cols = _ttColonnes(releves);   // colonnes = paramétrage + relevés réels
         var wb = new ExcelJS.Workbook();
         var ws = wb.addWorksheet('Relevés T°');
@@ -23991,7 +23993,7 @@ function telechargerTableauMois() {
     _ttSync(function () {
       var diag = { found: 0, matched: 0, orphans: {} };
       _ttFetchControles(from, to).then(function (rows) {
-        var releves = _ttNormaliser(rows); diag.found = releves.length;
+        var releves = _ttNormaliser(rows); diag.found = releves.length; if (rows && rows.length >= 100000) diag.tronque = true;
         var cols = _ttColonnes(releves);   // mêmes colonnes pour les 12 mois (paramétrage + relevés de l'année)
         var wb = new ExcelJS.Workbook();
         for (var mo = 0; mo < 12; mo++) {
