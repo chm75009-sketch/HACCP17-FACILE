@@ -104,13 +104,22 @@ begin
           'template_id', 'template_admin_haccp',
           'user_id',     '4D454C9uGm-zWE0Hp',
           'accessToken', ek,
+          -- NOTE plan gratuit EmailJS (2 modèles max) : on réutilise le modèle admin.
+          -- Pour que l'alerte soit RECONNAISSABLE malgré le sujet « inscription », on
+          -- préfixe l'établissement par « 🚨 ALERTE CAPTEUR » (visible dans le sujet)
+          -- et le message détaille tout (établissement, frigo, canal, dernier relevé).
           'template_params', jsonb_build_object(
             'to_email',      'r.t.h@orange.fr',
-            'etablissement', cap.etab,
-            'message',       '⚠️ CAPTEUR SANS RELEVÉ — ' || cap.etab || ' / ' || cap.frigo
-                             || ' (canal ' || cap.channel || '). Dernier relevé : '
-                             || coalesce(to_char(cap.derniere at time zone 'Europe/Paris','DD/MM/YYYY HH24:MI'), 'AUCUN')
-                             || '. À vérifier : alimentation, WiFi du capteur.'
+            'etablissement', '🚨 ALERTE CAPTEUR — ' || cap.etab,
+            'message',       '🚨 ALERTE CAPTEUR HORS LIGNE 🚨' || chr(10) || chr(10)
+                             || 'Établissement : ' || cap.etab || chr(10)
+                             || 'Enceinte / frigo : ' || cap.frigo || chr(10)
+                             || 'Canal du capteur : ' || cap.channel || chr(10)
+                             || 'Dernier relevé reçu : '
+                             || coalesce(to_char(cap.derniere at time zone 'Europe/Paris','DD/MM/YYYY à HH24:MI'), 'AUCUN') || chr(10) || chr(10)
+                             || 'Ce capteur n''a plus transmis de relevé depuis plus de 26 h. '
+                             || 'À vérifier : alimentation du capteur, WiFi, ou faire un relevé manuel '
+                             || 'pour ne pas laisser de trou dans les preuves DDPP.'
           )
         )
       );
