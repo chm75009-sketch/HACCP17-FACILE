@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v214';
+var APP_BUILD = 'v215';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23573,11 +23573,13 @@ function _ttNormaliser(rows) {
     var when = r.date_controle || r.recorded_at; var d = new Date(when);
     var jour = _ttDateLoc(d);
     var hh = c.heure_programmee || (String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
+    // Émargement : qui a relevé (signataire/signe). Relevés capteur = « Relevé auto. (UbiBot) ».
+    var sig = _ttSigCourt(c.signataire || c.signe || r.signature || '');
     var temps = Array.isArray(c.temperatures) ? c.temperatures : [];
     temps.forEach(function (t) {
       if (t == null) return;
       var raw = (t.temp === '' || t.temp == null) ? null : parseFloat(String(t.temp).replace(',', '.'));
-      out.push({ jour: jour, hour: hh, enceinte: String(t.type || '').trim(), channel: c.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme') });
+      out.push({ jour: jour, hour: hh, enceinte: String(t.type || '').trim(), channel: c.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme'), sig: sig });
     });
   });
   return out;
@@ -23591,7 +23593,7 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
 
   // Index des relevés : clé jour|enceinteIdx|subIdx. Appariement robuste :
   // 1) par CANAL (le plus fiable), 2) par NOM normalisé (accents/espaces tolérés).
-  var map = {}, obsJour = {}, matched = 0;
+  var map = {}, obsJour = {}, sigJour = {}, matched = 0;
   releves.forEach(function (rel) {
     var ci = -1;
     for (var i = 0; i < cols.length; i++) { if (cols[i].channel && rel.channel && String(cols[i].channel) === String(rel.channel)) { ci = i; break; } }
@@ -23603,6 +23605,7 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
     matched++;
     var si = _ttSubIndex(cols[ci], rel.hour);
     map[rel.jour + '|' + ci + '|' + si] = rel;
+    if (rel.sig) (sigJour[rel.jour] = sigJour[rel.jour] || {})[rel.sig] = true; // émargement du jour
     if (rel.isNC && rel.temp != null) {
       (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ') hors seuil');
     }
@@ -23686,19 +23689,25 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
     oc.value = (obsJour[jour] || []).join(' ; ');
     oc.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
     oc.border = border; oc.font = { size: 8, color: { argb: 'FFB91C1C' } };
-    ws.getCell(row, totalCols).border = border;
+    // Émargement : nom(s) ayant relevé ce jour (capteur → « Relevé auto. (UbiBot) »)
+    var sc = ws.getCell(row, totalCols);
+    sc.value = sigJour[jour] ? Object.keys(sigJour[jour]).join(' / ') : '';
+    sc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    sc.border = border; sc.font = { size: 8, color: { argb: 'FF334155' } };
   });
 
   // Largeurs
   ws.getColumn(1).width = 12;
   for (var w = 2; w <= totalCols - 2; w++) ws.getColumn(w).width = 9.5;
   ws.getColumn(totalCols - 1).width = 42;
-  ws.getColumn(totalCols).width = 14;
+  ws.getColumn(totalCols).width = 18;
   ws.getRow(hdr1).height = 30;
   ws.views = [{ state: 'frozen', xSplit: 1, ySplit: hdr3 }];
   return matched;
 }
 function _ttNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+// Émargement compact pour la colonne Signature (le libellé serveur est long).
+function _ttSigCourt(s) { s = String(s || '').trim(); return /automatique|ubibot/i.test(s) ? 'Relevé auto. (UbiBot)' : s; }
 
 function _ttEntete() {
   var E = (typeof ETAB !== 'undefined' && ETAB) ? ETAB : {};
