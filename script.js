@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v213';
+var APP_BUILD = 'v214';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23617,6 +23617,11 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
   ws.mergeCells('A2:' + last + '2');
   ws.getCell('A2').font = { bold: true, size: 11 };
   ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+  // Tampon de génération (date + version) — pour vérifier la version qui a produit le fichier
+  ws.getCell('A3').value = 'Généré le ' + new Date().toLocaleString('fr-FR') + ' · HACCP Pro ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?') + ' · ' + (releves ? releves.length : 0) + ' relevé(s) sur la période';
+  ws.mergeCells('A3:' + last + '3');
+  ws.getCell('A3').font = { italic: true, size: 8, color: { argb: 'FF64748B' } };
+  ws.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
 
   var hdr1 = 4, hdr2 = 5, hdr3 = 6, first = 7;
   ws.getCell('A' + hdr1).value = 'Date';
