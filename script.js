@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v229';
+var APP_BUILD = 'v230';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23602,67 +23602,58 @@ function _ttSubsFromHours(hours) {
   return hours.map(function (h) { return { label: h, hour: h }; });
 }
 
-// Colonnes = enceintes configurées. Fréquence (sous-colonnes) = union des heures
-// PARAMÉTRÉES (capteur) ET des heures réellement RELEVÉES dans les données → gère
-// « plusieurs relevés par jour » sans rien perdre, et reflète le paramétrage.
-// n°3 — Toute enceinte RELEVÉE mais ABSENTE de la config reçoit aussi sa colonne
-// (« hors config ») : on n'abandonne plus jamais un relevé faute de colonne.
+// Colonnes = enceintes configurées. Sous-colonnes = TOUTES les heures réellement
+// relevées (+ créneaux paramétrés, même vides). RÈGLE : on reporte CHAQUE relevé,
+// quelle que soit la technique (manuel/capteur), l'heure ou la fréquence. Si deux
+// relevés tombent à la même minute sur une enceinte le même jour → DEUX colonnes
+// (multiplicité), jamais de fusion ni de masquage.
+// n°3 — Toute enceinte relevée mais absente de la config reçoit aussi sa colonne.
 function _ttColonnes(releves) {
   var enceintes = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
   var capteurs = getSondesConfig() || [];
-  // heures vues dans les données, par enceinte ; + enceintes relevées hors config
-  var dataHours = {};
-  var orphelines = {}; // nom normalisé -> { nom, hours:{} }
+  var encMax = {};   // ci  -> { heure: nb MAX de relevés un même jour }
+  var encDay = {};   // ci  -> { 'jour|heure': compteur }
+  var orph = {};     // clé -> { nom, hours:{heure:nbMax} }
+  var orphDay = {};  // clé -> { 'jour|heure': compteur }
   (releves || []).forEach(function (rel) {
+    var h = rel.hour || '';
     var ci = _ttMatchEnc(rel, enceintes, capteurs);
     if (ci < 0) {
-      var nm = String(rel.enceinte || '').trim();
-      if (!nm) return; // relevé sans identité → capté par le filet anti-perte (n°1)
+      var nm = String(rel.enceinte || '').trim(); if (!nm) return; // sans identité → filet n°1
       var key = _ttNorm(nm);
-      var o = orphelines[key] || (orphelines[key] = { nom: nm, hours: {} });
-      if (rel.hour) o.hours[rel.hour] = true;
+      var o = orph[key] || (orph[key] = { nom: nm, hours: {} });
+      var od = orphDay[key] || (orphDay[key] = {});
+      if (h) { var dk = rel.jour + '|' + h; od[dk] = (od[dk] || 0) + 1; o.hours[h] = Math.max(o.hours[h] || 0, od[dk]); }
       return;
     }
-    (dataHours[ci] = dataHours[ci] || {})[rel.hour || ''] = true;
+    var em = encMax[ci] || (encMax[ci] = {});
+    var ed = encDay[ci] || (encDay[ci] = {});
+    if (h) { var dk2 = rel.jour + '|' + h; ed[dk2] = (ed[dk2] || 0) + 1; em[h] = Math.max(em[h] || 0, ed[dk2]); }
   });
+  // Construit les sous-colonnes : chaque heure répétée autant de fois que le nb max
+  // de relevés à cette heure sur un même jour. (occ = n° d'occurrence dans la journée.)
+  function _subs(hourMax) {
+    var hs = Object.keys(hourMax).filter(Boolean).sort();
+    var subs = [];
+    hs.forEach(function (h) { var n = hourMax[h] || 1; for (var k = 0; k < n; k++) subs.push({ label: h, hour: h, occ: k }); });
+    return subs.length ? subs : [{ label: 'Jour', hour: null, occ: 0 }];
+  }
   var cols = enceintes.map(function (e, i) {
     var nom = (e && (e.nom || e.name)) || ('Enceinte N°' + (i + 1));
     var cap = null;
     for (var k = 0; k < capteurs.length; k++) { if (_ttNorm(capteurs[k].enceinte || '') === _ttNorm(nom)) { cap = capteurs[k]; break; } }
     var cfgHeures = (cap && Array.isArray(cap.heures)) ? cap.heures.filter(Boolean) : [];
-    var hours;
-    if (cfgHeures.length) {
-      // Colonnes = créneaux PARAMÉTRÉS du capteur. Un relevé PROCHE d'un créneau
-      // (≤ 20 min) s'y range ; un relevé HORS créneau garde SA propre colonne à son
-      // HEURE EXACTE (on ne fusionne plus, on ne masque plus l'heure).
-      var _hu = {}; cfgHeures.forEach(function (h) { _hu[h] = true; });
-      var _slotsM = cfgHeures.map(function (h) { return _ttHM(h); });
-      var _TOL = 20;
-      if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) {
-        if (!h) return;
-        var m = _ttHM(h), pres = false;
-        for (var z = 0; z < _slotsM.length; z++) { if (Math.abs(m - _slotsM[z]) <= _TOL) { pres = true; break; } }
-        if (!pres) _hu[h] = true;
-      });
-      hours = Object.keys(_hu).sort();
-    } else {
-      // Pas de créneaux paramétrés : colonnes = heures EXACTES réellement relevées.
-      var hset = {};
-      if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) { if (h) hset[h] = true; });
-      hours = Object.keys(hset).sort();
-    }
+    var hourMax = {};
+    cfgHeures.forEach(function (h) { hourMax[h] = Math.max(hourMax[h] || 0, 1); }); // créneaux planifiés visibles même sans relevé
+    if (encMax[i]) Object.keys(encMax[i]).forEach(function (h) { if (h) hourMax[h] = Math.max(hourMax[h] || 0, encMax[i][h]); });
     var mn = cap && isFinite(cap.min) ? cap.min : null;
     var mx = cap && isFinite(cap.max) ? cap.max : ((e && e.seuil != null && isFinite(e.seuil)) ? e.seuil : null);
-    return { code: 'E' + (i + 1), nom: nom, channel: (cap && cap.channel) || '', min: mn, max: mx, subs: _ttSubsFromHours(hours), seuilTxt: _ttSeuilTexte(mn, mx) };
+    return { code: 'E' + (i + 1), nom: nom, channel: (cap && cap.channel) || '', min: mn, max: mx, subs: _subs(hourMax), seuilTxt: _ttSeuilTexte(mn, mx) };
   });
-  // n°3 — colonnes pour les enceintes relevées hors configuration
   var base = cols.length;
-  Object.keys(orphelines).forEach(function (key, idx) {
-    var o = orphelines[key];
-    // Enceinte hors config → colonnes = heures EXACTES relevées (heure toujours visible).
-    var _hu = {}; Object.keys(o.hours).forEach(function (h) { if (h) _hu[h] = true; });
-    var hours = Object.keys(_hu).sort();
-    cols.push({ code: 'E' + (base + idx + 1), nom: o.nom, channel: '', min: null, max: null, subs: _ttSubsFromHours(hours), seuilTxt: 'Seuil : — (hors config)', horsConfig: true });
+  Object.keys(orph).forEach(function (key, idx) {
+    var o = orph[key];
+    cols.push({ code: 'E' + (base + idx + 1), nom: o.nom, channel: '', min: null, max: null, subs: _subs(o.hours), seuilTxt: 'Seuil : — (hors config)', horsConfig: true });
   });
   return cols;
 }
@@ -23738,7 +23729,7 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
 
   // Index des relevés : clé jour|enceinteIdx|subIdx. Appariement robuste :
   // 1) par CANAL (le plus fiable), 2) par NOM normalisé (accents/espaces tolérés).
-  var map = {}, obsJour = {}, sigJour = {}, matched = 0;
+  var map = {}, obsJour = {}, sigJour = {}, matched = 0, occUsed = {};
   releves.forEach(function (rel) {
     var ci = -1;
     for (var i = 0; i < cols.length; i++) { if (cols[i].channel && rel.channel && String(cols[i].channel) === String(rel.channel)) { ci = i; break; } }
@@ -23752,16 +23743,27 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
       if (diag) { var nm = String(rel.enceinte || '').trim() || '(sans nom)'; (diag.orphans = diag.orphans || {})[nm] = (diag.orphans[nm] || 0) + 1; }
       return;
     }
-    var si = _ttSubIndex(cols[ci], rel.hour);
+    var src = rel.auto ? '(capteur)' : '(manuel)';
+    var h = rel.hour || '';
+    // Place le relevé dans une sous-colonne DÉDIÉE de cette heure (multiplicité) → on
+    // reporte CHAQUE relevé (manuel + capteur) sans jamais fusionner.
+    var idxs = []; cols[ci].subs.forEach(function (s, idx) { if ((s.hour || '') === h) idxs.push(idx); });
+    var si;
+    if (idxs.length) {
+      var okk = rel.jour + '|' + ci + '|' + h;
+      var used = occUsed[okk] || 0;
+      si = idxs[used < idxs.length ? used : idxs.length - 1];
+      occUsed[okk] = used + 1;
+    } else {
+      si = _ttSubIndex(cols[ci], rel.hour); // repli (colonne « Jour » / heure absente)
+    }
     var key = rel.jour + '|' + ci + '|' + si;
     var prev = map[key];
     if (!prev) {
       map[key] = rel; matched++;
     } else {
-      // Collision même enceinte/minute (ex. relevé manuel + relevé capteur à 16:45).
-      // RÈGLE HACCP : ne JAMAIS masquer une non-conformité → la NC l'emporte dans la
-      // case ; sinon on garde celui qui porte une température. L'autre valeur n'est PAS
-      // perdue : elle est documentée en Observations.
+      // Repli très rare : 2 relevés dans la même case malgré la multiplicité. On ne
+      // masque jamais une NC ; l'autre valeur est documentée AVEC sa source.
       var garde, jete;
       if (!!rel.isNC && !prev.isNC) { garde = rel; jete = prev; }
       else if (!rel.isNC && !!prev.isNC) { garde = prev; jete = rel; }
@@ -23770,13 +23772,15 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
       map[key] = garde;
       if (diag) diag.merged = (diag.merged || 0) + 1;
       if (jete && jete.temp != null) {
-        (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + jete.temp + '°C (' + jete.hour + ') aussi relevé' + (jete.isNC ? ' — hors seuil' : ''));
+        (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + jete.temp + '°C (' + jete.hour + ' ' + (jete.auto ? '(capteur)' : '(manuel)') + ') aussi relevé' + (jete.isNC ? ' — hors seuil' : ''));
       }
     }
-    if (rel.sig) (sigJour[rel.jour] = sigJour[rel.jour] || {})[rel.sig] = true; // émargement du jour
+    // Émargement du jour, SÉPARÉ capteur / manuel
+    var sg = sigJour[rel.jour] || (sigJour[rel.jour] = { auto: false, noms: {} });
+    if (rel.auto) sg.auto = true; else if (rel.sig) sg.noms[rel.sig] = true;
     if (rel.isNC && rel.temp != null) {
       if (diag) diag.nc = (diag.nc || 0) + 1; // total non-conformités (signalement)
-      (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ') hors seuil');
+      (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ' ' + src + ') hors seuil');
     }
     if (rel.offline) { // capteur hors ligne sur ce créneau → on le documente
       (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' capteur hors ligne (' + rel.hour + ')');
@@ -23867,9 +23871,14 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
     oc.value = (obsJour[jour] || []).join(' ; ');
     oc.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
     oc.border = border; oc.font = { size: 8, color: { argb: 'FFB91C1C' } };
-    // Émargement : nom(s) ayant relevé ce jour (capteur → « Relevé auto. (UbiBot) »)
+    // Émargement : SÉPARÉ capteur (auto) et manuel (noms des signataires).
     var sc = ws.getCell(row, totalCols);
-    sc.value = sigJour[jour] ? Object.keys(sigJour[jour]).join(' / ') : '';
+    var _sg = sigJour[jour], _sgParts = [];
+    if (_sg) {
+      if (_sg.auto) _sgParts.push('🤖 Capteur (auto)');
+      var _noms = Object.keys(_sg.noms || {}); if (_noms.length) _sgParts.push('✍️ Manuel : ' + _noms.join(', '));
+    }
+    sc.value = _sgParts.join(' · ');
     sc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     sc.border = border; sc.font = { size: 8, color: { argb: 'FF334155' } };
   });
