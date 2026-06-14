@@ -23,6 +23,17 @@ ok(ctx._echap('"quote"').indexOf('&quot;') > -1, 'XSS: _echap encode les guillem
 ok(ctx._echap(null) === '', '_echap(null) = vide');
 ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte normal');
 
+// ── C) Tableau Excel : colonnes = heures EXACTES (jamais Jour/Matin/Soir si heure connue) ──
+{
+  var cols = ctx._ttColonnes([
+    { jour: '2026-06-14', hour: '16:45', enceinte: 'Enceinte N°1', temp: -13.4, isNC: true },
+    { jour: '2026-06-14', hour: '17:00', enceinte: 'Enceinte N°1', temp: -11.3, isNC: true }
+  ]);
+  var labs = (cols[0] && cols[0].subs ? cols[0].subs.map(function (s) { return s.label; }) : []);
+  ok(labs.indexOf('16:45') > -1 && labs.indexOf('17:00') > -1, 'Excel: 2 relevés capteur affichés à leur heure exacte (16:45 | 17:00)');
+  ok(labs.indexOf('Matin') === -1 && labs.indexOf('Soir') === -1 && labs.indexOf('Jour') === -1, 'Excel: plus de libellés Jour/Matin/Soir quand l\'heure est connue');
+}
+
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 console.log('════════════════════════════════════════');
