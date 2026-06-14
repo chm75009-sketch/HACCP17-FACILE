@@ -2,34 +2,54 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v217';
+var APP_BUILD = 'v218';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
-// MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
-// déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
-// l'appareil est sur une vieille version (cache iPhone/PWA), on vide les caches et on
-// recharge en FRAIS → fini les appareils bloqués sur un ancien build. Session préservée.
-(function _verifVersionReelle(){
+// MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
+// sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
+// build (cache iPhone/PWA), on vide les caches et on recharge en FRAIS, sur un écran
+// neutre, session préservée. La vérif est RELANCÉE quand l'app revient au premier plan
+// (PWA iOS réveillée de veille) → plus besoin de fermer/rouvrir l'app à la main.
+(function(){
+  var _cible = null; // version déployée détectée, en attente de rechargement
+  // Recharge UNIQUEMENT sur écran neutre (jamais en pleine saisie) et sans fenêtre ouverte.
+  function _estNeutre(){ try { var a=(document.querySelector('.page.active')||{}).id||''; return a===''||a==='page-presentation'||a==='page-login'||a==='page-guide'||a==='page-home'||a==='page-onboarding'||a==='page-choix'; } catch(e){ return true; } }
+  function _modalOuvert(){ try { return !!(document.getElementById('infosLegalesOverlay') || document.getElementById('printOverlay') || document.querySelector('.modal.visible')); } catch(e){ return false; } }
+  function _reloadFrais(){
+    try { sessionStorage.setItem('_majForce', _cible || '1'); } catch(e){} // anti-boucle : 1 reload max par version/session
+    try {
+      if (window.caches && caches.keys) {
+        caches.keys().then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); })
+          .then(function(){ try{location.reload();}catch(_){} }).catch(function(){ try{location.reload();}catch(_){} });
+      } else { location.reload(); }
+    } catch(e){ try{location.reload();}catch(_){} }
+  }
+  function _tenter(){ if (!_cible) return false; if (_estNeutre() && !_modalOuvert()) { _reloadFrais(); return true; } return false; }
+  window._tenterMajAuto = _tenter; // déclenché aussi à chaque navigation (showPage)
+  function _verif(){
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (_cible) { _tenter(); return; } // déjà détecté → on réessaie simplement de recharger
+      fetch('ver.txt?t=' + Date.now(), { cache: 'no-store' })
+        .then(function(r){ return r.ok ? r.text() : null; })
+        .then(function(v){
+          if (!v) return; v = String(v).trim();
+          var courante = (typeof APP_BUILD !== 'undefined') ? String(APP_BUILD).replace(/^v/, '') : '';
+          if (!v || !courante || v === courante) return;
+          try { if (sessionStorage.getItem('_majForce') === v) return; } catch(e){} // déjà rechargé pour cette version
+          try { if (localStorage.getItem('haccp_etab_id') && localStorage.getItem('haccp_deconnecte') !== '1') sessionStorage.setItem('haccp_maj_reprise', '1'); } catch(e){}
+          _cible = v;
+          if (!_tenter()) { var _itMaj = setInterval(function(){ if (_tenter()) clearInterval(_itMaj); }, 1500); }
+        }).catch(function(){});
+    } catch(e){}
+  }
+  _verif();
+  // Re-vérifie au retour de l'app au premier plan (réveil de veille iOS, changement
+  // d'onglet, navigation arrière depuis le cache) : sinon une session suspendue reste
+  // bloquée sur l'ancien build sans jamais se mettre à jour.
   try {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-    fetch('ver.txt?t=' + Date.now(), { cache: 'no-store' })
-      .then(function(r){ return r.ok ? r.text() : null; })
-      .then(function(v){
-        if (!v) return;
-        v = String(v).trim();
-        var courante = (typeof APP_BUILD !== 'undefined') ? String(APP_BUILD).replace(/^v/, '') : '';
-        if (!v || !courante || v === courante) return;
-        try { if (sessionStorage.getItem('_majForce') === v) return; sessionStorage.setItem('_majForce', v); } catch(e){}
-        try { if (localStorage.getItem('haccp_etab_id') && localStorage.getItem('haccp_deconnecte') !== '1') sessionStorage.setItem('haccp_maj_reprise', '1'); } catch(e){}
-        var _reloadFrais = function(){ try { if (window.caches && caches.keys) { caches.keys().then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); }).then(function(){ try{location.reload();}catch(_){} }).catch(function(){ try{location.reload();}catch(_){} }); } else { location.reload(); } } catch(e){ try{location.reload();}catch(_){} } };
-        // Ne recharge QUE sur un écran NEUTRE (jamais en plein admin/module/saisie) → plus de
-        // clignotement. Sinon on réessaie dès qu'on revient sur un écran neutre.
-        var _estNeutre = function(){ try { var a=(document.querySelector('.page.active')||{}).id||''; return a===''||a==='page-presentation'||a==='page-login'||a==='page-guide'||a==='page-home'||a==='page-onboarding'||a==='page-choix'; } catch(e){ return true; } };
-        // Ne pas recharger tant qu'une fenêtre est ouverte par-dessus (pages légales,
-        // aperçu PDF, modal) : sinon la mise à jour fermerait la fenêtre en pleine lecture.
-        var _modalOuvert = function(){ try { return !!(document.getElementById('infosLegalesOverlay') || document.getElementById('printOverlay') || document.querySelector('.modal.visible')); } catch(e){ return false; } };
-        var _tenter = function(){ if (_estNeutre() && !_modalOuvert()) { _reloadFrais(); return true; } return false; };
-        if (!_tenter()) { var _itMaj = setInterval(function(){ if (_tenter()) clearInterval(_itMaj); }, 1500); }
-      }).catch(function(){});
+    document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') _verif(); });
+    window.addEventListener('pageshow', function(){ _verif(); });
+    window.addEventListener('focus', function(){ _verif(); });
   } catch(e){}
 })();
 
