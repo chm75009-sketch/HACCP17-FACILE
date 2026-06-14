@@ -11,7 +11,7 @@ function env(opts) {
   (opts.historique || []).forEach(function (r) { db.historique_admin.push(r); });
   (opts.clients || []).forEach(function (r) { db.comptes_clients.push(r); });
   const doc = H.makeDocument(); const alerts = [];
-  const win = { _supabase: H.makeSupabase(db, {}), HACCP_CONFIG: { ADMIN_PASSWORD: opts.adminPwd || 'secret' }, emailjs: null };
+  const win = { _supabase: H.makeSupabase(db, { adminPwd: opts.adminPwd || 'secret' }), HACCP_CONFIG: {}, emailjs: null };
   const e = {
     window: win, document: doc,
     alert: function (m) { alerts.push(String(m)); }, confirm: function () { return opts.confirm !== undefined ? opts.confirm : true; },

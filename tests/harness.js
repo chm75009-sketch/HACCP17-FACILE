@@ -50,7 +50,21 @@ function makeSupabase(db, config) {
     };
     return b;
   }
-  return { from: from };
+  function rpc(name, params) {
+    params = params || {};
+    // admin_check : valide le mot de passe admin (simule la RPC serveur/Vault).
+    if (name === 'admin_check') {
+      var good = (config.adminPwd || 'secret');
+      return Promise.resolve({ data: params.p_pwd === good, error: null });
+    }
+    // supervision_capteurs : mot de passe correct -> liste (vide ici), sinon refus silencieux.
+    if (name === 'supervision_capteurs') {
+      if (params.p_pwd !== (config.adminPwd || 'secret')) return Promise.resolve({ data: [], error: null });
+      return Promise.resolve({ data: (db.supervision_capteurs || []), error: null });
+    }
+    return Promise.resolve({ data: null, error: { message: 'no such rpc ' + name } });
+  }
+  return { from: from, rpc: rpc };
 }
 
 function exec(st, db, config) {

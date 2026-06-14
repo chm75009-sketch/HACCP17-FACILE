@@ -818,8 +818,9 @@ async function sbSauvegarderEtab(etabData) {
     EMAILJS_PUBLIC_KEY: '4D454C9uGm-zWE0Hp',
     EMAILJS_TEMPLATE_ADMIN: 'template_admin_haccp',  // Notification admin
     EMAILJS_TEMPLATE_CLIENT: 'template_client_haccp', // Code envoyé au client
-    ADMIN_EMAIL: 'r.t.h@orange.fr',
-    ADMIN_PASSWORD: '826700'
+    ADMIN_EMAIL: 'r.t.h@orange.fr'
+    // SÉCURITÉ : le mot de passe admin n'est PLUS stocké dans l'app. Il est validé
+    // côté serveur via la RPC `admin_check` (secret Vault « admin_password »).
   };
   // Initialisation Supabase
   window._supabase = null;
@@ -19917,11 +19918,17 @@ function testEffacerDonnees() {
 
       // ── ADMIN ──
       var adminCurrentTab = 'demandes';
+      // Mot de passe admin saisi, mémorisé EN MÉMOIRE le temps de la session admin
+      // pour les RPC protégées (supervision_capteurs). Jamais codé en dur, jamais
+      // persisté. Effacé à la déconnexion.
+      var _adminPwd = '';
 
       window.loginAdmin = function() {
         var pwd = (document.getElementById('adminPwd') || {}).value || '';
         var err = document.getElementById('adminLoginErr');
-        if (pwd === window.HACCP_CONFIG.ADMIN_PASSWORD) {
+        function deny(msg) { if (err) { err.style.display = 'block'; err.textContent = msg || 'Mot de passe incorrect'; } }
+        function grant() {
+          _adminPwd = pwd;
           var box = document.getElementById('adminLoginBox');
           var dash = document.getElementById('adminDashboard');
           if (box) box.style.display = 'none';
@@ -19930,11 +19937,16 @@ function testEffacerDonnees() {
           try { sessionStorage.setItem('haccp_admin_ok', '1'); } catch(e){}
           setTimeout(function(){ try { _scrollHaut(document.getElementById('adminDashboard')); } catch(e){} }, 60);
           adminTab('demandes');
+        }
+        if (!pwd) { deny('Mot de passe requis'); return; }
+        // VALIDATION CÔTÉ SERVEUR (Vault) — le mot de passe n'est plus comparé dans l'app.
+        if (window._supabase && window._supabase.rpc) {
+          window._supabase.rpc('admin_check', { p_pwd: pwd }).then(function(res) {
+            if (!res.error && res.data === true) grant();
+            else deny('Mot de passe incorrect');
+          }).catch(function() { deny('Erreur de connexion au serveur'); });
         } else {
-          if (err) {
-            err.style.display = 'block';
-            err.textContent = 'Mot de passe incorrect';
-          }
+          deny('Service indisponible (hors ligne)');
         }
       };
 
@@ -19945,6 +19957,7 @@ function testEffacerDonnees() {
         if (box) box.style.display = 'block';
         if (dash) dash.style.display = 'none';
         if (pwd) pwd.value = '';
+        _adminPwd = '';
         try { sessionStorage.removeItem('haccp_admin_ok'); lsRemove('haccp_admin_ok'); } catch(e){}
         showPage('page-presentation');
       };
@@ -19979,7 +19992,7 @@ function testEffacerDonnees() {
         var c = document.getElementById('adminContent');
         if (!c || !window._supabase) { return; }
         c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Chargement…</div>';
-        var pwd = (window.HACCP_CONFIG && window.HACCP_CONFIG.ADMIN_PASSWORD) ? window.HACCP_CONFIG.ADMIN_PASSWORD : '';
+        var pwd = _adminPwd || '';
         window._supabase.rpc('supervision_capteurs', { p_pwd: pwd }).then(function(res) {
           if (res.error) {
             c.innerHTML = '<div style="color:#fca5a5;padding:20px;text-align:center">Erreur : ' + escapeHtml(res.error.message)
