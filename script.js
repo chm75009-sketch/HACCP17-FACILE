@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v232';
+var APP_BUILD = 'v233';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23789,6 +23789,60 @@ function _ttIndexer(cols, releves, diag) {
   return { map: map, obsJour: obsJour, sigJour: sigJour };
 }
 
+// Feuille « Détail des relevés » : UNE ligne par relevé, avec colonne SOURCE
+// explicite (Capteur / Manuel) + émargement → aucune ambiguïté, aucun mélange.
+// C'est la vue rigoureuse pour savoir, relevé par relevé, qui a mesuré.
+function _ttFeuilleDetail(ws, cols, releves, titre) {
+  function _colDe(rel) {
+    for (var i = 0; i < cols.length; i++) { if (cols[i].channel && rel.channel && String(cols[i].channel) === String(rel.channel)) return cols[i]; }
+    var rn = _ttNorm(rel.enceinte);
+    if (rn) for (var k = 0; k < cols.length; k++) { var cn = _ttNorm(cols[k].nom); if (cn && (cn === rn || cn.indexOf(rn) >= 0 || rn.indexOf(cn) >= 0)) return cols[k]; }
+    return null;
+  }
+  var thin = { style: 'thin', color: { argb: 'FFBFC7D2' } };
+  var border = { top: thin, left: thin, bottom: thin, right: thin };
+  ws.getCell('A1').value = titre; ws.mergeCells('A1:H1');
+  ws.getCell('A1').font = { bold: true, size: 9 }; ws.getCell('A1').alignment = { wrapText: true, vertical: 'middle' };
+  ws.getCell('A2').value = 'Détail de chaque relevé — Source = Capteur (automatique) ou Manuel (agent)';
+  ws.mergeCells('A2:H2'); ws.getCell('A2').font = { bold: true, size: 11 }; ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+  var hdr = ['Date', 'Heure', 'Enceinte', 'T° relevée (°C)', 'Seuil', 'Conformité', 'Source', 'Émargement'];
+  hdr.forEach(function (h, i) {
+    var c = ws.getCell(4, i + 1); c.value = h; c.font = { bold: true, size: 9 };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF4FB' } }; c.border = border;
+    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+  });
+  var list = (releves || []).slice().sort(function (a, b) {
+    return (a.jour + (a.hour || '')).localeCompare(b.jour + (b.hour || '')) || _ttNorm(a.enceinte).localeCompare(_ttNorm(b.enceinte));
+  });
+  var r = 5;
+  list.forEach(function (rel) {
+    var col = _colDe(rel);
+    var p = String(rel.jour || '').split('-');
+    var conf = rel.offline ? 'Capteur hors ligne' : (rel.isNC ? 'Non conforme' : (rel.temp != null ? 'Conforme' : '—'));
+    var vals = [
+      (p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : rel.jour),
+      rel.hour || '',
+      (col ? col.nom : (rel.enceinte || '—')),
+      (rel.offline ? 'H.L.' : (rel.temp != null ? rel.temp : '')),
+      (col ? String(col.seuilTxt || '').replace('Seuil : ', '') : ''),
+      conf,
+      rel.auto ? 'Capteur (auto)' : 'Manuel',
+      _ttSigCourt(rel.sig || '')
+    ];
+    vals.forEach(function (v, i) {
+      var c = ws.getCell(r, i + 1); c.value = v; c.border = border;
+      c.alignment = { horizontal: (i === 3 ? 'center' : 'left'), vertical: 'middle', wrapText: true };
+      if (i === 3 && typeof v === 'number') c.numFmt = '0.0';
+      c.font = (i === 5 && rel.isNC) ? { size: 9, bold: true, color: { argb: 'FFB91C1C' } } : { size: 9 };
+      if (i === 6) c.font = { size: 9, color: { argb: rel.auto ? 'FF0369A1' : 'FF15803D' } }; // bleu=capteur, vert=manuel
+    });
+    r++;
+  });
+  var w = [12, 8, 22, 14, 16, 16, 16, 26];
+  for (var ci = 1; ci <= 8; ci++) ws.getColumn(ci).width = w[ci - 1];
+  ws.views = [{ state: 'frozen', ySplit: 4 }];
+}
+
 // Construit une feuille ExcelJS pour une liste de jours (YYYY-MM-DD) + relevés.
 // `diag` (optionnel) accumule matched + orphans (filet anti-perte n°1).
 function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
@@ -24011,6 +24065,7 @@ function telechargerTableauPeriode() {
         var pf = from.split('-'), pt = to.split('-');
         var st = 'Fiche de relevé des températures — Période : du ' + pf[2] + '/' + pf[1] + '/' + pf[0] + ' au ' + pt[2] + '/' + pt[1] + '/' + pt[0];
         _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st, diag);
+        _ttFeuilleDetail(wb.addWorksheet('Détail des relevés'), cols, releves, _ttEntete());
         return _ttDownload(wb, 'Releves_temperatures_' + from + '_au_' + to + '.xlsx');
       }).then(function () { _ttMsg(_ttResultatTexte(diag, 'Téléchargé', '⚠️ Aucun relevé trouvé sur cette période.'), !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
     });
@@ -24037,6 +24092,7 @@ function telechargerTableauMois() {
           var relMois = releves.filter(function (r) { return r.jour.indexOf(an + '-' + String(mo + 1).padStart(2, '0') + '-') === 0; });
           _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an, diag);
         }
+        _ttFeuilleDetail(wb.addWorksheet('Détail des relevés'), cols, releves, _ttEntete());
         return _ttDownload(wb, 'Releves_temperatures_' + an + '.xlsx');
       }).then(function () { _ttMsg(_ttResultatTexte(diag, an + ' téléchargé', '⚠️ Aucun relevé trouvé sur ' + an + '.'), !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
     });
