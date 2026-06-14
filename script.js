@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v235';
+var APP_BUILD = 'v236';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -19812,6 +19812,20 @@ function testEffacerDonnees() {
         var _emailV = ((document.getElementById('insc_email') || {}).value || '').trim();
         if (!_etabV || !_respV || !_emailV) {
           showStatus('⚠️ Merci de renseigner au moins : nom de l\'établissement, responsable et e-mail.', 'err');
+          return;
+        }
+        // 3) SIRET : exactement 14 chiffres (espaces/points tolérés) — preuve DDPP.
+        var _siretD = (((document.getElementById('insc_siret') || {}).value) || '').replace(/\D/g, '');
+        if (_siretD.length !== 14) {
+          showStatus('⚠️ Le SIRET doit comporter exactement 14 chiffres.', 'err');
+          try { (document.getElementById('insc_siret') || {}).focus(); } catch (e) {}
+          return;
+        }
+        // 4) Téléphone : numéro plausible (9 à 15 chiffres ; formats FR/international tolérés).
+        var _telD = (((document.getElementById('insc_tel') || {}).value) || '').replace(/\D/g, '');
+        if (_telD.length < 9 || _telD.length > 15) {
+          showStatus('⚠️ Numéro de téléphone invalide — indiquez un numéro complet.', 'err');
+          try { (document.getElementById('insc_tel') || {}).focus(); } catch (e) {}
           return;
         }
 

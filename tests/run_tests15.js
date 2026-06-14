@@ -88,6 +88,33 @@ const KEY = 'haccp_enceintes_config';
   ok(inserted && inserted.rows.secteur === 'resto_trad' && inserted.rows.email === 'jean@resto.fr', 'inscription: secteur + e-mail transmis');
   ok(/envoyée/i.test(doc._registry['inscriptionStatus'].textContent), 'inscription: confirmation affichée');
 
+  // C4 — SIRET invalide (5 chiffres) -> bloqué
+  form({}); inserted = null; doc._registry['insc_siret'].value = '12345';
+  ctx.window.submitInscriptionHaccp(ev);
+  await new Promise(function (res) { setImmediate(res); });
+  ok(inserted === null, 'inscription: SIRET invalide (5 chiffres) -> bloqué');
+  ok(/SIRET/i.test(doc._registry['inscriptionStatus'].textContent), 'inscription: message SIRET affiché');
+
+  // C5 — SIRET 14 chiffres avec espaces -> accepté (format toléré)
+  form({}); inserted = null; doc._registry['insc_siret'].value = '123 456 789 00011';
+  ctx.window.submitInscriptionHaccp(ev);
+  await new Promise(function (res) { setImmediate(res); });
+  ok(inserted && inserted.table === 'demandes_inscription', 'inscription: SIRET 14 chiffres avec espaces -> accepté');
+
+  // C6 — téléphone trop court -> bloqué
+  form({}); inserted = null; doc._registry['insc_tel'].value = '12345';
+  ctx.window.submitInscriptionHaccp(ev);
+  await new Promise(function (res) { setImmediate(res); });
+  ok(inserted === null, 'inscription: téléphone trop court -> bloqué');
+  ok(/[Tt]éléphone/.test(doc._registry['inscriptionStatus'].textContent), 'inscription: message téléphone affiché');
+
+  // C7 — téléphone international (+33 ...) -> accepté
+  form({}); inserted = null; doc._registry['insc_tel'].value = '+33 6 12 34 56 78';
+  ctx.window.submitInscriptionHaccp(ev);
+  await new Promise(function (res) { setImmediate(res); });
+  ok(inserted && inserted.table === 'demandes_inscription', 'inscription: téléphone international toléré');
+
+
   console.log('\n══════════════════════════════════════');
   console.log('ROUND 15 (config enceintes + inscription) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
   if (failures.length) { console.log('FAILURES:'); failures.forEach(function (f) { console.log('  - ' + f); }); }
