@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v234';
+var APP_BUILD = 'v235';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23644,7 +23644,7 @@ function _ttColonnes(releves) {
     return subs.length ? subs : [{ label: 'Jour', hour: null, occ: 0 }];
   }
   var cols = enceintes.map(function (e, i) {
-    var nom = (e && (e.nom || e.name)) || ('Enceinte N°' + (i + 1));
+    var nom = _ttPlain((e && (e.nom || e.name)) || '') || ('Enceinte N°' + (i + 1));
     var cap = null;
     for (var k = 0; k < capteurs.length; k++) { if (_ttNorm(capteurs[k].enceinte || '') === _ttNorm(nom)) { cap = capteurs[k]; break; } }
     var cfgHeures = (cap && Array.isArray(cap.heures)) ? cap.heures.filter(Boolean) : [];
@@ -23658,7 +23658,7 @@ function _ttColonnes(releves) {
   var base = cols.length;
   Object.keys(orph).forEach(function (key, idx) {
     var o = orph[key];
-    cols.push({ code: 'E' + (base + idx + 1), nom: o.nom, channel: '', min: null, max: null, subs: _subs(o.hours), seuilTxt: 'Seuil : — (hors config)', horsConfig: true });
+    cols.push({ code: 'E' + (base + idx + 1), nom: _ttPlain(o.nom) || o.nom, channel: '', min: null, max: null, subs: _subs(o.hours), seuilTxt: 'Seuil : — (hors config)', horsConfig: true });
   });
   return cols;
 }
@@ -23803,7 +23803,7 @@ function _ttFeuilleDetail(ws, cols, releves, titre) {
   var border = { top: thin, left: thin, bottom: thin, right: thin };
   ws.getCell('A1').value = titre; ws.mergeCells('A1:H1');
   ws.getCell('A1').font = { bold: true, size: 9 }; ws.getCell('A1').alignment = { wrapText: true, vertical: 'middle' };
-  ws.getCell('A2').value = 'Détail de chaque relevé — Source : 🟦 bleu = CAPTEUR (auto) · ⬜ gris = MANUEL (agent)';
+  ws.getCell('A2').value = 'Détail de chaque relevé — Source : fond BLEU = CAPTEUR (auto) · fond GRIS = MANUEL (agent)';
   ws.mergeCells('A2:H2'); ws.getCell('A2').font = { bold: true, size: 11 }; ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
   var hdr = ['Date', 'Heure', 'Enceinte', 'T° relevée (°C)', 'Seuil', 'Conformité', 'Source', 'Émargement'];
   hdr.forEach(function (h, i) {
@@ -23866,11 +23866,11 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
   ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
   // Tampon de génération (date + version) + SIGNALEMENT des non-conformités en tête.
   var _ncFeuille = (releves || []).filter(function (r) { return r.isNC && r.temp != null; }).length;
-  ws.getCell('A3').value = 'Généré le ' + new Date().toLocaleString('fr-FR') + ' · HACCP Pro ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?') + ' · ' + (releves ? releves.length : 0) + ' relevé(s)' + (_ncFeuille ? ' · ⚠️ ' + _ncFeuille + ' NON CONFORME(S) — voir cases rouges et colonne Observations' : ' · ✓ aucune non-conformité');
+  ws.getCell('A3').value = 'Généré le ' + new Date().toLocaleString('fr-FR') + ' · HACCP Pro ' + (typeof APP_BUILD !== 'undefined' ? APP_BUILD : '?') + ' · ' + (releves ? releves.length : 0) + ' relevé(s)' + (_ncFeuille ? ' · ATTENTION : ' + _ncFeuille + ' NON CONFORME(S) — voir cases rouges et colonne Observations' : ' · aucune non-conformité');
   ws.mergeCells('A3:' + last + '3');
   ws.getCell('A3').font = { italic: true, bold: !!_ncFeuille, size: 8, color: { argb: _ncFeuille ? 'FFB91C1C' : 'FF15803D' } };
   // Légende des couleurs (ligne dédiée).
-  ws.getCell('A4').value = 'Légende :  🟦 fond bleu = relevé CAPTEUR  ·  ⬜ fond gris = relevé MANUEL  ·  chiffre ROUGE = hors seuil (NC)  ·  H.L. = capteur hors ligne';
+  ws.getCell('A4').value = 'Légende :  fond BLEU = relevé CAPTEUR  ·  fond GRIS = relevé MANUEL  ·  chiffre ROUGE = hors seuil (NC)  ·  H.L. = capteur hors ligne';
   ws.mergeCells('A4:' + last + '4');
   ws.getCell('A4').font = { italic: true, size: 8, color: { argb: 'FF334155' } };
   ws.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' };
@@ -23950,8 +23950,8 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
     var _sg = sigJour[jour], _sgParts = [], _au = false, _nb = 0;
     if (_sg) {
       _au = !!_sg.auto; var _noms = Object.keys(_sg.noms || {}); _nb = _noms.length;
-      if (_au) _sgParts.push('🤖 Capteur (auto)');
-      if (_nb) _sgParts.push('✍️ Manuel : ' + _noms.join(', '));
+      if (_au) _sgParts.push('Capteur (auto)');
+      if (_nb) _sgParts.push('Manuel : ' + _noms.join(', '));
     }
     sc.value = _sgParts.join(' · ');
     // Fond émargement selon la source (cohérent avec les valeurs) : bleu capteur / orange manuel.
@@ -23971,6 +23971,9 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
   return (diag && diag.matched) || 0;
 }
 function _ttNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+// Texte « propre » pour Excel : retire les emojis/icônes en tête (qui s'affichent
+// en « ? »/carré dans Excel). Garde lettres, chiffres, accents, ° et la ponctuation.
+function _ttPlain(s) { return String(s == null ? '' : s).replace(/^[^0-9A-Za-zÀ-ÿ]+/, '').replace(/\s+/g, ' ').trim(); }
 // Émargement compact pour la colonne Signature (le libellé serveur est long).
 function _ttSigCourt(s) { s = String(s || '').trim(); return /automatique|ubibot/i.test(s) ? 'Relevé auto. (UbiBot)' : s; }
 
