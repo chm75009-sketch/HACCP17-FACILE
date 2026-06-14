@@ -89,3 +89,24 @@ grant execute on function public.supervision_capteurs(text) to anon, authenticat
 
 -- ── Test ──  select * from public.supervision_capteurs('826700');
 -- ════════════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════════════
+-- admin_check — valide le mot de passe ADMIN côté SERVEUR (via Vault).
+-- Permet de retirer le mot de passe du code CLIENT : l'app envoie le mot de
+-- passe saisi, le serveur répond true/false. Repli transitoire sur '826700'.
+-- ════════════════════════════════════════════════════════════════════════
+create or replace function public.admin_check(p_pwd text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, vault
+as $$
+declare _a text;
+begin
+  begin select decrypted_secret into _a from vault.decrypted_secrets where name = 'admin_password' limit 1;
+  exception when others then _a := null; end;
+  if _a is null or _a = '' then _a := '826700'; end if;  -- repli transitoire
+  return p_pwd is not null and p_pwd = _a;
+end $$;
+grant execute on function public.admin_check(text) to anon, authenticated;
+-- Test :  select public.admin_check('826700');  -> true
