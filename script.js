@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v219';
+var APP_BUILD = 'v220';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -2813,7 +2813,7 @@ function imprimerCuisson() {
   html += '<div style="background:linear-gradient(135deg,#dc2626,#f87171);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   html += '<div style="font-weight:800;font-size:15px">Cuisson & Remise en Temperature</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + getNowStr() + '</div>';
-  html += '<div style="font-size:11px;opacity:.85">Signe : ' + signataire + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Émargement : ' + (signataire || '—') + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
@@ -6966,7 +6966,7 @@ function imprimerReception(dataOverride, photosOverride) {
   html += '<div class="header"><h2>Réception & Traçabilité</h2>';
   html += '<div style="font-size:11px;opacity:.85">Fournisseur : ' + (data.fournisseur||'—') + ' | BL : ' + (data.bl||'—') + '</div>';
   if (data.transporteur) html += '<div style="font-size:11px;opacity:.85">Transporteur : ' + data.transporteur + '</div>';
-  html += '<div style="font-size:11px;opacity:.85">Date : ' + (data.timestamp||'—') + ' | Signé : ' + (data.signataire||'—') + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Date : ' + (data.timestamp||'—') + ' | Émargement : ' + (data.signataire||'—') + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   html += '</div>';
 
@@ -10685,7 +10685,7 @@ function imprimerRefroidissementData(prods, signataire, ts) {
   html += '<div style="background:linear-gradient(135deg,#0e7490,#06b6d4);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   html += '<div style="font-weight:800;font-size:15px">Refroidissement Rapide</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom || '') + ' — ' + (ts || getNowStr()) + '</div>';
-  html += '<div style="font-size:11px;opacity:.85">Signe : ' + (signataire || '—') + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Émargement : ' + (signataire || '—') + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
@@ -11059,7 +11059,7 @@ function imprimerHuilesData(friteuses, signataire, ts) {
   html += '<div style="background:linear-gradient(135deg,#b45309,#f59e0b);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   html += '<div style="font-weight:800;font-size:15px">Huiles de Friture</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom || '') + ' — ' + (ts || getNowStr()) + '</div>';
-  html += '<div style="font-size:11px;opacity:.85">Signe : ' + (signataire || '—') + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Émargement : ' + (signataire || '—') + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
@@ -13008,8 +13008,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       var plats = [];
       (getDonneesPeriode('page-cuisson', dateFrom, dateTo) || []).forEach(function(s){
         var _dS=''; try{ _dS=new Date(s.timestamp).toLocaleString('fr-FR'); }catch(eD){}
+        var _sig = (s.data && (s.data.signe || s.data.signataire)) || '';
+        var _auto = !!(s.data && (s.data.auto || s.data.source === 'ubibot'));
         var arr = (s.data && Array.isArray(s.data.cuisson)) ? s.data.cuisson : [];
-        arr.forEach(function(p){ p._sessDate=_dS; plats.push(p); });
+        arr.forEach(function(p){ p._sessDate=_dS; p._sig=_sig; p._auto=_auto; plats.push(p); });
       });
       var filledP = plats.filter(function(p){ return p.nom !== '—' || p.temp; });
       if (filledP.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
@@ -13022,8 +13024,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           if (plat.mode && plat.mode !== '-- Mode de cuisson --') html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">Mode</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + plat.mode + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">Produit</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + plat.type + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">T° cœur</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (plat.temp?plat.temp+'°C':'—') + ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : ' + _seuilCuisson(plat.type) + ')</span></td></tr>';
-          html += '<tr><td style="padding:4px 8px;font-weight:600">Conformité</td><td style="padding:4px 8px;color:' + (plat.isNC?'#dc2626':'#16a34a') + ';font-weight:700">' + plat.conf + '</td></tr>';
-          if (plat.isNC) html += '<tr style="background:#fff8f8"><td style="padding:4px 8px;color:#dc2626;font-weight:700">Action</td><td style="padding:4px 8px;color:#dc2626;font-weight:700">' + (plat.action||'A définir') + '</td></tr>';
+          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">Conformité</td><td style="padding:4px 8px;color:' + (plat.isNC?'#dc2626':'#16a34a') + ';font-weight:700">' + plat.conf + '</td></tr>';
+          if (plat.isNC) html += '<tr style="background:#fff8f8"><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;color:#dc2626;font-weight:700">Action</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;color:#dc2626;font-weight:700">' + (plat.action||'A définir') + '</td></tr>';
+          html += '<tr><td style="padding:4px 8px;font-weight:600">Émargement</td><td style="padding:4px 8px;color:#475569">' + (plat._auto?'🤖 Auto — capteur UbiBot':('✍️ '+(plat._sig?esc(plat._sig):'Manuel'))) + '</td></tr>';
           html += '</table></div>';
         });
       }
@@ -13034,8 +13037,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       var refrois = [];
       (getDonneesPeriode('page-refroidissement', dateFrom, dateTo) || []).forEach(function(s){
         var _dS=''; try{ _dS=new Date(s.timestamp).toLocaleString('fr-FR'); }catch(eD){}
+        var _sig = (s.data && (s.data.signe || s.data.signataire)) || '';
+        var _auto = !!(s.data && (s.data.auto || s.data.source === 'ubibot'));
         var arr = (s.data && Array.isArray(s.data.refroidissement)) ? s.data.refroidissement : [];
-        arr.forEach(function(r){ r._sessDate=_dS; refrois.push(r); });
+        arr.forEach(function(r){ r._sessDate=_dS; r._sig=_sig; r._auto=_auto; refrois.push(r); });
       });
       var filledR = refrois.filter(function(r){ return r.t0 || r.t2; });
       if (filledR.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
@@ -13047,8 +13052,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:40%;font-weight:600">T° initiale</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (r.t0?r.t0+'°C':'—') + '</td></tr>';
           html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">T° à +2h</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">' + (r.t2?r.t2+'°C':'—') + ' <span style="color:#0891b2;font-weight:600;font-size:9px">(seuil : +10°C max)</span></td></tr>';
-          html += '<tr><td style="padding:4px 8px;font-weight:600">Conformité</td><td style="padding:4px 8px;color:' + (r.isNC?'#dc2626':'#16a34a') + ';font-weight:700">' + r.conf + '</td></tr>';
-          if (r.isNC) html += '<tr style="background:#fff8f8"><td style="padding:4px 8px;color:#dc2626;font-weight:700">Action</td><td style="padding:4px 8px;color:#dc2626;font-weight:700">' + (r.action||'A définir') + '</td></tr>';
+          html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">Conformité</td><td style="padding:4px 8px;color:' + (r.isNC?'#dc2626':'#16a34a') + ';font-weight:700">' + r.conf + '</td></tr>';
+          if (r.isNC) html += '<tr style="background:#fff8f8"><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;color:#dc2626;font-weight:700">Action</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;color:#dc2626;font-weight:700">' + (r.action||'A définir') + '</td></tr>';
+          html += '<tr><td style="padding:4px 8px;font-weight:600">Émargement</td><td style="padding:4px 8px;color:#475569">' + (r._auto?'🤖 Auto — capteur UbiBot':('✍️ '+(r._sig?esc(r._sig):'Manuel'))) + '</td></tr>';
           html += '</table></div>';
         });
       }
