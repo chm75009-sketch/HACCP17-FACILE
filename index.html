@@ -3435,7 +3435,7 @@
           <div class="frow"><div class="flabel">Ville</div><input class="finput" id="set_ville" placeholder="Ville"/></div>
           <div class="frow"><div class="flabel">Téléphone</div><input class="finput" id="set_tel" placeholder="Téléphone" type="tel"/></div>
           <div class="frow"><div class="flabel">Email</div><input class="finput" id="set_email" placeholder="Email" type="email"/></div>
-          <div class="frow haccp-adv" id="siret_wrap" style="display:none"><div class="flabel">N° SIRET</div><input class="finput" id="set_siret" placeholder="14 chiffres"/></div>
+          <div class="frow haccp-adv" id="siret_wrap" style="display:none"><div class="flabel">N° SIREN / SIRET</div><input class="finput" id="set_siret" placeholder="SIREN (9) ou SIRET (14 chiffres)"/></div>
         </div>
         <div style="text-align:right;padding:0 4px 8px">
           <button onclick="toggleAdvanced()" id="btn_advanced" class="btn-toggle-adv" data-adv-label="avancés" style="background:none;border:none;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline">⚙️ Afficher champs avancés</button>
@@ -3860,8 +3860,8 @@
             <input type="text" id="insc_adresse" required placeholder="N°, rue, code postal, ville" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.15);border-radius:9px;color:white;font-size:14px;font-family:Outfit,sans-serif;box-sizing:border-box">
           </div>
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);margin-bottom:5px">SIRET <span style="color:#dc2626">*</span></label>
-            <input type="text" id="insc_siret" required pattern="[0-9 ]{14,17}" maxlength="17" placeholder="14 chiffres" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.15);border-radius:9px;color:white;font-size:14px;font-family:Outfit,sans-serif;box-sizing:border-box">
+            <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);margin-bottom:5px">SIREN / SIRET <span style="color:#dc2626">*</span></label>
+            <input type="text" id="insc_siret" required pattern="[0-9 .]{9,20}" maxlength="20" placeholder="SIREN (9 chiffres) ou SIRET (14 chiffres)" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.15);border-radius:9px;color:white;font-size:14px;font-family:Outfit,sans-serif;box-sizing:border-box">
             <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:4px">Apparaîtra automatiquement sur tous vos PDF de preuve DDPP</div>
           </div>
           <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-top:8px">Facultatif</div>

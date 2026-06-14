@@ -101,6 +101,12 @@ const KEY = 'haccp_enceintes_config';
   await new Promise(function (res) { setImmediate(res); });
   ok(inserted && inserted.table === 'demandes_inscription', 'inscription: SIRET 14 chiffres avec espaces -> accepté');
 
+  // C5b — SIREN 9 chiffres -> accepté
+  form({}); inserted = null; doc._registry['insc_siret'].value = '123456789';
+  ctx.window.submitInscriptionHaccp(ev);
+  await new Promise(function (res) { setImmediate(res); });
+  ok(inserted && inserted.table === 'demandes_inscription', 'inscription: SIREN 9 chiffres -> accepté');
+
   // C6 — téléphone trop court -> bloqué
   form({}); inserted = null; doc._registry['insc_tel'].value = '12345';
   ctx.window.submitInscriptionHaccp(ev);
