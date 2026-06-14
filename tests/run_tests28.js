@@ -96,6 +96,17 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ctx._a11yLabelsAuto({ querySelectorAll: function () { return [i3]; } });
   ok(i3.getAttribute('aria-label') === 'Déjà là', 'a11y: ne réécrit pas un aria-label existant');
 }
+// ── H) Confirmation avant suppression : action exécutée seulement si confirmé ──
+{
+  var _origSC = ctx.showConfirm;
+  ctx.showConfirm = function (ico, t, m, okL, okC, cbk) { cbk(true); };   // simule clic « Supprimer »
+  var n1 = 0; ctx._confirmSuppr('x', function () { n1++; });
+  ok(n1 === 1, 'confirmSuppr: action exécutée si confirmé');
+  ctx.showConfirm = function (ico, t, m, okL, okC, cbk) { cbk(false); };  // simule « Annuler »
+  var n2 = 0; ctx._confirmSuppr('x', function () { n2++; });
+  ok(n2 === 0, 'confirmSuppr: action ANNULÉE si refusé');
+  ctx.showConfirm = _origSC;
+}
 
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');

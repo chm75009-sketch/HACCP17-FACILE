@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v238';
+var APP_BUILD = 'v239';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24223,3 +24223,46 @@ try {
   if (document.readyState !== 'loading') setTimeout(_capteursVerifHash, 300);
   else document.addEventListener('DOMContentLoaded', function () { setTimeout(_capteursVerifHash, 300); });
 } catch (e) {}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CONFIRMATION AVANT TOUTE SUPPRESSION (capteur, plat, produit, NC, équipe, etc.)
+// On enveloppe chaque fonction « supprimer… » : un clic « Retirer/✕ » demande une
+// confirmation et n'agit qu'après validation. Aucune de ces fonctions n'est appelée
+// en interne (uniquement via onclick), donc l'enveloppe ne casse aucun flux.
+// ════════════════════════════════════════════════════════════════════════════
+function _confirmSuppr(msg, cb) {
+  try {
+    if (typeof showConfirm === 'function') {
+      showConfirm('🗑️', 'Confirmer la suppression', msg || 'Voulez-vous vraiment supprimer cet élément ?', 'Supprimer', '', function (ok) { if (ok) cb(); });
+      return;
+    }
+  } catch (e) {}
+  if (typeof confirm !== 'function' || confirm(msg || 'Supprimer cet élément ?')) cb();
+}
+(function () {
+  if (typeof window === 'undefined') return;
+  var msgs = {
+    supprimerSondeBeta:    'Retirer ce capteur de la configuration ? (Les relevés déjà enregistrés sont conservés.)',
+    supprimerCategorie:    'Supprimer cette catégorie ?',
+    supprimerCompartiment: 'Supprimer ce compartiment du véhicule ?',
+    supprimerProduit:      'Supprimer ce produit ?',
+    supprimerTracaProduit: 'Supprimer ce produit de la traçabilité ?',
+    supprimerPlat:         'Supprimer ce plat ?',
+    supprimerPlatTemoin:   'Supprimer ce plat témoin ?',
+    supprimerRefroi:       'Supprimer ce produit de refroidissement ?',
+    supprimerFriteuse:     'Supprimer cette friteuse ?',
+    supprimerEtiq:         'Supprimer cette étiquette ?',
+    supprimerDechet:       'Supprimer cette ligne de déchets ?',
+    supprimerPerte:        'Supprimer cette perte / cet invendu ?',
+    supprimerMembreEquipe: "Retirer ce membre de l'équipe ?",
+    supprimerPlatAllerg:   'Supprimer ce plat de la matrice allergènes ?',
+    supprimerNC:           'Supprimer cette non-conformité ?'
+  };
+  Object.keys(msgs).forEach(function (n) {
+    var orig = window[n];
+    if (typeof orig !== 'function' || orig.__confirmWrap) return;
+    var w = function () { var args = arguments, self = this; _confirmSuppr(msgs[n], function () { orig.apply(self, args); }); };
+    w.__confirmWrap = true;
+    window[n] = w;
+  });
+})();
