@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v245';
+var APP_BUILD = 'v246';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -15735,6 +15735,14 @@ function _tdbEstFait(m, set) {
   for (var i = 0; i < labels.length; i++) { if (set[labels[i]]) return true; }
   return false;
 }
+// Repliage des panneaux du tableau de bord (repliés par défaut pour ne pas pousser
+// le mode guidé trop bas). Préférence mémorisée par panneau.
+function _tdbOpen(which) { try { return lsGet('haccp_tdb_open_' + which) === '1'; } catch (e) { return false; } }
+function _tdbToggleOpen(which) {
+  try { lsSet('haccp_tdb_open_' + which, _tdbOpen(which) ? '0' : '1'); } catch (e) {}
+  if (which === 'perio') { if (typeof renderTdbPerio === 'function') renderTdbPerio(); }
+  else { if (typeof renderTdbAfaire === 'function') renderTdbAfaire(); }
+}
 function renderTdbAfaire() {
   var host = document.getElementById('tdbAfaire');
   if (!host) return;
@@ -15754,12 +15762,16 @@ function renderTdbAfaire() {
     var reste = total - faits;
     var couleur = reste === 0 ? '#16a34a' : (faits === 0 ? '#dc2626' : '#f59e0b');
     var titreEtat = reste === 0 ? 'Tout est fait aujourd\'hui 🎉' : (reste + ' contrôle' + (reste > 1 ? 's' : '') + ' à faire');
-    var html = '<div style="background:white;border-radius:16px;padding:14px 16px 10px;box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    var open = _tdbOpen('afaire');
+    var html = '<div style="background:white;border-radius:16px;padding:' + (open ? '14px 16px 10px' : '12px 16px') + ';box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">'
+      + '<div onclick="_tdbToggleOpen(\'afaire\')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;' + (open ? 'margin-bottom:10px' : '') + '">'
       + '<div style="font-size:13px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:6px">📋 À faire aujourd\'hui</div>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
       + '<div style="font-size:10px;font-weight:800;color:' + couleur + ';background:' + couleur + '1a;padding:3px 9px;border-radius:20px">' + faits + '/' + total + ' · ' + _baroEsc(titreEtat) + '</div>'
+      + '<div style="color:#9ca3af;font-size:13px;font-weight:900">' + (open ? '▾' : '▸') + '</div>'
+      + '</div>'
       + '</div>';
-    lignes.forEach(function (l) {
+    if (open) lignes.forEach(function (l) {
       var m = l.m;
       var ico = l.ok ? '✅' : '⬜';
       var coul = l.ok ? '#16a34a' : '#dc2626';
@@ -15880,19 +15892,23 @@ function renderTdbPerio() {
     var enRetard = taches.filter(function (x) { return x.st.etat === 'jamais' || x.st.etat === 'retard'; }).length;
     var coulH = enRetard === 0 ? '#16a34a' : '#dc2626';
     var etatH = enRetard === 0 ? 'À jour' : (enRetard + ' en retard');
-    var html = '<div style="background:white;border-radius:16px;padding:14px 16px 10px;box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+    var open = _tdbOpen('perio');
+    var html = '<div style="background:white;border-radius:16px;padding:' + (open ? '14px 16px 10px' : '12px 16px') + ';box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid #eef2ff">'
+      + '<div onclick="_tdbToggleOpen(\'perio\')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">'
       + '<div style="font-size:13px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:6px">📅 Rappels périodiques</div>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
       + '<div style="font-size:10px;font-weight:800;color:' + coulH + ';background:' + coulH + '1a;padding:3px 9px;border-radius:20px">' + _baroEsc(etatH) + '</div>'
+      + '<div style="color:#9ca3af;font-size:13px;font-weight:900">' + (open ? '▾' : '▸') + '</div>'
       + '</div>'
-      + '<div style="font-size:10.5px;color:#9ca3af;margin-bottom:10px">Fréquences modifiables. Échéance = dernier fait + fréquence.</div>';
+      + '</div>'
+      + (open ? '<div style="font-size:10.5px;color:#9ca3af;margin:4px 0 10px">Fréquences modifiables. Échéance = dernier fait + fréquence.</div>' : '');
     var STY = {
       jamais:  { ic: '⬜', c: '#dc2626', bg: '#fff7f7', bd: '#fee2e2', txt: 'Jamais fait' },
       retard:  { ic: '⚠️', c: '#dc2626', bg: '#fff7f7', bd: '#fee2e2', txt: 'En retard' },
       bientot: { ic: '🔔', c: '#b45309', bg: '#fffbeb', bd: '#fde68a', txt: 'Bientôt' },
       ajour:   { ic: '✅', c: '#16a34a', bg: '#f0fdf4', bd: '#dcfce7', txt: 'À jour' }
     };
-    taches.forEach(function (x) {
+    if (open) taches.forEach(function (x) {
       var s = STY[x.st.etat];
       var detail = x.st.etat === 'jamais' ? 'À planifier' :
         (x.st.etat === 'retard' ? ('À refaire (échéance dépassée : ' + _tdbDateFr(x.st.next) + ')') :
