@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v231';
+var APP_BUILD = 'v232';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23903,7 +23903,7 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
   ws.getColumn(totalCols).width = 18;
   ws.getRow(hdr1).height = 30;
   ws.views = [{ state: 'frozen', xSplit: 1, ySplit: hdr3 }];
-  return matched;
+  return (diag && diag.matched) || 0;
 }
 function _ttNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
 // Émargement compact pour la colonne Signature (le libellé serveur est long).

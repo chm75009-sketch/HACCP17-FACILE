@@ -60,6 +60,21 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   var compte = diag.matched + diag.merged + orphTot;
   ok(compte === rel.length, 'VERROU: tous les relevés comptabilisés (' + compte + '/' + rel.length + ') — aucun perdu');
 }
+// ── F) SMOKE : la génération de la feuille Excel ne doit PAS planter (erreurs runtime) ──
+{
+  function _mkWs() { var cs = {}; return { getCell: function (a, b) { var k = (b === undefined) ? ('' + a) : (a + '_' + b); return cs[k] || (cs[k] = {}); }, mergeCells: function () {}, getColumn: function () { return {}; }, getRow: function () { return {}; }, views: null }; }
+  var relF = [
+    { jour: '2026-06-14', hour: '08:00', enceinte: 'Enceinte N°1', temp: -19, isNC: false, auto: true, sig: 'Relevé auto. (UbiBot)' },
+    { jour: '2026-06-14', hour: '08:00', enceinte: 'Enceinte N°1', temp: -12, isNC: true, auto: false, sig: 'Mounir' },
+    { jour: '2026-06-14', hour: '12:30', enceinte: 'Enceinte N°2', temp: 3.5, isNC: false, auto: false, sig: 'Léa' }
+  ];
+  var colsF = ctx._ttColonnes(relF);
+  var diagF = { found: relF.length, matched: 0, merged: 0, orphans: {} };
+  var threw = false;
+  try { ctx._ttRemplirFeuille(_mkWs(), colsF, ['2026-06-14'], relF, 'Test', 'Sous-titre', diagF); }
+  catch (e) { threw = true; console.log('  (smoke erreur: ' + e.message + ')'); }
+  ok(!threw, 'SMOKE: génération de la feuille Excel sans erreur d\'exécution');
+}
 
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
