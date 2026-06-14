@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v222';
+var APP_BUILD = 'v223';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -12960,7 +12960,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
         // « Enceinte N1…N21 » pour une même enceinte relevée plusieurs fois).
         var _grp = {}, _ord = [];
         filled.forEach(function(e){
-          var key = (e.type || '—') + '|' + (e.precision || '');
+          // Identité de l'enceinte = son NOM (relevé manuel) ou son type (capteur auto).
+          // → toutes les cartes portent le numéro/nom d'enceinte, pas seulement celles
+          //   sous capteur (avant : groupées par type → « Réfrigérateur » sans n°).
+          var key = (e.nom || e.type || '—') + '|' + (e.precision || '');
           if (!_grp[key]) { _grp[key] = []; _ord.push(key); }
           _grp[key].push(e);
         });
@@ -12974,7 +12977,8 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           // enceinte (seuil max). Appariement tolérant (accents/espaces) → un seuil
           // s'affiche pour TOUTES les enceintes, pas seulement celles avec capteur.
           var seuilTxt = _seuilTemp(e0);
-          var _enNorm = (typeof _ttNorm === 'function') ? _ttNorm(e0.type || '') : String(e0.type || '').toLowerCase().trim();
+          var _enId = e0.nom || e0.type || '';
+          var _enNorm = (typeof _ttNorm === 'function') ? _ttNorm(_enId) : String(_enId).toLowerCase().trim();
           if (!seuilTxt || seuilTxt === '—') {
             for (var k=0;k<_sondes.length;k++){ var _sn=(typeof _ttNorm==='function')?_ttNorm(_sondes[k].enceinte||''):String(_sondes[k].enceinte||'').toLowerCase().trim(); if (_sn===_enNorm){ var mn=_sondes[k].min, mx=_sondes[k].max; if (mn!=null && mx!=null) seuilTxt=((mn<0?'':'+')+mn)+' à '+((mx<0?'':'+')+mx)+'°C'; break; } }
           }
@@ -12984,7 +12988,9 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           }
           var nbNC = list.filter(function(x){return x.isNC;}).length;
           html += '<div style="margin:8px;border:1.5px solid ' + bc + ';border-radius:8px;overflow:hidden;page-break-inside:avoid">';
-          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">' + esc(e0.type || ('Enceinte N' + (gi+1))) + (e0.precision?' — '+esc(e0.precision):'') + (e0.refNum?' ('+esc(e0.refNum)+')':'') + '<span style="font-weight:600;opacity:.9"> · ' + list.length + ' relevé(s)' + (nbNC?' · ' + nbNC + ' NC':'') + (seuilTxt && seuilTxt!=='—' ? ' · seuil ' + esc(seuilTxt) : '') + '</span></div>';
+          var _titre = e0.nom || e0.type || ('Enceinte N' + (gi+1));
+          var _typeExtra = (e0.type && (typeof _ttNorm !== 'function' || _ttNorm(e0.type) !== _ttNorm(_titre))) ? ' · ' + esc(e0.type) : '';
+          html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">' + esc(_titre) + _typeExtra + (e0.precision?' — '+esc(e0.precision):'') + (e0.refNum?' ('+esc(e0.refNum)+')':'') + '<span style="font-weight:600;opacity:.9"> · ' + list.length + ' relevé(s)' + (nbNC?' · ' + nbNC + ' NC':'') + (seuilTxt && seuilTxt!=='—' ? ' · seuil ' + esc(seuilTxt) : '') + '</span></div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
           html += '<tr style="background:#f8fafc"><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700;width:32%">Date / heure</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">T° relevée</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Conformité</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Saisie / Émargement</td></tr>';
           list.forEach(function(enc){
@@ -23195,7 +23201,10 @@ function getRelevesConfig() {
   try { var c = JSON.parse(lsGet(RELEVES_LS_KEY) || 'null'); if (c && typeof c === 'object') { return { nb: (c.nb >= 1 && c.nb <= 48) ? c.nb : 2, heures: Array.isArray(c.heures) ? c.heures : ['08:00', '18:00'] }; } } catch (e) {}
   return { nb: 2, heures: ['08:00', '18:00'] };
 }
-function setRelevesConfig(nb, heures) { try { lsSet(RELEVES_LS_KEY, JSON.stringify({ nb: nb, heures: heures })); } catch (e) {} scheduleSondesPush(); }
+var SONDES_MAJ_LS = 'haccp_sondes_maj';
+function _marquerSondesMaj() { try { lsSet(SONDES_MAJ_LS, String(Date.now())); } catch (e) {} }
+function _getSondesMaj() { try { return parseInt(lsGet(SONDES_MAJ_LS) || '0', 10) || 0; } catch (e) { return 0; } }
+function setRelevesConfig(nb, heures) { try { lsSet(RELEVES_LS_KEY, JSON.stringify({ nb: nb, heures: heures })); } catch (e) {} _marquerSondesMaj(); scheduleSondesPush(); }
 function _relevesBlockHtml() {
   var cfg = getRelevesConfig();
   // Nombre de relevés / jour : LIBRE (saisie directe, sans limite de 6).
@@ -23233,7 +23242,7 @@ function enregistrerReleves() {
   if (typeof showToast === 'function') showToast('Horaires de relevés enregistrés.', 'ok', 2000);
 }
 
-function saveSondesConfig(arr) { _saveSondesRaw(arr); scheduleSondesPush(); }
+function saveSondesConfig(arr) { _saveSondesRaw(arr); _marquerSondesMaj(); scheduleSondesPush(); }
 function scheduleSondesPush() {
   if (_pushSondesTimer) clearTimeout(_pushSondesTimer);
   _pushSondesTimer = setTimeout(function () { _pushSondesTimer = null; pushSondesCloud(); }, 800);
@@ -23250,7 +23259,7 @@ function pushSondesCloud() {
     if (!(getSondesConfig() || []).length) return;
     var payload = {
       code_client: String(ETAB_ID), module: SONDES_CFG_MODULE,
-      contenu: { sondes: getSondesConfig(), ubibotKey: getUbibotKey(), releves: getRelevesConfig(), maj: Date.now() },
+      contenu: { sondes: getSondesConfig(), ubibotKey: getUbibotKey(), releves: getRelevesConfig(), maj: (_getSondesMaj() || Date.now()) },
       signature: null, photos: [], date_controle: new Date().toISOString()
     };
     fetch(SUPABASE_URL + '/rest/v1/controles_haccp', {
@@ -23272,9 +23281,16 @@ function pullSondesCloud(cb) {
       .then(function (rows) {
         if (Array.isArray(rows) && rows.length) {
           var c = rows[0].contenu; if (typeof c === 'string') { try { c = JSON.parse(c); } catch (e) { c = null; } }
+          // ANTI-RETOUR : ne JAMAIS écraser une config locale PLUS RÉCENTE avec une
+          // version cloud plus ancienne (cas : on vient de modifier les horaires et le
+          // push n'a pas encore atteint le serveur → la relecture les effaçait).
+          var cloudMaj = (c && c.maj) ? Number(c.maj) : 0;
+          var localMaj = _getSondesMaj();
+          if (localMaj && cloudMaj && localMaj > cloudMaj) { if (cb) cb(); return; }
           if (c && Array.isArray(c.sondes)) _saveSondesRaw(c.sondes);
           if (c && c.ubibotKey && !getUbibotKey()) setUbibotKey(c.ubibotKey);
           if (c && c.releves) { try { lsSet(RELEVES_LS_KEY, JSON.stringify(c.releves)); } catch (e) {} }
+          if (cloudMaj) { try { lsSet(SONDES_MAJ_LS, String(cloudMaj)); } catch (e) {} } // aligne l'horloge locale sur le cloud accepté
         }
         if (cb) cb();
       }).catch(function () { if (cb) cb(); });
