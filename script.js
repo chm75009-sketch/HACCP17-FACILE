@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v216';
+var APP_BUILD = 'v217';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — à chaque ouverture, on lit la version RÉELLEMENT
 // déployée (fichier ver.txt, sans cache) et on compare à la version qui tourne. Si
@@ -23505,19 +23505,51 @@ function _ttMatchEnc(rel, enceintes, capteurs) {
   return -1;
 }
 
+// Message de résultat (n°1) : nb trouvés / reportés + alerte sur les relevés
+// non reportés (enceintes inconnues), pour ne JAMAIS perdre une donnée en silence.
+function _ttResultatTexte(diag, okLabel, vide) {
+  if (!diag || !diag.found) return vide;
+  var s = '✓ ' + okLabel + ' — ' + diag.found + ' relevé(s) trouvé(s), ' + (diag.matched || 0) + ' reporté(s).';
+  var keys = diag.orphans ? Object.keys(diag.orphans) : [];
+  if (keys.length) {
+    var tot = keys.reduce(function (a, k) { return a + diag.orphans[k]; }, 0);
+    s += ' ⚠️ ' + tot + ' non reporté(s) — enceinte(s) sans correspondance : ' + keys.map(function (k) { return k + ' (' + diag.orphans[k] + ')'; }).join(', ') + '.';
+  }
+  return s;
+}
+
+// Sous-colonnes (créneaux) à partir d'un ensemble d'heures relevées : 1 → « Jour »,
+// 2 → « Matin / Soir », 3+ → une colonne par heure. Centralisé (config + orphelines).
+function _ttSubsFromHours(hours) {
+  if (hours.length <= 1) return [{ label: 'Jour', hour: hours[0] || null }];
+  if (hours.length === 2) return [{ label: 'Matin', hour: hours[0] }, { label: 'Soir', hour: hours[1] }];
+  return hours.map(function (h) { return { label: h, hour: h }; });
+}
+
 // Colonnes = enceintes configurées. Fréquence (sous-colonnes) = union des heures
 // PARAMÉTRÉES (capteur) ET des heures réellement RELEVÉES dans les données → gère
 // « plusieurs relevés par jour » sans rien perdre, et reflète le paramétrage.
+// n°3 — Toute enceinte RELEVÉE mais ABSENTE de la config reçoit aussi sa colonne
+// (« hors config ») : on n'abandonne plus jamais un relevé faute de colonne.
 function _ttColonnes(releves) {
   var enceintes = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
   var capteurs = getSondesConfig() || [];
-  // heures vues dans les données, par enceinte
+  // heures vues dans les données, par enceinte ; + enceintes relevées hors config
   var dataHours = {};
+  var orphelines = {}; // nom normalisé -> { nom, hours:{} }
   (releves || []).forEach(function (rel) {
-    var ci = _ttMatchEnc(rel, enceintes, capteurs); if (ci < 0) return;
+    var ci = _ttMatchEnc(rel, enceintes, capteurs);
+    if (ci < 0) {
+      var nm = String(rel.enceinte || '').trim();
+      if (!nm) return; // relevé sans identité → capté par le filet anti-perte (n°1)
+      var key = _ttNorm(nm);
+      var o = orphelines[key] || (orphelines[key] = { nom: nm, hours: {} });
+      if (rel.hour) o.hours[rel.hour] = true;
+      return;
+    }
     (dataHours[ci] = dataHours[ci] || {})[rel.hour || ''] = true;
   });
-  return enceintes.map(function (e, i) {
+  var cols = enceintes.map(function (e, i) {
     var nom = (e && (e.nom || e.name)) || ('Enceinte N°' + (i + 1));
     var cap = null;
     for (var k = 0; k < capteurs.length; k++) { if (_ttNorm(capteurs[k].enceinte || '') === _ttNorm(nom)) { cap = capteurs[k]; break; } }
@@ -23525,14 +23557,18 @@ function _ttColonnes(releves) {
     if (cap && Array.isArray(cap.heures)) cap.heures.filter(Boolean).forEach(function (h) { hset[h] = true; });
     if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) { if (h) hset[h] = true; });
     var hours = Object.keys(hset).sort();
-    var subs;
-    if (hours.length <= 1) subs = [{ label: 'Jour', hour: hours[0] || null }];
-    else if (hours.length === 2) subs = [{ label: 'Matin', hour: hours[0] }, { label: 'Soir', hour: hours[1] }];
-    else subs = hours.map(function (h) { return { label: h, hour: h }; });
     var mn = cap && isFinite(cap.min) ? cap.min : null;
     var mx = cap && isFinite(cap.max) ? cap.max : ((e && e.seuil != null && isFinite(e.seuil)) ? e.seuil : null);
-    return { code: 'E' + (i + 1), nom: nom, channel: (cap && cap.channel) || '', min: mn, max: mx, subs: subs, seuilTxt: _ttSeuilTexte(mn, mx) };
+    return { code: 'E' + (i + 1), nom: nom, channel: (cap && cap.channel) || '', min: mn, max: mx, subs: _ttSubsFromHours(hours), seuilTxt: _ttSeuilTexte(mn, mx) };
   });
+  // n°3 — colonnes pour les enceintes relevées hors configuration
+  var base = cols.length;
+  Object.keys(orphelines).forEach(function (key, idx) {
+    var o = orphelines[key];
+    var hours = Object.keys(o.hours).sort();
+    cols.push({ code: 'E' + (base + idx + 1), nom: o.nom, channel: '', min: null, max: null, subs: _ttSubsFromHours(hours), seuilTxt: 'Seuil : — (hors config)', horsConfig: true });
+  });
+  return cols;
 }
 function _ttSeuilTexte(mn, mx) {
   var f = function (v) { return (v < 0 ? '' : '+') + v; };
@@ -23584,19 +23620,21 @@ function _ttNormaliser(rows) {
     var hh = c.heure_programmee || (String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
     // Émargement : qui a relevé (signataire/signe). Relevés capteur = « Relevé auto. (UbiBot) ».
     var sig = _ttSigCourt(c.signataire || c.signe || r.signature || '');
+    var auto = !!(c.auto || c.source === 'ubibot' || /ubibot/i.test(sig)); // relevé capteur ?
     var temps = Array.isArray(c.temperatures) ? c.temperatures : [];
     temps.forEach(function (t) {
       if (t == null) return;
       var raw = (t.temp === '' || t.temp == null) ? null : parseFloat(String(t.temp).replace(',', '.'));
       // Identité de l'enceinte : nom (relevé manuel) puis type (relevé capteur UbiBot).
-      out.push({ jour: jour, hour: hh, enceinte: String(t.nom || t.type || '').trim(), channel: c.channel || t.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme'), sig: sig });
+      out.push({ jour: jour, hour: hh, enceinte: String(t.nom || t.type || '').trim(), channel: c.channel || t.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme'), sig: sig, auto: auto });
     });
   });
   return out;
 }
 
 // Construit une feuille ExcelJS pour une liste de jours (YYYY-MM-DD) + relevés.
-function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
+// `diag` (optionnel) accumule matched + orphans (filet anti-perte n°1).
+function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
   var nSub = 0; cols.forEach(function (c) { nSub += c.subs.length; });
   var totalCols = 1 + nSub + 2; // Date + sous-colonnes + Observations + Signature
   var last = _ttColLetter(totalCols);
@@ -23611,15 +23649,27 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre) {
       var rn = _ttNorm(rel.enceinte);
       if (rn) for (var k = 0; k < cols.length; k++) { var cn = _ttNorm(cols[k].nom); if (cn && (cn === rn || cn.indexOf(rn) >= 0 || rn.indexOf(cn) >= 0)) { ci = k; break; } }
     }
-    if (ci < 0) return;
-    matched++;
+    if (ci < 0) {
+      // n°1 — filet anti-perte : relevé sans colonne correspondante → on le signale
+      // au lieu de l'abandonner en silence.
+      if (diag) { var nm = String(rel.enceinte || '').trim() || '(sans nom)'; (diag.orphans = diag.orphans || {})[nm] = (diag.orphans[nm] || 0) + 1; }
+      return;
+    }
     var si = _ttSubIndex(cols[ci], rel.hour);
-    map[rel.jour + '|' + ci + '|' + si] = rel;
+    var key = rel.jour + '|' + ci + '|' + si;
+    var prev = map[key];
+    // n°4 — anti-collision même enceinte/heure/jour : garder le relevé MANUEL (signé)
+    // plutôt que l'automatique ; à type égal, garder celui qui porte une température.
+    var remplace = !prev
+      || (prev.auto && !rel.auto)
+      || (prev.auto === rel.auto && (prev.temp == null) && (rel.temp != null));
+    if (remplace) { map[key] = rel; if (!prev) matched++; }
     if (rel.sig) (sigJour[rel.jour] = sigJour[rel.jour] || {})[rel.sig] = true; // émargement du jour
     if (rel.isNC && rel.temp != null) {
       (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ') hors seuil');
     }
   });
+  if (diag) diag.matched = (diag.matched || 0) + matched;
 
   // En-têtes haut de feuille
   ws.getCell('A1').value = titre;
@@ -23812,7 +23862,7 @@ function telechargerTableauPeriode() {
   _ttEnsureExcel(function (ok) {
     if (!ok) { _ttMsg('Impossible de charger la bibliothèque Excel (vérifiez la connexion).', true); return; }
     _ttSync(function () {
-      var diag = { found: 0, matched: 0 };
+      var diag = { found: 0, matched: 0, orphans: {} };
       _ttFetchControles(from, to).then(function (rows) {
         var releves = _ttNormaliser(rows); diag.found = releves.length;
         var cols = _ttColonnes(releves);   // colonnes = paramétrage + relevés réels
@@ -23820,9 +23870,9 @@ function telechargerTableauPeriode() {
         var ws = wb.addWorksheet('Relevés T°');
         var pf = from.split('-'), pt = to.split('-');
         var st = 'Fiche de relevé des températures — Période : du ' + pf[2] + '/' + pf[1] + '/' + pf[0] + ' au ' + pt[2] + '/' + pt[1] + '/' + pt[0];
-        diag.matched = _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st);
+        _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st, diag);
         return _ttDownload(wb, 'Releves_temperatures_' + from + '_au_' + to + '.xlsx');
-      }).then(function () { _ttMsg(diag.found ? ('✓ Téléchargé — ' + diag.found + ' relevé(s) trouvé(s), ' + diag.matched + ' reporté(s).') : '⚠️ Aucun relevé trouvé sur cette période.', !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+      }).then(function () { _ttMsg(_ttResultatTexte(diag, 'Téléchargé', '⚠️ Aucun relevé trouvé sur cette période.'), !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
     });
   });
 }
@@ -23835,7 +23885,7 @@ function telechargerTableauMois() {
   _ttEnsureExcel(function (ok) {
     if (!ok) { _ttMsg('Impossible de charger la bibliothèque Excel (vérifiez la connexion).', true); return; }
     _ttSync(function () {
-      var diag = { found: 0, matched: 0 };
+      var diag = { found: 0, matched: 0, orphans: {} };
       _ttFetchControles(from, to).then(function (rows) {
         var releves = _ttNormaliser(rows); diag.found = releves.length;
         var cols = _ttColonnes(releves);   // mêmes colonnes pour les 12 mois (paramétrage + relevés de l'année)
@@ -23845,10 +23895,10 @@ function telechargerTableauMois() {
           var nbJours = new Date(an, mo + 1, 0).getDate();
           var jours = []; for (var j = 1; j <= nbJours; j++) jours.push(an + '-' + String(mo + 1).padStart(2, '0') + '-' + String(j).padStart(2, '0'));
           var relMois = releves.filter(function (r) { return r.jour.indexOf(an + '-' + String(mo + 1).padStart(2, '0') + '-') === 0; });
-          diag.matched += _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an);
+          _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an, diag);
         }
         return _ttDownload(wb, 'Releves_temperatures_' + an + '.xlsx');
-      }).then(function () { _ttMsg(diag.found ? ('✓ ' + an + ' téléchargé — ' + diag.found + ' relevé(s) trouvé(s), ' + diag.matched + ' reporté(s).') : '⚠️ Aucun relevé trouvé sur ' + an + '.', !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
+      }).then(function () { _ttMsg(_ttResultatTexte(diag, an + ' téléchargé', '⚠️ Aucun relevé trouvé sur ' + an + '.'), !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
     });
   });
 }
