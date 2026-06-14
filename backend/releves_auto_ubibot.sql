@@ -106,25 +106,39 @@ begin
         if v_heure !~ '^[0-2][0-9]:[0-5][0-9]$' then continue; end if;
         v_hts := (v_jour::text || ' ' || v_heure)::timestamp at time zone 'Europe/Paris';
 
+        -- Fenêtre ÉLARGIE (20 min au lieu de 9) : tolère un passage de cron en
+        -- retard ou sauté → on ne rate plus le créneau pour quelques minutes.
         if (v_local at time zone 'Europe/Paris') >= (v_hts at time zone 'Europe/Paris')
-           and v_local < v_hts + interval '9 minutes'
+           and v_local < v_hts + interval '20 minutes'
         then
+          -- Déjà un relevé ENREGISTRÉ pour ce créneau aujourd'hui ? → terminé.
+          if exists (
+            select 1 from public.controles_haccp
+            where code_client = cfg.code_client
+              and client_control_id = 'ubibot:' || cfg.code_client || ':' || v_chan || ':' || v_heure || ':' || v_jour::text
+          ) then continue; end if;
+          -- Une lecture est déjà EN COURS (réponse pas encore traitée) ? → on attend.
           if exists (
             select 1 from public.ubibot_lectures
             where code_client = cfg.code_client and channel = v_chan
-              and slot = v_heure and jour = v_jour
+              and slot = v_heure and jour = v_jour and traite = false
           ) then continue; end if;
 
           select net.http_get(
             url := 'https://api.ubibot.com/channels/' || v_chan || '?api_key=' || v_skey
           ) into v_reqid;
 
+          -- RÉESSAI : si une tentative précédente a échoué (lecture traitée mais sans
+          -- relevé enregistré), on RÉ-ARME la même ligne (nouvelle requête) tant qu'on
+          -- est dans la fenêtre → la panne réseau/API d'un instant ne perd plus le créneau.
           insert into public.ubibot_lectures
             (request_id, code_client, establishment_id, sondes, channel, slot, jour)
           values
             (v_reqid, cfg.code_client, cfg.establishment_id,
              jsonb_build_array(sonde), v_chan, v_heure, v_jour)
-          on conflict (code_client, channel, slot, jour) do nothing;
+          on conflict (code_client, channel, slot, jour) do update
+            set request_id = excluded.request_id, traite = false, cree_le = now(),
+                sondes = excluded.sondes;
 
           n := n + 1;
         end if;
@@ -166,6 +180,8 @@ declare
   v_secteur text;
   v_ccid  text;
   v_slot_ts timestamptz;
+  v_mesure_ts timestamptz;   -- horodatage de la mesure (pour détecter un capteur hors ligne)
+  v_offline boolean;
   n       integer := 0;
 begin
   for lec in
@@ -221,12 +237,17 @@ begin
       v_champ := coalesce(v_best, 'field5');
     end if;
 
-    -- température lue sur le champ retenu, arrondie à 0,1 °C
+    -- température lue + horodatage de la mesure (pour détecter un capteur hors ligne)
     v_temp := round(nullif(lv #>> array[v_champ,'value'], '')::numeric, 1);
-    if v_temp is null then continue; end if;
+    v_mesure_ts := nullif(lv #>> array[v_champ,'created_at'], '')::timestamptz;
+    -- HORS LIGNE : la dernière mesure remonte à plus de 90 min (capteur coupé /
+    -- déconnecté) → on n'enregistre PAS une fausse température figée, on marque
+    -- « capteur hors ligne » (honnête pour la DDPP).
+    v_offline := (v_mesure_ts is null) or (now() - v_mesure_ts > interval '90 minutes');
+    if v_temp is null and not v_offline then continue; end if;
 
-    v_isNC := (v_min is not null and v_temp < v_min)
-           or (v_max is not null and v_temp > v_max);
+    v_isNC := (not v_offline) and ((v_min is not null and v_temp < v_min)
+           or (v_max is not null and v_temp > v_max));
 
     v_estab := lec.establishment_id;
     if v_estab is null then
@@ -256,17 +277,34 @@ begin
     values (
       lec.code_client, v_estab, 'Températures enceintes',
       jsonb_build_object(
-        'temperatures', jsonb_build_array(jsonb_build_object(
-          'type',      coalesce(sonde->>'enceinte', sonde->>'nom', 'Enceinte'),
-          'precision', '',
-          'temp',      v_temp::text,
-          'conf',      case when v_isNC then 'Non conforme' else 'Conforme' end,
-          'isNC',      v_isNC,
-          'action',    case when v_isNC then 'Vérifier l''enceinte et le capteur' else '' end,
-          'source',    'Capteur UbiBot (automatique)'
-        )),
+        'temperatures', jsonb_build_array(
+          case when v_offline then
+            jsonb_build_object(
+              'type',      coalesce(sonde->>'enceinte', sonde->>'nom', 'Enceinte'),
+              'precision', '',
+              'temp',      '',
+              'conf',      'Capteur hors ligne',
+              'isNC',      false,
+              'offline',   true,
+              'action',    '',
+              'note',      'Capteur hors ligne — relevé non transmis. Historique disponible sur votre compte.',
+              'source',    'Capteur UbiBot (hors ligne)'
+            )
+          else
+            jsonb_build_object(
+              'type',      coalesce(sonde->>'enceinte', sonde->>'nom', 'Enceinte'),
+              'precision', '',
+              'temp',      v_temp::text,
+              'conf',      case when v_isNC then 'Non conforme' else 'Conforme' end,
+              'isNC',      v_isNC,
+              'action',    case when v_isNC then 'Vérifier l''enceinte et le capteur' else '' end,
+              'source',    'Capteur UbiBot (automatique)'
+            )
+          end
+        ),
         'signataire', 'Relevé automatique (capteur UbiBot)',
         'signe',      'Relevé automatique (capteur UbiBot)',
+        'offline',    v_offline,
         'timestamp',  'Programmé ' || to_char(v_slot_ts at time zone 'Europe/Paris', 'DD/MM/YYYY HH24:MI')
                       || ' · enregistré ' || to_char(now() at time zone 'Europe/Paris', 'HH24:MI'),
         'heure_programmee', to_char(v_slot_ts at time zone 'Europe/Paris', 'HH24:MI'),
@@ -310,6 +348,9 @@ $$;
 
 
 -- ── ÉTAPE 6 — Planifier le tick toutes les 5 minutes ──────────────────
+-- Ré-installation PROPRE : on retire l'ancienne tâche si elle existe (sans erreur
+-- si absente), puis on la (re)crée → une seule tâche active, pas de doublon.
+do $$ begin perform cron.unschedule('ubibot-releves-auto'); exception when others then null; end $$;
 select cron.schedule(
   'ubibot-releves-auto',
   '*/5 * * * *',

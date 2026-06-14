@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v225';
+var APP_BUILD = 'v226';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23718,8 +23718,9 @@ function _ttNormaliser(rows) {
     temps.forEach(function (t) {
       if (t == null) return;
       var raw = (t.temp === '' || t.temp == null) ? null : parseFloat(String(t.temp).replace(',', '.'));
+      var offline = !!(t.offline || c.offline || /hors ligne/i.test(t.conf || '')); // capteur hors ligne
       // Identité de l'enceinte : nom (relevé manuel) puis type (relevé capteur UbiBot).
-      out.push({ jour: jour, hour: hh, enceinte: String(t.nom || t.type || '').trim(), channel: c.channel || t.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme'), sig: sig, auto: auto });
+      out.push({ jour: jour, hour: hh, enceinte: String(t.nom || t.type || '').trim(), channel: c.channel || t.channel || '', temp: (isFinite(raw) ? raw : null), isNC: !!t.isNC || (t.conf === 'Non conforme'), sig: sig, auto: auto, offline: offline });
     });
   });
   return out;
@@ -23762,6 +23763,9 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
     if (rel.isNC && rel.temp != null) {
       if (diag) diag.nc = (diag.nc || 0) + 1; // total non-conformités (signalement)
       (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' ' + rel.temp + '°C (' + rel.hour + ') hors seuil');
+    }
+    if (rel.offline) { // capteur hors ligne sur ce créneau → on le documente
+      (obsJour[rel.jour] = obsJour[rel.jour] || []).push(cols[ci].code + ' capteur hors ligne (' + rel.hour + ')');
     }
   });
   if (diag) diag.matched = (diag.matched || 0) + matched;
@@ -23835,6 +23839,10 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
           cell.numFmt = '0.0';
           if (rel.isNC) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE2E2' } }; cell.font = { bold: true, color: { argb: 'FFB91C1C' }, size: 9 }; }
           else cell.font = { size: 9 };
+        } else if (rel && rel.offline) {
+          cell.value = 'H.L.';            // capteur Hors Ligne (pas de mesure fiable)
+          cell.font = { italic: true, size: 8, color: { argb: 'FF92400E' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
         }
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         cell.border = border;
