@@ -24,10 +24,20 @@ returns table(
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, vault
 as $$
+declare
+  _admin text;
 begin
-  if p_pwd is distinct from '826700' then
+  -- SÉCURITÉ : le mot de passe admin n'est PLUS codé en dur ici. On le lit dans le
+  -- Vault (secret 'admin_password'). À créer UNE fois :
+  --   select vault.create_secret('VOTRE_MDP_ADMIN','admin_password','Mot de passe admin HACCP');
+  -- Repli : si le secret n'existe pas encore, on tolère l'ancien '826700' (transition).
+  begin
+    select decrypted_secret into _admin from vault.decrypted_secrets where name = 'admin_password' limit 1;
+  exception when others then _admin := null; end;
+  if _admin is null or _admin = '' then _admin := '826700'; end if;  -- repli transitoire
+  if p_pwd is distinct from _admin then
     return;
   end if;
 
