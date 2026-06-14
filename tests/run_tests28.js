@@ -74,6 +74,10 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   try { ctx._ttRemplirFeuille(_mkWs(), colsF, ['2026-06-14'], relF, 'Test', 'Sous-titre', diagF); }
   catch (e) { threw = true; console.log('  (smoke erreur: ' + e.message + ')'); }
   ok(!threw, 'SMOKE: génération de la feuille Excel sans erreur d\'exécution');
+  var threwD = false;
+  try { ctx._ttFeuilleDetail(_mkWs(), colsF, relF, 'Test'); }
+  catch (e2) { threwD = true; console.log('  (smoke détail erreur: ' + e2.message + ')'); }
+  ok(!threwD, 'SMOKE: feuille « Détail des relevés » générée sans erreur');
 }
 
 console.log('\n════════════════════════════════════════');
