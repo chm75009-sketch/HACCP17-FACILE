@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v227';
+var APP_BUILD = 'v228';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23594,9 +23594,11 @@ function _ttResultatTexte(diag, okLabel, vide) {
 
 // Sous-colonnes (créneaux) à partir d'un ensemble d'heures relevées : 1 → « Jour »,
 // 2 → « Matin / Soir », 3+ → une colonne par heure. Centralisé (config + orphelines).
+// Sous-colonnes (créneaux) : on affiche TOUJOURS l'heure exacte de chaque relevé
+// (jamais « Jour/Matin/Soir » qui masquaient l'heure). « Jour » seulement si aucune
+// heure n'est connue.
 function _ttSubsFromHours(hours) {
-  if (hours.length <= 1) return [{ label: 'Jour', hour: hours[0] || null }];
-  if (hours.length === 2) return [{ label: 'Matin', hour: hours[0] }, { label: 'Soir', hour: hours[1] }];
+  if (!hours.length) return [{ label: 'Jour', hour: null }];
   return hours.map(function (h) { return { label: h, hour: h }; });
 }
 
@@ -23630,10 +23632,9 @@ function _ttColonnes(releves) {
     var cfgHeures = (cap && Array.isArray(cap.heures)) ? cap.heures.filter(Boolean) : [];
     var hours;
     if (cfgHeures.length) {
-      // Colonnes = créneaux PARAMÉTRÉS du capteur (stables et lisibles). Un relevé
-      // PROCHE d'un créneau (≤ 20 min) s'y range (fini l'explosion 07:52/08:00/08:03).
-      // Un relevé HORS créneau (ex. test à 15h) garde SA propre colonne (regroupée
-      // par 30 min) → on ne masque jamais un relevé fait en dehors des horaires.
+      // Colonnes = créneaux PARAMÉTRÉS du capteur. Un relevé PROCHE d'un créneau
+      // (≤ 20 min) s'y range ; un relevé HORS créneau garde SA propre colonne à son
+      // HEURE EXACTE (on ne fusionne plus, on ne masque plus l'heure).
       var _hu = {}; cfgHeures.forEach(function (h) { _hu[h] = true; });
       var _slotsM = cfgHeures.map(function (h) { return _ttHM(h); });
       var _TOL = 20;
@@ -23641,13 +23642,13 @@ function _ttColonnes(releves) {
         if (!h) return;
         var m = _ttHM(h), pres = false;
         for (var z = 0; z < _slotsM.length; z++) { if (Math.abs(m - _slotsM[z]) <= _TOL) { pres = true; break; } }
-        if (!pres) _hu[_ttRound30(h)] = true;
+        if (!pres) _hu[h] = true;
       });
       hours = Object.keys(_hu).sort();
     } else {
-      // Pas de créneaux paramétrés : on déduit des données, regroupées par 30 min.
+      // Pas de créneaux paramétrés : colonnes = heures EXACTES réellement relevées.
       var hset = {};
-      if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) { if (h) hset[_ttRound30(h)] = true; });
+      if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) { if (h) hset[h] = true; });
       hours = Object.keys(hset).sort();
     }
     var mn = cap && isFinite(cap.min) ? cap.min : null;
@@ -23658,8 +23659,8 @@ function _ttColonnes(releves) {
   var base = cols.length;
   Object.keys(orphelines).forEach(function (key, idx) {
     var o = orphelines[key];
-    // Enceinte hors config (pas de créneaux paramétrés) → on regroupe par 30 min.
-    var _hu = {}; Object.keys(o.hours).forEach(function (h) { if (h) _hu[_ttRound30(h)] = true; });
+    // Enceinte hors config → colonnes = heures EXACTES relevées (heure toujours visible).
+    var _hu = {}; Object.keys(o.hours).forEach(function (h) { if (h) _hu[h] = true; });
     var hours = Object.keys(_hu).sort();
     cols.push({ code: 'E' + (base + idx + 1), nom: o.nom, channel: '', min: null, max: null, subs: _ttSubsFromHours(hours), seuilTxt: 'Seuil : — (hors config)', horsConfig: true });
   });
