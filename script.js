@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v237';
+var APP_BUILD = 'v238';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -1576,6 +1576,26 @@ function showConfirm(ico, title, msg, okLabel, okClass, callback) {
   document.getElementById('confirmOverlay').classList.add('show');
   _confirmCb = callback;
 }
+// ACCESSIBILITÉ (a11y) — pose un aria-label sur chaque champ qui n'en a pas, en
+// reprenant le texte DÉJÀ visible à côté (.flabel / .tcard-lbl / placeholder).
+// Invisible pour les utilisateurs voyants ; permet aux lecteurs d'écran (VoiceOver)
+// d'annoncer correctement le champ. Idempotent, robuste (try/catch).
+function _a11yLabelsAuto(root) {
+  try {
+    var scope = (root && root.querySelectorAll) ? root : document;
+    scope.querySelectorAll('input:not([type="hidden"]):not([type="button"]):not([type="submit"]), select, textarea').forEach(function (el) {
+      if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return;
+      if (el.id) { try { if (document.querySelector('label[for="' + ((window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id) + '"]')) return; } catch (e0) {} }
+      var lbl = '';
+      var row = el.closest ? el.closest('.frow') : null;
+      if (row) { var fl = row.querySelector('.flabel'); if (fl) lbl = fl.textContent; }
+      if (!lbl) { var tc = el.closest ? el.closest('.tcard') : null; if (tc) { var tl = tc.querySelector('.tcard-lbl'); if (tl) lbl = tl.textContent; } }
+      if (!lbl) lbl = el.getAttribute('placeholder') || '';
+      lbl = String(lbl).replace(/[*★⚠️🔴⚡🚨]/g, '').replace(/\s+/g, ' ').trim();
+      if (lbl) el.setAttribute('aria-label', lbl);
+    });
+  } catch (e) {}
+}
 document.addEventListener('DOMContentLoaded', function() {
   var okBtn = document.getElementById('confirmOk');
   var cancelBtn = document.getElementById('confirmCancel');
@@ -1610,6 +1630,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Petite latence pour laisser le DOM se stabiliser après un appendChild
         setTimeout(marquerChampsFacultatifsAuto, 50);
       }
+      if (found) setTimeout(function () { _a11yLabelsAuto(document); }, 60); // a11y : labelliser les champs ajoutés
     });
     obsAdv.observe(document.body, {childList: true, subtree: true});
   } catch(e) {}
@@ -1620,6 +1641,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   attachAllLocInputs();
+  try { _a11yLabelsAuto(document); } catch (e) {} // a11y : labelliser tous les champs au chargement
   // Observer les ajouts dynamiques (modules qui créent des inputs au runtime)
   try {
     var obs = new MutationObserver(function(mutations) {

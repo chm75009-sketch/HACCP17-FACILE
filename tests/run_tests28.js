@@ -79,6 +79,23 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   catch (e2) { threwD = true; console.log('  (smoke détail erreur: ' + e2.message + ')'); }
   ok(!threwD, 'SMOKE: feuille « Détail des relevés » générée sans erreur');
 }
+// ── G) Accessibilité : aria-label posé depuis le texte visible (placeholder / .flabel) ──
+{
+  function _mockInput(over) { var o = { _at: (over && over._at) || {}, id: '', closest: (over && over.closest) || function () { return null; }, getAttribute: function (k) { return this._at[k] !== undefined ? this._at[k] : null; }, setAttribute: function (k, v) { this._at[k] = v; } }; return o; }
+  var i1 = _mockInput(); i1.setAttribute('placeholder', 'Température relevée');
+  ctx._a11yLabelsAuto({ querySelectorAll: function () { return [i1]; } });
+  ok(i1.getAttribute('aria-label') === 'Température relevée', 'a11y: aria-label repris du placeholder');
+
+  var flab = { textContent: 'Nom du capteur *' };
+  var rowm = { querySelector: function (s) { return s === '.flabel' ? flab : null; } };
+  var i2 = _mockInput({ closest: function (s) { return s === '.frow' ? rowm : null; } });
+  ctx._a11yLabelsAuto({ querySelectorAll: function () { return [i2]; } });
+  ok(i2.getAttribute('aria-label') === 'Nom du capteur', 'a11y: aria-label repris du .flabel (sans le *)');
+
+  var i3 = _mockInput({ _at: { 'aria-label': 'Déjà là' } });
+  ctx._a11yLabelsAuto({ querySelectorAll: function () { return [i3]; } });
+  ok(i3.getAttribute('aria-label') === 'Déjà là', 'a11y: ne réécrit pas un aria-label existant');
+}
 
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
