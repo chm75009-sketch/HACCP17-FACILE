@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v218';
+var APP_BUILD = 'v219';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -2939,7 +2939,7 @@ function imprimerTemperatures(dataOverride, signataireOverride, tsOverride) {
   html += '<div style="background:linear-gradient(135deg,#0891b2,#22d3ee);color:white;padding:14px 16px;border-radius:10px;margin-bottom:14px">';
   html += '<div style="font-weight:800;font-size:15px">Temperatures Enceintes Froides</div>';
   html += '<div style="font-size:11px;opacity:.85;margin-top:4px">' + (ETAB.nom||'') + ' — ' + (tsOverride || getNowStr()) + '</div>';
-  html += '<div style="font-size:11px;opacity:.85">Signe : ' + signataire + '</div>';
+  html += '<div style="font-size:11px;opacity:.85">Émargement : ' + (signataire || '—') + '</div>';
   html += '<div style="font-size:11px;opacity:.85">Secteur : ' + (((typeof SECTEURS_CONFIG!=='undefined' && SECTEURS_CONFIG[SECTEUR_ACTIF] && SECTEURS_CONFIG[SECTEUR_ACTIF].label)) || SECTEUR_ACTIF || '—') + '</div>';
   if (ncCount > 0) html += '<div style="margin-top:6px;background:rgba(220,38,38,.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">' + ncCount + ' non-conformite(s)</div>';
   html += '</div>';
@@ -12948,7 +12948,10 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
       (getDonneesPeriode('page-temperatures', dateFrom, dateTo) || []).forEach(function(s){
         var _dS=''; try{ _dS=new Date(s.timestamp).toLocaleString('fr-FR'); }catch(eD){}
         var arr = (s.data && Array.isArray(s.data.temperatures)) ? s.data.temperatures : [];
-        arr.forEach(function(e){ e._sessDate=_dS; e._sessTs=s.timestamp; encs.push(e); });
+        // Émargement + origine (capteur auto / saisie manuelle) portés par la session.
+        var _sig = (s.data && (s.data.signe || s.data.signataire)) || '';
+        var _auto = !!(s.data && (s.data.auto || s.data.source === 'ubibot'));
+        arr.forEach(function(e){ e._sessDate=_dS; e._sessTs=s.timestamp; e._sig=_sig; e._auto=_auto; encs.push(e); });
       });
       var filled = encs.filter(function(e){ return e.temp || e.type !== '—'; });
       if (filled.length === 0) { html += '<div style="padding:10px;color:#6b7280;font-size:11px">Aucune donnée saisie</div>'; }
@@ -12967,21 +12970,32 @@ function lancerPackDDPP(dateFrom, dateTo, selectionIds) {
           var e0 = list[0];
           var anyNC = list.some(function(x){ return x.isNC; });
           var bc = anyNC ? '#dc2626' : '#0891b2';
-          // seuil : depuis l'enceinte, sinon depuis le capteur associé (min/max)
+          // seuil : (1) déduit du libellé, (2) capteur associé (min/max), (3) config
+          // enceinte (seuil max). Appariement tolérant (accents/espaces) → un seuil
+          // s'affiche pour TOUTES les enceintes, pas seulement celles avec capteur.
           var seuilTxt = _seuilTemp(e0);
+          var _enNorm = (typeof _ttNorm === 'function') ? _ttNorm(e0.type || '') : String(e0.type || '').toLowerCase().trim();
           if (!seuilTxt || seuilTxt === '—') {
-            for (var k=0;k<_sondes.length;k++){ if ((_sondes[k].enceinte||'')===e0.type){ var mn=_sondes[k].min, mx=_sondes[k].max; if (mn!=null && mx!=null) seuilTxt=((mn<0?'':'+')+mn)+' à '+((mx<0?'':'+')+mx)+'°C'; break; } }
+            for (var k=0;k<_sondes.length;k++){ var _sn=(typeof _ttNorm==='function')?_ttNorm(_sondes[k].enceinte||''):String(_sondes[k].enceinte||'').toLowerCase().trim(); if (_sn===_enNorm){ var mn=_sondes[k].min, mx=_sondes[k].max; if (mn!=null && mx!=null) seuilTxt=((mn<0?'':'+')+mn)+' à '+((mx<0?'':'+')+mx)+'°C'; break; } }
+          }
+          if (!seuilTxt || seuilTxt === '—') {
+            var _encCfg = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
+            for (var z=0;z<_encCfg.length;z++){ var _cn=(typeof _ttNorm==='function')?_ttNorm((_encCfg[z].nom||_encCfg[z].name)||''):''; if (_cn && _cn===_enNorm){ var _sv=_encCfg[z].seuil; if (_sv!=null && isFinite(_sv)) seuilTxt='≤ '+(_sv<0?'':'+')+_sv+'°C'; break; } }
           }
           var nbNC = list.filter(function(x){return x.isNC;}).length;
           html += '<div style="margin:8px;border:1.5px solid ' + bc + ';border-radius:8px;overflow:hidden;page-break-inside:avoid">';
           html += '<div style="background:' + bc + ';color:white;padding:5px 10px;font-weight:700;font-size:11px">' + esc(e0.type || ('Enceinte N' + (gi+1))) + (e0.precision?' — '+esc(e0.precision):'') + (e0.refNum?' ('+esc(e0.refNum)+')':'') + '<span style="font-weight:600;opacity:.9"> · ' + list.length + ' relevé(s)' + (nbNC?' · ' + nbNC + ' NC':'') + (seuilTxt && seuilTxt!=='—' ? ' · seuil ' + esc(seuilTxt) : '') + '</span></div>';
           html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
-          html += '<tr style="background:#f8fafc"><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700;width:42%">Date / heure</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">T° relevée</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Conformité</td></tr>';
+          html += '<tr style="background:#f8fafc"><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700;width:32%">Date / heure</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">T° relevée</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Conformité</td><td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:700">Saisie / Émargement</td></tr>';
           list.forEach(function(enc){
+            // Origine + émargement : capteur automatique vs saisie manuelle (avec le nom).
+            var _autoR = enc._auto || /ubibot|automatique/i.test(String(enc.source||''));
+            var _emarg = _autoR ? '🤖 Auto — capteur UbiBot' : ('✍️ ' + (enc._sig ? esc(enc._sig) : 'Manuel'));
             html += '<tr>'
               + '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">' + (enc._sessDate||'—') + '</td>'
               + '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;font-weight:700">' + (enc.temp?enc.temp+'°C':'—') + '</td>'
               + '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;color:' + (enc.isNC?'#dc2626':'#16a34a') + ';font-weight:700">' + (enc.conf || (enc.isNC?'Non conforme':'Conforme')) + (enc.isNC && enc.action?' — '+esc(enc.action):'') + '</td>'
+              + '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;color:#475569">' + _emarg + '</td>'
               + '</tr>';
           });
           html += '</table></div>';
