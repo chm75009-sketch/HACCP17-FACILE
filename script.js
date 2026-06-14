@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v220';
+var APP_BUILD = 'v221';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -23526,6 +23526,9 @@ var MOIS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet',
 
 function _ttDateLoc(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function _ttHM(h) { var m = String(h || '').match(/(\d{1,2}):(\d{2})/); return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : 0; }
+// Arrondit une heure "HH:MM" au pas de 30 min (regroupe 07:52/08:03 → 08:00) —
+// sert quand aucun créneau n'est paramétré, pour éviter une colonne par minute.
+function _ttRound30(h) { var m = _ttHM(h); var r = Math.round(m / 30) * 30; r = ((r % 1440) + 1440) % 1440; return String(Math.floor(r / 60)).padStart(2, '0') + ':' + String(r % 60).padStart(2, '0'); }
 function _ttColLetter(n) { var s = ''; while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
 
 // Apparie un relevé à l'index d'une enceinte (par canal du capteur, sinon par nom).
@@ -23550,6 +23553,7 @@ function _ttMatchEnc(rel, enceintes, capteurs) {
 function _ttResultatTexte(diag, okLabel, vide) {
   if (!diag || !diag.found) return vide;
   var s = '✓ ' + okLabel + ' — ' + diag.found + ' relevé(s) trouvé(s), ' + (diag.matched || 0) + ' reporté(s).';
+  if (diag.merged) s += ' (' + diag.merged + ' regroupé(s) dans un même créneau)';
   var keys = diag.orphans ? Object.keys(diag.orphans) : [];
   if (keys.length) {
     var tot = keys.reduce(function (a, k) { return a + diag.orphans[k]; }, 0);
@@ -23593,10 +23597,20 @@ function _ttColonnes(releves) {
     var nom = (e && (e.nom || e.name)) || ('Enceinte N°' + (i + 1));
     var cap = null;
     for (var k = 0; k < capteurs.length; k++) { if (_ttNorm(capteurs[k].enceinte || '') === _ttNorm(nom)) { cap = capteurs[k]; break; } }
-    var hset = {};
-    if (cap && Array.isArray(cap.heures)) cap.heures.filter(Boolean).forEach(function (h) { hset[h] = true; });
-    if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) { if (h) hset[h] = true; });
-    var hours = Object.keys(hset).sort();
+    var cfgHeures = (cap && Array.isArray(cap.heures)) ? cap.heures.filter(Boolean) : [];
+    var hours;
+    if (cfgHeures.length) {
+      // Colonnes = créneaux PARAMÉTRÉS du capteur (stables et lisibles). Chaque
+      // relevé réel se range dans le créneau le plus proche (snap, cf. _ttSubIndex)
+      // → fini l'explosion d'une colonne par minute (07:52 / 08:00 / 08:03…).
+      var _hu = {}; cfgHeures.forEach(function (h) { _hu[h] = true; });
+      hours = Object.keys(_hu).sort();
+    } else {
+      // Pas de créneaux paramétrés : on déduit des données, regroupées par 30 min.
+      var hset = {};
+      if (dataHours[i]) Object.keys(dataHours[i]).forEach(function (h) { if (h) hset[_ttRound30(h)] = true; });
+      hours = Object.keys(hset).sort();
+    }
     var mn = cap && isFinite(cap.min) ? cap.min : null;
     var mx = cap && isFinite(cap.max) ? cap.max : ((e && e.seuil != null && isFinite(e.seuil)) ? e.seuil : null);
     return { code: 'E' + (i + 1), nom: nom, channel: (cap && cap.channel) || '', min: mn, max: mx, subs: _ttSubsFromHours(hours), seuilTxt: _ttSeuilTexte(mn, mx) };
@@ -23605,7 +23619,9 @@ function _ttColonnes(releves) {
   var base = cols.length;
   Object.keys(orphelines).forEach(function (key, idx) {
     var o = orphelines[key];
-    var hours = Object.keys(o.hours).sort();
+    // Enceinte hors config (pas de créneaux paramétrés) → on regroupe par 30 min.
+    var _hu = {}; Object.keys(o.hours).forEach(function (h) { if (h) _hu[_ttRound30(h)] = true; });
+    var hours = Object.keys(_hu).sort();
     cols.push({ code: 'E' + (base + idx + 1), nom: o.nom, channel: '', min: null, max: null, subs: _ttSubsFromHours(hours), seuilTxt: 'Seuil : — (hors config)', horsConfig: true });
   });
   return cols;
@@ -23703,6 +23719,7 @@ function _ttRemplirFeuille(ws, cols, jours, releves, titre, sousTitre, diag) {
     var remplace = !prev
       || (prev.auto && !rel.auto)
       || (prev.auto === rel.auto && (prev.temp == null) && (rel.temp != null));
+    if (prev && diag) diag.merged = (diag.merged || 0) + 1; // collision créneau → 1 relevé regroupé
     if (remplace) { map[key] = rel; if (!prev) matched++; }
     if (rel.sig) (sigJour[rel.jour] = sigJour[rel.jour] || {})[rel.sig] = true; // émargement du jour
     if (rel.isNC && rel.temp != null) {
