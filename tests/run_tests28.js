@@ -159,6 +159,22 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ok(ctx._tdbPerioStatut('2026-03-01', 'mensuel', '2026-03-05').etat === 'ajour', 'TDB-périodique: dans les temps → « à jour »');
 }
 
+// ── L) Courbes de température : préparation des séries (tri + source + hors seuil) ──
+{
+  var rel = [
+    { jour: '2026-06-14', hour: '08:00', enceinte: 'Frigo A', temp: 3, auto: true, isNC: false },
+    { jour: '2026-06-14', hour: '12:00', enceinte: 'Frigo A', temp: 5, auto: false, isNC: true },
+    { jour: '2026-06-13', hour: '09:00', enceinte: 'Frigo A', temp: 2, auto: true, isNC: false },
+    { jour: '2026-06-14', hour: '08:00', enceinte: 'Congel', temp: -19, auto: true, isNC: false },
+    { jour: '2026-06-14', hour: '09:00', enceinte: '', temp: null }
+  ];
+  var s = ctx._courbeSeries(rel);
+  ok(s['Frigo A'] && s['Frigo A'].length === 3, 'Courbe: 3 points pour Frigo A (le relevé sans T° est ignoré)');
+  ok(s['Frigo A'][0].x < s['Frigo A'][1].x && s['Frigo A'][1].x < s['Frigo A'][2].x, 'Courbe: points triés chronologiquement');
+  ok(s['Frigo A'][2].nc === true && s['Frigo A'][2].src === 'manuel', 'Courbe: dernier point = manuel + hors seuil');
+  ok(s['Congel'] && s['Congel'].length === 1, 'Courbe: enceintes séparées (Congel)');
+}
+
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 console.log('════════════════════════════════════════');

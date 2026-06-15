@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v249';
+var APP_BUILD = 'v250';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24447,6 +24447,108 @@ function _ttPret() {
 // colonnes reflètent le vrai paramétrage quel que soit l'appareil.
 function _ttSync(cb) { try { if (typeof pullSondesCloud === 'function') { pullSondesCloud(function () { cb(); }); return; } } catch (e) {} cb(); }
 
+// ════════════════════════════════════════════════════════════════════════
+// COURBES DE TEMPÉRATURE — dessinées à partir des relevés stockés (capteur +
+// manuel), sans dépendre de l'API UbiBot. Image PNG embarquée dans l'onglet
+// « Courbes » de l'Excel. Tout est protégé (try/catch) côté appelant : si le
+// dessin échoue, l'export Excel reste intact.
+// ════════════════════════════════════════════════════════════════════════
+// Séries par enceinte : points {x: ms, temp, src, nc} triés dans le temps. (PUR, testable.)
+function _courbeSeries(releves) {
+  var map = {};
+  (releves || []).forEach(function (r) {
+    if (r == null || r.temp == null || !isFinite(r.temp)) return;
+    var nom = String(r.enceinte || '').trim() || 'Enceinte';
+    var hhmm = String(r.hour || '00:00').slice(0, 5);
+    var ms = new Date(String(r.jour || '') + 'T' + hhmm + ':00').getTime();
+    if (!isFinite(ms)) return;
+    (map[nom] = map[nom] || []).push({ x: ms, temp: r.temp, src: r.auto ? 'capteur' : 'manuel', nc: !!r.isNC });
+  });
+  Object.keys(map).forEach(function (k) { map[k].sort(function (a, b) { return a.x - b.x; }); });
+  return map;
+}
+// Seuil (°C) d'une enceinte depuis la config (ligne en pointillés). null si inconnu.
+function _courbeSeuil(nom) {
+  try {
+    var cfg = (typeof getEnceintesConfig === 'function') ? getEnceintesConfig() : [];
+    var cible = String(nom || '').toLowerCase().trim();
+    for (var i = 0; i < cfg.length; i++) {
+      if (String(cfg[i].nom || '').toLowerCase().trim() === cible) {
+        var s = parseFloat(cfg[i].seuil);
+        if (isFinite(s)) return s;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+// Dessine une courbe sur un canvas → dataURL PNG (navigateur uniquement).
+function _courbePNG(points, seuil, titre) {
+  if (typeof document === 'undefined' || !document.createElement || !points || points.length < 2) return null;
+  var W = 900, H = 320, padL = 50, padR = 20, padT = 40, padB = 36;
+  var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  var ctx = cv.getContext && cv.getContext('2d'); if (!ctx) return null;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  var temps = points.map(function (p) { return p.temp; });
+  var lo = Math.min.apply(null, temps), hi = Math.max.apply(null, temps);
+  if (seuil != null) { lo = Math.min(lo, seuil); hi = Math.max(hi, seuil); }
+  if (lo === hi) { lo -= 1; hi += 1; }
+  var m = (hi - lo) * 0.15 || 1; lo -= m; hi += m;
+  var x0 = points[0].x, x1 = points[points.length - 1].x; if (x1 === x0) x1 = x0 + 1;
+  function px(x) { return padL + (x - x0) / (x1 - x0) * (W - padL - padR); }
+  function py(t) { return padT + (1 - (t - lo) / (hi - lo)) * (H - padT - padB); }
+  ctx.fillStyle = '#0f172a'; ctx.font = 'bold 18px Arial'; ctx.fillText(String(titre || 'Enceinte'), padL, 24);
+  // grille + graduations Y
+  ctx.lineWidth = 1; ctx.font = '11px Arial';
+  for (var g = 0; g <= 4; g++) {
+    var tv = lo + (hi - lo) * g / 4, y = py(tv);
+    ctx.strokeStyle = '#e5e7eb'; ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.fillText(tv.toFixed(1) + '°', 6, y + 4);
+  }
+  // seuil en pointillés
+  if (seuil != null) {
+    var ys = py(seuil); ctx.strokeStyle = '#dc2626'; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(padL, ys); ctx.lineTo(W - padR, ys); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#dc2626'; ctx.fillText('seuil ' + seuil + '°', W - padR - 78, ys - 5);
+  }
+  // courbe
+  ctx.strokeStyle = '#0891b2'; ctx.lineWidth = 2; ctx.beginPath();
+  points.forEach(function (p, i) { var X = px(p.x), Y = py(p.temp); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); });
+  ctx.stroke();
+  // points (bleu = capteur, gris = manuel, rouge = hors seuil)
+  points.forEach(function (p) {
+    var X = px(p.x), Y = py(p.temp);
+    ctx.beginPath(); ctx.arc(X, Y, 3.6, 0, 2 * Math.PI);
+    ctx.fillStyle = p.nc ? '#dc2626' : (p.src === 'capteur' ? '#2563eb' : '#64748b'); ctx.fill();
+  });
+  // dates extrêmes + légende couleurs
+  function dfr(ms) { var d = new Date(ms); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); }
+  ctx.fillStyle = '#64748b'; ctx.font = '10px Arial';
+  ctx.fillText(dfr(x0), padL, H - 12); ctx.textAlign = 'right'; ctx.fillText(dfr(x1), W - padR, H - 12); ctx.textAlign = 'left';
+  ctx.fillStyle = '#2563eb'; ctx.fillText('● capteur', W / 2 - 90, H - 12);
+  ctx.fillStyle = '#64748b'; ctx.fillText('● manuel', W / 2 - 10, H - 12);
+  ctx.fillStyle = '#dc2626'; ctx.fillText('● hors seuil', W / 2 + 70, H - 12);
+  return cv.toDataURL('image/png');
+}
+// Ajoute un onglet « Courbes » à un classeur ExcelJS (une courbe par enceinte).
+function _ttAjouterCourbes(wb, releves) {
+  if (typeof document === 'undefined' || !document.createElement) return;
+  var series = _courbeSeries(releves);
+  var noms = Object.keys(series).filter(function (n) { return series[n].length >= 2; });
+  if (!noms.length) return;
+  var ws = wb.addWorksheet('Courbes');
+  ws.getCell('A1').value = 'Courbes de température (capteur + manuel) — seuil en pointillés rouge';
+  ws.getCell('A1').font = { bold: true, size: 11 };
+  var row = 2;
+  noms.forEach(function (n) {
+    var url = _courbePNG(series[n], _courbeSeuil(n), n);
+    if (!url) return;
+    var b64 = url.substring(url.indexOf(',') + 1);
+    var id = wb.addImage({ base64: b64, extension: 'png' });
+    ws.addImage(id, { tl: { col: 0, row: row }, ext: { width: 720, height: 256 } });
+    row += 15;
+  });
+}
+
 function telechargerTableauPeriode() {
   if (!_ttPret()) return;
   var from = (document.getElementById('tt_from') || {}).value, to = (document.getElementById('tt_to') || {}).value;
@@ -24466,6 +24568,7 @@ function telechargerTableauPeriode() {
         var st = 'Fiche de relevé des températures — Période : du ' + pf[2] + '/' + pf[1] + '/' + pf[0] + ' au ' + pt[2] + '/' + pt[1] + '/' + pt[0];
         _ttRemplirFeuille(ws, cols, _ttJoursEntre(from, to), releves, _ttEntete(), st, diag);
         _ttFeuilleDetail(wb.addWorksheet('Détail des relevés'), cols, releves, _ttEntete());
+        try { _ttAjouterCourbes(wb, releves); } catch (eC) {}   // onglet « Courbes » (protégé)
         return _ttDownload(wb, 'Releves_temperatures_' + from + '_au_' + to + '.xlsx');
       }).then(function () { _ttMsg(_ttResultatTexte(diag, 'Téléchargé', '⚠️ Aucun relevé trouvé sur cette période.'), !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
     });
@@ -24493,6 +24596,7 @@ function telechargerTableauMois() {
           _ttRemplirFeuille(ws, cols, jours, relMois, _ttEntete(), 'Fiche de relevé des températures — ' + MOIS_FR[mo].toUpperCase() + ' ' + an, diag);
         }
         _ttFeuilleDetail(wb.addWorksheet('Détail des relevés'), cols, releves, _ttEntete());
+        try { _ttAjouterCourbes(wb, releves); } catch (eC) {}   // onglet « Courbes » (protégé)
         return _ttDownload(wb, 'Releves_temperatures_' + an + '.xlsx');
       }).then(function () { _ttMsg(_ttResultatTexte(diag, an + ' téléchargé', '⚠️ Aucun relevé trouvé sur ' + an + '.'), !diag.found); }).catch(function () { _ttMsg('Erreur lors de la génération.', true); });
     });
