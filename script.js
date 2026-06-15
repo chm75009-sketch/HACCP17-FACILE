@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v250';
+var APP_BUILD = 'v251';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -12647,6 +12647,30 @@ function selPeriodeDDPP(btn) {
   lancerPackDDPPAvecPhotos(from, to, sel);
 }
 
+// Ajoute une section « Courbes de température » (images) à la fin du Pack DDPP rendu,
+// construite à partir des relevés stockés de la période (capteur + manuel), sans
+// dépendre de l'API UbiBot. Entièrement protégé par l'appelant (try/catch).
+async function _packInjecterCourbes(from, to) {
+  if (typeof _ttFetchControles !== 'function' || typeof _courbePNG !== 'function') return;
+  var ov = document.getElementById('printOverlay'); if (!ov) return;
+  var ct = ov.lastElementChild; if (!ct) return;
+  var rows = await _ttFetchControles(from, to);
+  var releves = (typeof _ttNormaliser === 'function') ? _ttNormaliser(rows) : [];
+  var series = _courbeSeries(releves);
+  var noms = Object.keys(series).filter(function (n) { return series[n].length >= 2; });
+  if (!noms.length) return;
+  var h = '<div style="font-weight:800;font-size:15px;color:#0891b2;margin:6px 0 10px">📈 Courbes de température (capteur + manuel)</div>'
+    + '<div style="font-size:11px;color:#6b7280;margin-bottom:12px">Tracées à partir de vos relevés enregistrés. 🔵 capteur · ⚫ manuel · 🔴 hors seuil · seuil en pointillés.</div>';
+  noms.forEach(function (n) {
+    var url = _courbePNG(series[n], _courbeSeuil(n), n);
+    if (url) h += '<img src="' + url + '" alt="Courbe ' + _baroEsc(n) + '" style="width:100%;max-width:720px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:14px"/>';
+  });
+  var sec = document.createElement('div');
+  sec.style.cssText = 'padding:16px;page-break-before:always';
+  sec.innerHTML = h;
+  ct.appendChild(sec);
+}
+
 // V116 — Livraison 3 : wrapper qui récupère les photos de la période avant de lancer le Pack DDPP,
 // puis les injecte directement dans chaque bloc de contrôle après le rendu.
 async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
@@ -12700,6 +12724,9 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
 
   // 2) Lancer le Pack DDPP classique (rendu synchrone)
   lancerPackDDPP(dateFrom, dateTo, selectionIds);
+
+  // 2bis) Injecter les COURBES de température (image) à la fin du Pack (protégé).
+  try { await _packInjecterCourbes(dateFrom, dateTo); } catch (eCb) { console.warn('[Pack DDPP] courbes:', eCb && eCb.message); }
 
   // 3) Injecter les photos dans les bons blocs (après que le DOM soit prêt)
   var _injPhotosTries = 0;
