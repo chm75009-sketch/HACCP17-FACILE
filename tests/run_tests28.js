@@ -118,6 +118,18 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   var bn = _mkBtn('Valider');
   ctx._agrandirFermer({ querySelectorAll: function () { return [bn]; } });
   ok(!bn.style.minWidth, 'NAV: un bouton normal (« Valider ») n\'est PAS modifié');
+  // « Fermer » pâle (gris clair en inline) → rendu net et visible
+  var bf = _mkBtn('Fermer'); bf._at.style = 'background:#e2e8f0;padding:6px 12px';
+  ctx._agrandirFermer({ querySelectorAll: function () { return [bf]; } });
+  ok(bf.style.background === '#475569' && bf.style.color === '#ffffff', 'NAV: bouton « Fermer » pâle rendu visible');
+  // « Fermer » déjà coloré (rouge) → laissé tel quel
+  var bfr = _mkBtn('Fermer'); bfr._at.style = 'background:#dc2626;color:#fff';
+  ctx._agrandirFermer({ querySelectorAll: function () { return [bfr]; } });
+  ok(bfr.style.background !== '#475569', 'NAV: bouton « Fermer » déjà coloré laissé intact');
+  // « ← Retour » → zone de tap agrandie (couleurs inchangées)
+  var br = _mkBtn('← Retour'); br._at.style = 'background:rgba(255,255,255,.08);font-size:12px;color:#fff';
+  ctx._agrandirFermer({ querySelectorAll: function () { return [br]; } });
+  ok(br.style.minHeight === '38px' && br.style.fontSize === '13.5px', 'NAV: bouton « Retour » agrandi (tap + lisibilité)');
 }
 
 // ── J) TDB : tableau de bord « À faire aujourd'hui » ──

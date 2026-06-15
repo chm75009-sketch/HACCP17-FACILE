@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v247';
+var APP_BUILD = 'v248';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -1621,6 +1621,34 @@ function _agrandirFermer(root) {
         b.style.alignItems = 'center';
         b.style.justifyContent = 'center';
         if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', 'Fermer');
+      } else if (t === 'Fermer') {
+        // Bouton « Fermer » PÂLE (gris clair ou classe modal-btn-skip) → on le rend net
+        // et bien visible. On ne touche PAS aux « Fermer » déjà colorés (ex. rouge), ni
+        // aux « Fermer sans imprimer (non recommandé) » (texte différent → non ciblés).
+        var styleInline = String(b.getAttribute('style') || '').toLowerCase();
+        var estPale = (b.classList && b.classList.contains('modal-btn-skip'))
+          || /background\s*:\s*(#e2e8f0|#e5e7eb|#f1f5f9|#f3f4f6|#f8fafc|#fff(?:fff)?|white|transparent|var\(--bg\))/.test(styleInline)
+          || !/background/.test(styleInline);  // aucun fond défini = pâle par défaut
+        if (estPale) {
+          b.__fermerOk = true;
+          b.style.background = '#475569';   // ardoise : nettement visible, neutre
+          b.style.color = '#ffffff';
+          b.style.fontWeight = '800';
+          b.style.border = 'none';
+          if (!b.style.borderRadius) b.style.borderRadius = '9px';
+          if (!b.style.padding) b.style.padding = '10px 18px';
+          b.style.minHeight = '40px';
+          if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', 'Fermer');
+        }
+      } else if (/retour/i.test(t)) {
+        // Boutons « ← Retour » (souvent petits et pâles) : on agrandit la zone de tap et
+        // la lisibilité SANS changer les couleurs (beaucoup sont sur fond sombre).
+        b.__fermerOk = true;
+        var fs = parseFloat(b.style.fontSize || '') || 0;
+        if (fs < 13.5) b.style.fontSize = '13.5px';
+        b.style.minHeight = '38px';
+        if (!b.style.fontWeight) b.style.fontWeight = '700';
+        if (!b.style.padding) b.style.padding = '9px 16px';
       }
     });
   } catch (e) {}
