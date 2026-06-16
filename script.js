@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v253';
+var APP_BUILD = 'v254';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24815,15 +24815,23 @@ function _confirmSuppr(msg, cb) {
 function _rthKey() { return 'haccp_rth_engage_' + ((typeof ETAB_ID !== 'undefined' && ETAB_ID) ? ETAB_ID : 'x'); }
 function _rthSigned() { try { return lsGet(_rthKey()) === '1'; } catch (e) { return false; } }
 function _rthEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-function _rthFermer() { var o = document.getElementById('rthOverlay'); if (o) o.remove(); }
+function _rthFermer() {
+  var o = document.getElementById('rthOverlay'); if (o) o.remove();
+  try { var tb = document.getElementById('appTopbar'); if (tb) tb.style.display = ''; } catch (e) {}
+  try { document.querySelectorAll('.bnav').forEach(function (n) { n.style.display = ''; }); } catch (e) {}
+}
 function _rthShow(html) {
   _rthFermer();
   var o = document.createElement('div');
   o.id = 'rthOverlay';
-  o.style.cssText = 'position:fixed;inset:0;z-index:400;background:#f8f9fc;overflow:auto;-webkit-overflow-scrolling:touch;font-family:Outfit,sans-serif;color:#0f172a';
+  o.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#f8f9fc;overflow:auto;-webkit-overflow-scrolling:touch;font-family:Outfit,sans-serif;color:#0f172a';
   o.innerHTML = html;
   document.body.appendChild(o);
   try { o.scrollTop = 0; } catch (e) {}
+  // Pendant l'écran RTH, masquer la barre du haut + la nav du bas de l'app (sinon
+  // elles recouvrent l'en-tête « Contrôle RTH »).
+  try { var tb = document.getElementById('appTopbar'); if (tb) tb.style.display = 'none'; } catch (e) {}
+  try { document.querySelectorAll('.bnav').forEach(function (n) { n.style.display = 'none'; }); } catch (e) {}
 }
 // Point d'entrée : engagement signé au 1er accès, sinon accueil.
 function demarrerRTH() { if (!_rthSigned()) _rthEngagement(); else _rthAccueil(); }
@@ -24832,7 +24840,7 @@ function _rthEngagement() {
   var ob = ['Hygiène & tenue du personnel', 'Nettoyage (ouverture/fermeture) + plan de nettoyage', 'Cuisson / refroidissement rapide', 'Étiquetage & DLC secondaires', 'Traçabilité complète des produits', 'Pertes, déchets & biodéchets', 'Lutte contre les nuisibles', 'Non-conformités & actions correctives', 'Allergènes · Formation · Documents obligatoires'];
   var li = ob.map(function (x) { return '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:#334155;padding:5px 0;line-height:1.4"><input type="checkbox" checked disabled style="margin-top:3px">' + _rthEsc(x) + '</label>'; }).join('');
   _rthShow(
-    '<div style="max-width:480px;margin:0 auto;padding:18px">'
+    '<div style="max-width:480px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) 18px 18px">'
     + '<div style="font-size:15px;font-weight:900;margin-bottom:8px">⚠️ À lire avant d\'accéder</div>'
     + '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:13px;font-size:12.5px;color:#9a3412;line-height:1.5;margin-bottom:14px">Cette version <b>« Contrôle RTH » ne couvre que 3 contrôles</b> (Réception, Températures, Huiles). Elle <b>ne suffit pas, à elle seule,</b> à respecter l\'ensemble de vos obligations d\'hygiène alimentaire (Plan de Maîtrise Sanitaire). <b>Vous restez seul responsable</b> de la conformité de votre établissement.</div>'
     + '<div style="font-size:14px;font-weight:800;margin:6px 0 8px">Les autres contrôles que vous devez réaliser :</div>'
@@ -24860,7 +24868,7 @@ function _rthCarte(id, ic, bg, t, s) {
 }
 function _rthAccueil() {
   _rthShow(
-    '<div style="position:relative;background:linear-gradient(160deg,#0a0e1a,#10322a);color:#fff;padding:30px 20px 26px;text-align:center">'
+    '<div style="position:relative;background:linear-gradient(160deg,#0a0e1a,#10322a);color:#fff;padding:calc(30px + env(safe-area-inset-top,0px)) 20px 26px;text-align:center">'
     + '<button onclick="_rthFermer();seDeconnecter()" style="position:absolute;top:14px;right:14px;background:rgba(220,38,38,.18);border:1px solid rgba(248,113,113,.5);color:#fca5a5;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">🔓 Quitter</button>'
     + '<div style="display:inline-block;background:rgba(16,185,129,.18);color:#6ee7b7;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:1px;margin-bottom:12px">VERSION SIMPLIFIÉE</div>'
     + '<div style="font-size:25px;font-weight:900;letter-spacing:-.5px">Contrôle <span style="color:#34d399">RTH</span></div>'
