@@ -43,9 +43,14 @@ alter table public.controles_haccp
   add column if not exists client_control_id text; -- DATA-3 : id client unique du contrôle
 
 create or replace function public.haccp_seal()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql
+set search_path = public, extensions
+as $$
 begin
   new.recorded_at := coalesce(new.recorded_at, now());
+  if new.establishment_id is null then
+    new.establishment_id := public.current_establishment_id();
+  end if;
   new.seal := encode(
     digest(
       coalesce(new.code_client,'') || '|' ||
