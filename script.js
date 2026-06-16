@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v256';
+var APP_BUILD = 'v257';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24846,6 +24846,7 @@ function demarrerRTH() {
   if (demo || !_rthSigned()) _rthEngagement(); else _rthAccueil();
 }
 
+var _rthSigObj = null, _rthSigState = { v: false };
 function _rthEngagement() {
   var ob = ['Hygiène & tenue du personnel', 'Nettoyage (ouverture/fermeture) + plan de nettoyage', 'Cuisson / refroidissement rapide', 'Étiquetage & DLC secondaires', 'Traçabilité complète des produits', 'Pertes, déchets & biodéchets', 'Lutte contre les nuisibles', 'Non-conformités & actions correctives', 'Allergènes · Formation · Documents obligatoires'];
   var li = ob.map(function (x) { return '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:#334155;padding:5px 0;line-height:1.4"><input type="checkbox" checked disabled style="margin-top:3px">' + _rthEsc(x) + '</label>'; }).join('');
@@ -24857,19 +24858,45 @@ function _rthEngagement() {
     + '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:14px">' + li + '</div>'
     + '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px;margin-bottom:12px;font-weight:600"><input type="checkbox" id="rth_ok" style="margin-top:2px">Je m\'engage à réaliser ces contrôles par mes propres moyens et je reconnais rester seul responsable de la conformité de mon établissement.</label>'
     + '<input id="rth_nom" placeholder="Nom et prénom du signataire" style="width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:11px;font-size:13px;margin-bottom:10px;font-family:Outfit,sans-serif">'
+    + '<div style="font-size:12px;font-weight:700;color:#334155;margin:2px 0 4px">Signature</div>'
+    + '<div style="border:1px dashed #cbd5e1;border-radius:12px;background:#fff;overflow:hidden;margin-bottom:6px"><canvas id="rth_sig_canvas" style="display:block;width:100%;height:140px;touch-action:none"></canvas></div>'
+    + '<div style="text-align:right;margin-bottom:10px"><button onclick="if(_rthSigObj)_rthSigObj.clear()" style="background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">Effacer</button></div>'
     + '<div id="rth_err" style="display:none;color:#dc2626;font-size:12px;font-weight:700;margin-bottom:8px"></div>'
     + '<button onclick="_rthValiderEngagement()" style="width:100%;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#34d399,#10b981);color:#06281f;font-family:Outfit,sans-serif">J\'ai compris — accéder à mes 3 contrôles</button>'
     + '<div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:10px">Engagement daté, signé et enregistré comme preuve.</div>'
     + '</div>');
+  _rthSigState = { v: false };
+  try { setTimeout(function () { _rthSigObj = makeSig('rth_sig_canvas', null, null, _rthSigState); }, 60); } catch (e) {}
 }
 function _rthValiderEngagement() {
   var ok = document.getElementById('rth_ok'), nom = document.getElementById('rth_nom'), err = document.getElementById('rth_err');
-  if (!ok || !ok.checked) { if (err) { err.textContent = 'Veuillez cocher l\'engagement.'; err.style.display = 'block'; } return; }
-  if (!nom || !nom.value.trim()) { if (err) { err.textContent = 'Indiquez le nom du signataire.'; err.style.display = 'block'; } return; }
+  function _e(m) { if (err) { err.textContent = m; err.style.display = 'block'; } }
+  if (!ok || !ok.checked) { _e('Veuillez cocher l\'engagement.'); return; }
+  if (!nom || !nom.value.trim()) { _e('Indiquez le nom du signataire.'); return; }
+  if (!_rthSigState || !_rthSigState.v) { _e('Veuillez signer dans le cadre.'); return; }
+  var nomV = nom.value.trim();
+  var dateISO = new Date().toISOString();
+  var sigData = '';
+  try { var cv = document.getElementById('rth_sig_canvas'); if (cv) sigData = cv.toDataURL('image/png'); } catch (e) {}
   try {
     lsSet(_rthKey(), '1');
-    lsSet('haccp_rth_engage_nom_' + (ETAB_ID || ''), nom.value.trim());
-    lsSet('haccp_rth_engage_date_' + (ETAB_ID || ''), new Date().toISOString());
+    lsSet('haccp_rth_engage_nom_' + (ETAB_ID || ''), nomV);
+    lsSet('haccp_rth_engage_date_' + (ETAB_ID || ''), dateISO);
+    lsSet('haccp_rth_engage_sig_' + (ETAB_ID || ''), sigData);
+  } catch (e) {}
+  // TRACE / PREUVE de la validation : historique local + contrôle horodaté/scellé
+  // côté serveur (sauf compte démo local RTH3, pour ne pas polluer le cloud).
+  var texte = 'Engagement « Contrôle RTH » : l\'utilisateur reconnaît que cette formule ne couvre que 3 contrôles (Réception, Températures, Huiles), s\'engage à réaliser les autres contrôles par ses propres moyens et reste seul responsable de la conformité de son établissement.';
+  try { if (typeof sauvegarderHistorique === 'function') sauvegarderHistorique('Engagement Contrôle RTH', nomV); } catch (e) {}
+  try {
+    if (typeof enregistrerControleHACCP === 'function' && (typeof ETAB_ID === 'undefined' || ETAB_ID !== 'local-RTH3')) {
+      enregistrerControleHACCP('Engagement Contrôle RTH', {
+        signataire: nomV, signe: nomV, signature: sigData,
+        savedAt: dateISO, timestamp: dateISO,
+        texte: texte, formule: 'rth',
+        contenu_resume: texte
+      });
+    }
   } catch (e) {}
   _rthAccueil();
 }
