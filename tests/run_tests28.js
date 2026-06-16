@@ -175,6 +175,14 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ok(s['Congel'] && s['Congel'].length === 1, 'Courbe: enceintes séparées (Congel)');
 }
 
+// ── M) Formule « Contrôle RTH » : seuls les 3 contrôles sont autorisés ──
+{
+  ok(ctx._rthModuleAutorise('reception') && ctx._rthModuleAutorise('temperatures') && ctx._rthModuleAutorise('huiles'),
+    'RTH: les 3 contrôles (réception / températures / huiles) sont autorisés');
+  ok(!ctx._rthModuleAutorise('cuisson') && !ctx._rthModuleAutorise('nettoyage') && !ctx._rthModuleAutorise('allergenes'),
+    'RTH: les autres modules sont verrouillés (→ écran « autres obligations » / upsell)');
+}
+
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 console.log('════════════════════════════════════════');

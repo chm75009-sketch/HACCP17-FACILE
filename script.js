@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v252';
+var APP_BUILD = 'v253';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -71,6 +71,7 @@ var CODES_LOCAUX = {};var CODES_LOCAUX = {
   // 'RTH' (ancien code « Accès Admin », vide/inutilisé) retiré pour ne plus exposer
   // de mot de passe en clair. Le vrai panneau admin est protégé côté serveur (admin_check).
   'RTH75':     { nom: 'RESTAURANT TEST',   secteur: 'resto',  actif: true, mot_de_passe: '826700' },
+  'RTH3':      { nom: 'DÉMO Contrôle RTH',  secteur: 'resto',  actif: true, mot_de_passe: '826700', formule: 'rth' },
   'DEMO':      { nom: 'Établissement Démo',      secteur: 'resto',  actif: true, mot_de_passe: '' },
   'TESTBP':    { nom: 'Boulangerie Test',         secteur: 'bp',     actif: true, mot_de_passe: '' },
   'TESTRAPIDE':{ nom: 'Restauration Rapide Test', secteur: 'rapide', actif: true, mot_de_passe: '' },
@@ -79,6 +80,10 @@ var CODES_LOCAUX = {};var CODES_LOCAUX = {
 var ETAB_ID = null;
 var SB_READY = false;
 var MODE_LOCAL = false;
+// FORMULE active du compte connecté : 'complet' (défaut, version complète) ou 'rth'
+// (version simplifiée 3 contrôles « Contrôle RTH »). Renseignée à la connexion.
+var FORMULE_ACTIVE = 'complet';
+var _RTH_MODULES = { reception: 1, temperatures: 1, huiles: 1 };
 // SEC — jeton de session Supabase Auth (JWT utilisateur). Tant que le RLS n'est pas
 // activé, c'est ADDITIF : l'app continue de marcher avec la clé anon. Une fois posé,
 // il identifie l'établissement côté serveur (cloisonnement).
@@ -659,7 +664,7 @@ function sbLoginLocal(code, pwd) {
   // Les comptes LOCAUX (CODES_LOCAUX, ex. RTH75) sont des comptes de test/démo :
   // ils restent MULTI-SECTEUR (multi_secteur:true) pour pouvoir tester tous les
   // secteurs — sinon la règle de verrouillage par défaut les enfermerait.
-  return { ok: true, data: { id: 'local-' + code, nom: etab.nom, secteur: etab.secteur, actif: true, multi_secteur: true }, local: true };
+  return { ok: true, data: { id: 'local-' + code, nom: etab.nom, secteur: etab.secteur, actif: true, multi_secteur: true, formule: etab.formule || 'complet' }, local: true };
 }
 
 // ── DATA-5 — CONNEXION HORS-LIGNE (jusqu'à 7 jours) ──
@@ -2135,6 +2140,9 @@ async function connexion() {
     }
   } catch(e) {}
   ETAB_ID = d.id;
+  // FORMULE — version simplifiée « Contrôle RTH » (3 contrôles) ou complète.
+  FORMULE_ACTIVE = (d && d.formule) ? d.formule : 'complet';
+  try { lsSet('haccp_formule', FORMULE_ACTIVE); } catch(eF){}
   // SEC — ouvrir la session Auth en parallèle (additif, non bloquant). Permettra
   // le cloisonnement RLS une fois activé. N'échoue jamais la connexion existante.
   // SEC-1 Étape A — ouverture de session ATTENDUE : le jeton est prêt AVANT les
@@ -2230,6 +2238,9 @@ async function connexion() {
   // V101 — Appliquer le grisage immédiatement après l'affichage du choix secteur
   setTimeout(appliquerClientMode, 50);
   var sa=document.getElementById('scrollArea'); if(sa) sa.scrollTop=0; window.scrollTo(0,0);
+  // FORMULE RTH : court-circuiter l'onboarding → accueil simplifié 3 contrôles
+  // (avec engagement signé au 1er accès). La version complète passe par l'onboarding.
+  if (FORMULE_ACTIVE === 'rth') { try { demarrerRTH(); return; } catch(eRth){ console.warn('RTH:', eRth); } }
   showPage('page-onboarding');
 }
 
@@ -7779,6 +7790,13 @@ function applyDocsAffSecteur(moduleId) {
 }
 
 function openModule(id) {
+  // FORMULE RTH : seuls les 3 contrôles sont accessibles ; les autres renvoient à
+  // l'écran « Mes autres obligations » (verrouillé + upsell formule complète).
+  if (typeof FORMULE_ACTIVE !== 'undefined' && FORMULE_ACTIVE === 'rth'
+      && !(_RTH_MODULES && _RTH_MODULES[id])) {
+    try { _rthUpsell(); } catch(e) {}
+    return;
+  }
   // ── « Qui réalise ce contrôle ? » ──
   // Avant la saisie d'un module, proposer la personne qui intervient (si l'équipe
   // est renseignée). On ne demande qu'une fois par saisie : le choix est mémorisé
@@ -8578,6 +8596,10 @@ function showPage(id, noReset) {
 
 
 function goHome() {
+  // FORMULE RTH : « accueil » = écran simplifié 3 contrôles (pas la grille complète).
+  if (typeof FORMULE_ACTIVE !== 'undefined' && FORMULE_ACTIVE === 'rth') {
+    try { demarrerRTH(); return; } catch(e) {}
+  }
   showPage('page-guide');
   // Rafraîchir la grille des modules avec la catégorie active
   var activeCat = document.querySelector('.ctab.active');
@@ -24784,3 +24806,93 @@ function _confirmSuppr(msg, cb) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _navWire);
   else _navWire();
 })();
+
+// ════════════════════════════════════════════════════════════════════════
+// FORMULE « CONTRÔLE RTH » — version simplifiée 3 contrôles (Réception ·
+// Température · Huile). Activée quand FORMULE_ACTIVE === 'rth'. Entièrement
+// gated : la version complète n'est pas affectée. UI en overlay autonome.
+// ════════════════════════════════════════════════════════════════════════
+function _rthKey() { return 'haccp_rth_engage_' + ((typeof ETAB_ID !== 'undefined' && ETAB_ID) ? ETAB_ID : 'x'); }
+function _rthSigned() { try { return lsGet(_rthKey()) === '1'; } catch (e) { return false; } }
+function _rthEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function _rthFermer() { var o = document.getElementById('rthOverlay'); if (o) o.remove(); }
+function _rthShow(html) {
+  _rthFermer();
+  var o = document.createElement('div');
+  o.id = 'rthOverlay';
+  o.style.cssText = 'position:fixed;inset:0;z-index:400;background:#f8f9fc;overflow:auto;-webkit-overflow-scrolling:touch;font-family:Outfit,sans-serif;color:#0f172a';
+  o.innerHTML = html;
+  document.body.appendChild(o);
+  try { o.scrollTop = 0; } catch (e) {}
+}
+// Point d'entrée : engagement signé au 1er accès, sinon accueil.
+function demarrerRTH() { if (!_rthSigned()) _rthEngagement(); else _rthAccueil(); }
+
+function _rthEngagement() {
+  var ob = ['Hygiène & tenue du personnel', 'Nettoyage (ouverture/fermeture) + plan de nettoyage', 'Cuisson / refroidissement rapide', 'Étiquetage & DLC secondaires', 'Traçabilité complète des produits', 'Pertes, déchets & biodéchets', 'Lutte contre les nuisibles', 'Non-conformités & actions correctives', 'Allergènes · Formation · Documents obligatoires'];
+  var li = ob.map(function (x) { return '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:#334155;padding:5px 0;line-height:1.4"><input type="checkbox" checked disabled style="margin-top:3px">' + _rthEsc(x) + '</label>'; }).join('');
+  _rthShow(
+    '<div style="max-width:480px;margin:0 auto;padding:18px">'
+    + '<div style="font-size:15px;font-weight:900;margin-bottom:8px">⚠️ À lire avant d\'accéder</div>'
+    + '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:13px;font-size:12.5px;color:#9a3412;line-height:1.5;margin-bottom:14px">Cette version <b>« Contrôle RTH » ne couvre que 3 contrôles</b> (Réception, Températures, Huiles). Elle <b>ne suffit pas, à elle seule,</b> à respecter l\'ensemble de vos obligations d\'hygiène alimentaire (Plan de Maîtrise Sanitaire). <b>Vous restez seul responsable</b> de la conformité de votre établissement.</div>'
+    + '<div style="font-size:14px;font-weight:800;margin:6px 0 8px">Les autres contrôles que vous devez réaliser :</div>'
+    + '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:14px">' + li + '</div>'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px;margin-bottom:12px;font-weight:600"><input type="checkbox" id="rth_ok" style="margin-top:2px">Je m\'engage à réaliser ces contrôles par mes propres moyens et je reconnais rester seul responsable de la conformité de mon établissement.</label>'
+    + '<input id="rth_nom" placeholder="Nom et prénom du signataire" style="width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:11px;font-size:13px;margin-bottom:10px;font-family:Outfit,sans-serif">'
+    + '<div id="rth_err" style="display:none;color:#dc2626;font-size:12px;font-weight:700;margin-bottom:8px"></div>'
+    + '<button onclick="_rthValiderEngagement()" style="width:100%;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#34d399,#10b981);color:#06281f;font-family:Outfit,sans-serif">J\'ai compris — accéder à mes 3 contrôles</button>'
+    + '<div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:10px">Engagement daté, signé et enregistré comme preuve.</div>'
+    + '</div>');
+}
+function _rthValiderEngagement() {
+  var ok = document.getElementById('rth_ok'), nom = document.getElementById('rth_nom'), err = document.getElementById('rth_err');
+  if (!ok || !ok.checked) { if (err) { err.textContent = 'Veuillez cocher l\'engagement.'; err.style.display = 'block'; } return; }
+  if (!nom || !nom.value.trim()) { if (err) { err.textContent = 'Indiquez le nom du signataire.'; err.style.display = 'block'; } return; }
+  try {
+    lsSet(_rthKey(), '1');
+    lsSet('haccp_rth_engage_nom_' + (ETAB_ID || ''), nom.value.trim());
+    lsSet('haccp_rth_engage_date_' + (ETAB_ID || ''), new Date().toISOString());
+  } catch (e) {}
+  _rthAccueil();
+}
+function _rthCarte(id, ic, bg, t, s) {
+  return '<div onclick="_rthOuvrir(\'' + id + '\')" style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #eef2ff;border-radius:16px;padding:16px;margin-bottom:11px;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer"><div style="width:52px;height:52px;border-radius:14px;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">' + ic + '</div><div style="flex:1"><div style="font-size:14px;font-weight:800">' + t + '</div><div style="font-size:11.5px;color:#64748b">' + s + '</div></div><div style="color:#cbd5e1;font-size:22px">&rsaquo;</div></div>';
+}
+function _rthAccueil() {
+  _rthShow(
+    '<div style="position:relative;background:linear-gradient(160deg,#0a0e1a,#10322a);color:#fff;padding:30px 20px 26px;text-align:center">'
+    + '<button onclick="_rthFermer();seDeconnecter()" style="position:absolute;top:14px;right:14px;background:rgba(220,38,38,.18);border:1px solid rgba(248,113,113,.5);color:#fca5a5;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">🔓 Quitter</button>'
+    + '<div style="display:inline-block;background:rgba(16,185,129,.18);color:#6ee7b7;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:1px;margin-bottom:12px">VERSION SIMPLIFIÉE</div>'
+    + '<div style="font-size:25px;font-weight:900;letter-spacing:-.5px">Contrôle <span style="color:#34d399">RTH</span></div>'
+    + '<div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:8px"><b style="color:#fff"><span style="color:#34d399">R</span>éception · <span style="color:#34d399">T</span>empératures · <span style="color:#34d399">H</span>uiles</b></div>'
+    + '</div>'
+    + '<div style="max-width:480px;margin:0 auto;padding:16px">'
+    + _rthCarte('reception', '📦', '#fff7ed', 'Réception d\'une livraison', 'Températures, emballages, DLC')
+    + _rthCarte('temperatures', '🌡️', '#eff6ff', 'Températures frigos', 'Chambres froides, réfrigérateurs, congélateurs')
+    + _rthCarte('huiles', '🫙', '#fef9c3', 'Huile de friture', 'Aspect, température, TPM')
+    + '<div onclick="_rthUpsell()" style="display:flex;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px;margin-top:8px;cursor:pointer"><div style="width:48px;height:48px;border-radius:12px;background:#ffedd5;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📋</div><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#9a3412">Mes autres obligations</div><div style="font-size:11px;color:#b45309">Contrôles à débloquer (formule complète)</div></div><div style="color:#fdba74;font-size:22px">&rsaquo;</div></div>'
+    + '</div>');
+}
+function _rthOuvrir(id) { _rthFermer(); openModule(id); }
+function _rthUpsell() {
+  var locked = ['🖐️ Hygiène & tenue du personnel', '🧹 Nettoyage + plan de nettoyage', '🍳 Cuisson / refroidissement', '🏷️ Étiquetage & DLC', '📦 Traçabilité complète', '♻️ Pertes, déchets & biodéchets', '🐭 Nuisibles', '⚡ Non-conformités', '🥜 Allergènes · 📄 Documents'];
+  var li = locked.map(function (x) { return '<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:12px 13px;margin-bottom:8px;font-size:12.5px;color:#475569;opacity:.9"><span>' + x + '</span><span style="color:#f59e0b;font-size:15px">🔒</span></div>'; }).join('');
+  _rthShow(
+    '<div style="background:#0a0e1a;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between"><div style="font-weight:900;font-size:15px">Autres obligations</div><button onclick="_rthAccueil()" style="background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif">← Retour</button></div>'
+    + '<div style="max-width:480px;margin:0 auto;padding:16px">'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.5">Voici les contrôles que vous devez <b>aussi</b> réaliser. <b>Débloquez-les</b> en passant à la formule complète.</div>'
+    + li
+    + '<div style="font-size:13px;font-weight:800;text-align:center;margin:14px 0 8px">🔓 Débloquez tous les contrôles</div>'
+    + '<div style="border:1px solid #e2e8f0;border-radius:11px;padding:11px 13px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px"><b style="font-size:17px">19,99 €</b> /mois</span><span style="font-size:11px;color:#64748b">engagement 12 mois</span></div>'
+    + '<div style="border:1.5px solid #34d399;background:#ecfdf5;border-radius:11px;padding:11px 13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px"><b style="font-size:17px">15 €</b> /mois</span><span style="font-size:11px;font-weight:800;color:#15803d">engagement 24 mois ⭐</span></div>'
+    + '<button onclick="_rthDemandeUpgrade()" style="width:100%;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#34d399,#10b981);color:#06281f;font-family:Outfit,sans-serif">Passer à la formule complète</button>'
+    + '<div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px">Les 19 contrôles + Pack DDPP illimité.</div>'
+    + '</div>');
+}
+function _rthDemandeUpgrade() {
+  try { showToast('Demande envoyée — nous vous recontactons pour activer la formule complète.', 'ok', 5000); }
+  catch (e) { try { alert('Demande enregistrée. Nous vous recontactons pour la formule complète.'); } catch (e2) {} }
+}
+// Pur (testable) : un module est-il autorisé en formule RTH ?
+function _rthModuleAutorise(id) { return !!(_RTH_MODULES && _RTH_MODULES[id]); }
+try { if (typeof window !== 'undefined') { window.demarrerRTH = demarrerRTH; window._rthUpsell = _rthUpsell; window._rthAccueil = _rthAccueil; window._rthOuvrir = _rthOuvrir; window._rthValiderEngagement = _rthValiderEngagement; window._rthDemandeUpgrade = _rthDemandeUpgrade; window._rthFermer = _rthFermer; } } catch (e) {}
