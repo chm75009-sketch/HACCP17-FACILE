@@ -14,6 +14,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--dark);min-
 #topbarEssaiBadge{white-space:normal;max-width:100%;word-break:break-word}
 .topbar-mid span{color:rgba(255,255,255,.45);font-size:11px}
 .topbar-mid strong{color:white;font-size:12px;font-weight:600}
+#topbarEtabNom{min-width:0;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .date-pill{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:var(--green);font-size:11px;font-weight:600;border-radius:20px;padding:4px 12px;font-family:'JetBrains Mono',monospace}
 .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white;cursor:pointer;border:2px solid rgba(255,255,255,.15)}
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -227,7 +228,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--dark);min-
 @media(max-width:380px){.topbar-mid{display:none}.hero-title{font-size:22px}.mods-wrap,.fwrap{padding-left:16px;padding-right:16px}.cat-tabs,.alert-wrap,.legal-banner,.sec-head,.cat-band{padding-left:16px;padding-right:16px}}
 /* Téléphones (≤480px) : on libère de la place pour que « Quitter » reste accessible
    — on masque le texte du logo et la date (redondante), on garde le compte à rebours. */
-@media(max-width:480px){.logo-name{display:none}.date-pill{display:none}.topbar-mid{max-width:62vw}}
+@media(max-width:480px){.logo-name{display:none}.date-pill{display:none}.topbar-mid{max-width:52vw}}
 /* ── LOADER OVERLAY (opérations longues bloquantes) ── */
 .haccp-loader-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:99998;opacity:0;transition:opacity .2s}
 .haccp-loader-overlay.show{display:flex;opacity:1}
