@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v255';
+var APP_BUILD = 'v256';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -2141,7 +2141,8 @@ async function connexion() {
   } catch(e) {}
   ETAB_ID = d.id;
   // FORMULE — version simplifiée « Contrôle RTH » (3 contrôles) ou complète.
-  FORMULE_ACTIVE = (d && d.formule) ? d.formule : 'complet';
+  // Priorité au champ formule du compte ; sinon, marqueur dans le code (ESSAI-RTH-…).
+  FORMULE_ACTIVE = (d && d.formule) ? d.formule : _formuleDepuisCode(code);
   try { lsSet('haccp_formule', FORMULE_ACTIVE); } catch(eF){}
   // SEC — ouvrir la session Auth en parallèle (additif, non bloquant). Permettra
   // le cloisonnement RLS une fois activé. N'échoue jamais la connexion existante.
@@ -20616,6 +20617,7 @@ function testEffacerDonnees() {
         var duree = parseInt((document.getElementById('essai_duree') || {}).value || '0', 10);
         var estClient = !!((document.getElementById('essai_client') || {}).checked);
         var multiSect = !!((document.getElementById('essai_multi') || {}).checked);
+        var formuleRTH = !!((document.getElementById('essai_formule_rth') || {}).checked);
 
         etab = etab.trim(); resp = resp.trim(); tel = tel.trim(); mail = mail.trim(); adr = adr.trim();
         if (!etab || !resp || !tel || !mail || !adr) {
@@ -20627,6 +20629,9 @@ function testEffacerDonnees() {
 
         var code = genererCodeEssai();
         if (estClient) code = code.replace('ESSAI-', 'CLIENT-');
+        // Formule « Contrôle RTH » : on encode la formule dans le code (ESSAI-RTH-… ou
+        // CLIENT-RTH-…). La connexion détecte ce marqueur et ouvre la version 3 contrôles.
+        if (formuleRTH) code = code.replace(/^(ESSAI|CLIENT)-/, '$1-RTH-');
         var pwd = '';
         for (var i = 0; i < 6; i++) pwd += Math.floor(Math.random() * 10);
         var maintenant = new Date();
@@ -20662,7 +20667,7 @@ function testEffacerDonnees() {
             motif: etab + ' — ' + resp + ' — ' + tel + ' — ' + mail + ' — exp. ' + dateExp
           }]).then(function(){});
           if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
-          alert('✅ Essai créé !\n\nÉtablissement : ' + etab + '\nCode : ' + code + '\nMot de passe : ' + pwd + '\nDurée : ' + duree + ' jour(s)\nExpire le : ' + new Date(dateExp).toLocaleDateString('fr-FR') + '\n\nCommuniquez le code et le mot de passe au client.');
+          alert('✅ Essai créé !\n\nÉtablissement : ' + etab + '\nCode : ' + code + '\nMot de passe : ' + pwd + '\nFormule : ' + (formuleRTH ? 'Contrôle RTH (3 contrôles)' : 'Complète') + '\nDurée : ' + duree + ' jour(s)\nExpire le : ' + new Date(dateExp).toLocaleDateString('fr-FR') + '\n\nCommuniquez le code et le mot de passe au client.');
           ['essai_etab','essai_resp','essai_tel','essai_email','essai_adresse'].forEach(function(idf){
             var el = document.getElementById(idf); if (el) el.value = '';
           });
@@ -20722,6 +20727,7 @@ function testEffacerDonnees() {
           '</select></div>' +
           '<label style="display:flex;align-items:flex-start;gap:8px;margin:6px 0 6px;font-size:12px;color:rgba(255,255,255,0.75);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_client"' + (estClients ? ' checked' : '') + ' style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Compte <strong>CLIENT payant</strong> (valable <strong>1 an</strong>, code CLIENT-) au lieu d\'un essai</span></label>' +
           '<label style="display:flex;align-items:flex-start;gap:8px;margin:2px 0 12px;font-size:12px;color:rgba(255,255,255,0.6);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_multi" style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Compte <strong>test</strong> &mdash; acc&egrave;s &agrave; <strong>tous les secteurs</strong> (sinon verrouill&eacute; sur le secteur choisi)</span></label>' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin:2px 0 12px;font-size:12px;color:rgba(255,255,255,0.75);cursor:pointer;line-height:1.4"><input type="checkbox" id="essai_formule_rth" style="width:16px;height:16px;margin-top:1px;flex-shrink:0"><span>Formule <strong>Contr&ocirc;le RTH</strong> &mdash; version <strong>3 contr&ocirc;les</strong> (R&eacute;ception &middot; Temp&eacute;rature &middot; Huile)</span></label>' +
           '<button id="btnCreerEssai" onclick="creerEssai()" style="width:100%;background:linear-gradient(135deg,#16a34a,#4ade80);color:#0a0e1a;border:none;padding:12px;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;font-family:Outfit,sans-serif">' + (estClients ? '👥 Créer le compte client' : '🎁 Créer le code d\'essai') + '</button>' +
           '</div>' +
           '<div id="essaisListe"><div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Chargement des essais…</div></div>';
@@ -24908,4 +24914,7 @@ function _rthDemandeUpgrade() {
 }
 // Pur (testable) : un module est-il autorisé en formule RTH ?
 function _rthModuleAutorise(id) { return !!(_RTH_MODULES && _RTH_MODULES[id]); }
+// Pur (testable) : déduit la formule depuis le code d'accès (marqueur « RTH »).
+// Ex. ESSAI-RTH-AB3KP-2026 / CLIENT-RTH-… → 'rth' ; ESSAI-… / RTH75 → 'complet'.
+function _formuleDepuisCode(code) { return /(^|-)RTH(-|$)/i.test(String(code || '')) ? 'rth' : 'complet'; }
 try { if (typeof window !== 'undefined') { window.demarrerRTH = demarrerRTH; window._rthUpsell = _rthUpsell; window._rthAccueil = _rthAccueil; window._rthOuvrir = _rthOuvrir; window._rthValiderEngagement = _rthValiderEngagement; window._rthDemandeUpgrade = _rthDemandeUpgrade; window._rthFermer = _rthFermer; } } catch (e) {}

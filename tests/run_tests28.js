@@ -181,6 +181,11 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
     'RTH: les 3 contrôles (réception / températures / huiles) sont autorisés');
   ok(!ctx._rthModuleAutorise('cuisson') && !ctx._rthModuleAutorise('nettoyage') && !ctx._rthModuleAutorise('allergenes'),
     'RTH: les autres modules sont verrouillés (→ écran « autres obligations » / upsell)');
+  // détection de la formule depuis le code d'accès (essais RTH)
+  ok(ctx._formuleDepuisCode('ESSAI-RTH-AB3KP-2026') === 'rth', 'RTH: code ESSAI-RTH-… → formule rth');
+  ok(ctx._formuleDepuisCode('CLIENT-RTH-XY7-2026') === 'rth', 'RTH: code CLIENT-RTH-… → formule rth');
+  ok(ctx._formuleDepuisCode('ESSAI-AB3KP-2026') === 'complet', 'RTH: code ESSAI-… normal → formule complète');
+  ok(ctx._formuleDepuisCode('RTH75') === 'complet', 'RTH: RTH75 (compte test classique) → formule complète');
 }
 
 console.log('\n════════════════════════════════════════');
