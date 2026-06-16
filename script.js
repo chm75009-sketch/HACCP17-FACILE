@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v258';
+var APP_BUILD = 'v259';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24830,7 +24830,7 @@ function _rthShow(html) {
   _rthFermer();
   var o = document.createElement('div');
   o.id = 'rthOverlay';
-  o.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#f8f9fc;overflow:auto;-webkit-overflow-scrolling:touch;font-family:Outfit,sans-serif;color:#0f172a';
+  o.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#f8f9fc;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;font-family:Outfit,sans-serif;color:#0f172a';
   o.innerHTML = html;
   document.body.appendChild(o);
   try { o.scrollTop = 0; } catch (e) {}
@@ -24901,7 +24901,7 @@ function _rthValiderEngagement() {
   _rthAccueil();
 }
 function _rthCarte(id, ic, bg, t, s) {
-  return '<div onclick="_rthOuvrir(\'' + id + '\')" style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #eef2ff;border-radius:16px;padding:16px;margin-bottom:11px;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer"><div style="width:52px;height:52px;border-radius:14px;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">' + ic + '</div><div style="flex:1"><div style="font-size:14px;font-weight:800">' + t + '</div><div style="font-size:11.5px;color:#64748b">' + s + '</div></div><div style="color:#cbd5e1;font-size:22px">&rsaquo;</div></div>';
+  return '<div onclick="_rthOuvrir(\'' + id + '\')" style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #eef2ff;border-radius:16px;padding:16px;margin-bottom:11px;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer"><div style="width:52px;height:52px;border-radius:14px;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">' + ic + '</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:800">' + t + '</div><div style="font-size:11.5px;color:#64748b">' + s + '</div></div><div style="color:#cbd5e1;font-size:22px;flex-shrink:0">&rsaquo;</div></div>';
 }
 function _rthAccueil() {
   _rthShow(
@@ -24916,7 +24916,7 @@ function _rthAccueil() {
     + _rthCarte('reception', '📦', '#fff7ed', 'Réception d\'une livraison', 'Températures, emballages, DLC')
     + _rthCarte('temperatures', '🌡️', '#eff6ff', 'Températures frigos', 'Chambres froides, réfrigérateurs, congélateurs')
     + _rthCarte('huiles', '🫙', '#fef9c3', 'Huile de friture', 'Aspect, température, TPM')
-    + '<div onclick="_rthUpsell()" style="display:flex;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px;margin-top:8px;cursor:pointer"><div style="width:48px;height:48px;border-radius:12px;background:#ffedd5;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📋</div><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#9a3412">Mes autres obligations</div><div style="font-size:11px;color:#b45309">Contrôles à débloquer (formule complète)</div></div><div style="color:#fdba74;font-size:22px">&rsaquo;</div></div>'
+    + '<div onclick="_rthUpsell()" style="display:flex;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px;margin-top:8px;cursor:pointer"><div style="width:48px;height:48px;border-radius:12px;background:#ffedd5;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📋</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#9a3412">Mes autres obligations</div><div style="font-size:11px;color:#b45309">Contrôles à débloquer (formule complète)</div></div><div style="color:#fdba74;font-size:22px;flex-shrink:0">&rsaquo;</div></div>'
     + '</div>');
 }
 function _rthOuvrir(id) { _rthFermer(); openModule(id); }
