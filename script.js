@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v254';
+var APP_BUILD = 'v255';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24834,7 +24834,11 @@ function _rthShow(html) {
   try { document.querySelectorAll('.bnav').forEach(function (n) { n.style.display = 'none'; }); } catch (e) {}
 }
 // Point d'entrée : engagement signé au 1er accès, sinon accueil.
-function demarrerRTH() { if (!_rthSigned()) _rthEngagement(); else _rthAccueil(); }
+// Démo (RTH3) : l'avertissement/engagement se réaffiche à CHAQUE accès (démonstration).
+function demarrerRTH() {
+  var demo = (typeof ETAB_ID !== 'undefined' && ETAB_ID === 'local-RTH3');
+  if (demo || !_rthSigned()) _rthEngagement(); else _rthAccueil();
+}
 
 function _rthEngagement() {
   var ob = ['Hygiène & tenue du personnel', 'Nettoyage (ouverture/fermeture) + plan de nettoyage', 'Cuisson / refroidissement rapide', 'Étiquetage & DLC secondaires', 'Traçabilité complète des produits', 'Pertes, déchets & biodéchets', 'Lutte contre les nuisibles', 'Non-conformités & actions correctives', 'Allergènes · Formation · Documents obligatoires'];
@@ -24842,7 +24846,7 @@ function _rthEngagement() {
   _rthShow(
     '<div style="max-width:480px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) 18px 18px">'
     + '<div style="font-size:15px;font-weight:900;margin-bottom:8px">⚠️ À lire avant d\'accéder</div>'
-    + '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:13px;font-size:12.5px;color:#9a3412;line-height:1.5;margin-bottom:14px">Cette version <b>« Contrôle RTH » ne couvre que 3 contrôles</b> (Réception, Températures, Huiles). Elle <b>ne suffit pas, à elle seule,</b> à respecter l\'ensemble de vos obligations d\'hygiène alimentaire (Plan de Maîtrise Sanitaire). <b>Vous restez seul responsable</b> de la conformité de votre établissement.</div>'
+    + '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:13px;font-size:12.5px;color:#9a3412;line-height:1.5;margin-bottom:14px"><b>Cette version ne couvre que 3 contrôles</b> (Réception, Températures, Huiles). Elle <b>ne suffit pas</b> à respecter toutes vos obligations d\'hygiène : vous devez réaliser <b>vous-même</b> les autres contrôles ci-dessous. <b>Vous restez seul responsable.</b></div>'
     + '<div style="font-size:14px;font-weight:800;margin:6px 0 8px">Les autres contrôles que vous devez réaliser :</div>'
     + '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:14px">' + li + '</div>'
     + '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px;margin-bottom:12px;font-weight:600"><input type="checkbox" id="rth_ok" style="margin-top:2px">Je m\'engage à réaliser ces contrôles par mes propres moyens et je reconnais rester seul responsable de la conformité de mon établissement.</label>'
@@ -24874,6 +24878,7 @@ function _rthAccueil() {
     + '<div style="font-size:25px;font-weight:900;letter-spacing:-.5px">Contrôle <span style="color:#34d399">RTH</span></div>'
     + '<div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:8px"><b style="color:#fff"><span style="color:#34d399">R</span>éception · <span style="color:#34d399">T</span>empératures · <span style="color:#34d399">H</span>uiles</b></div>'
     + '</div>'
+    + '<div style="max-width:480px;margin:0 auto;padding:12px 16px 0"><div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;font-size:11.5px;color:#9a3412;line-height:1.45">⚠️ <b>3 contrôles</b> seulement. Vous restez responsable de réaliser <b>tous les autres</b> contrôles obligatoires (voir « Mes autres obligations »).</div></div>'
     + '<div style="max-width:480px;margin:0 auto;padding:16px">'
     + _rthCarte('reception', '📦', '#fff7ed', 'Réception d\'une livraison', 'Températures, emballages, DLC')
     + _rthCarte('temperatures', '🌡️', '#eff6ff', 'Températures frigos', 'Chambres froides, réfrigérateurs, congélateurs')
