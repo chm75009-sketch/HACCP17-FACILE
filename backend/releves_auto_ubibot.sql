@@ -347,13 +347,13 @@ end;
 $$;
 
 
--- ── ÉTAPE 6 — Planifier le tick toutes les 5 minutes ──────────────────
+-- ── ÉTAPE 6 — Planifier le tick toutes les minutes ──────────────────
 -- Ré-installation PROPRE : on retire l'ancienne tâche si elle existe (sans erreur
 -- si absente), puis on la (re)crée → une seule tâche active, pas de doublon.
 do $$ begin perform cron.unschedule('ubibot-releves-auto'); exception when others then null; end $$;
 select cron.schedule(
   'ubibot-releves-auto',
-  '*/5 * * * *',
+  '* * * * *',
   $$ select public.ubibot_tick(); $$
 );
 
