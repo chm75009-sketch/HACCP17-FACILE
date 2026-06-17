@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v265';
+var APP_BUILD = 'v266';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -15011,6 +15011,35 @@ function _attendreJeton(maxMs) {
   });
 }
 
+// DATA-13 — Rattrapage Pack DDPP : déduit la page (module) d'un contrôle à partir
+// de son nom de module quand le contenu n'a pas (ou plus) de pageId reconnu. Sans ça,
+// tout contrôle au format non standard (ancien, relevé capteur auto, sous-flux) était
+// silencieusement absent du Pack DDPP et du tableau de bord. Tolérant aux accents/casse.
+function _pageIdDepuisModule(nomModule) {
+  var m = String(nomModule || '').toLowerCase();
+  try { m = m.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch(e) {}
+  if (!m) return null;
+  if (m.indexOf('page-') === 0) {
+    // Alias connus : la traçabilité est un sous-flux de la réception (pas de section propre).
+    if (m === 'page-tracabilite') return 'page-reception';
+    return m;
+  }
+  var pairs = [
+    ['affichage','page-affichage'], ['hygien','page-hygiene'],
+    ['temperatur','page-temperatures'], ['enceinte','page-temperatures'], ['frigo','page-temperatures'],
+    ['document','page-documents'], ['tracabilit','page-reception'], ['reception','page-reception'],
+    ['cuisson','page-cuisson'], ['remise en t','page-cuisson'],
+    ['refroidiss','page-refroidissement'], ['ouverture','page-ouverture'], ['fermeture','page-fermeture'],
+    ['huile','page-huiles'], ['friture','page-huiles'], ['etiquet','page-etiquetage'],
+    ['perte','page-pertes'], ['invendu','page-pertes'], ['dechet','page-dechets'],
+    ['nuisible','page-nuisibles'], ['audit','page-audits'], ['plat temoin','page-plat-temoin'],
+    ['liaison','page-liaison-thermique'], ['convive','page-registre-convives'],
+    ['analyses micro','page-analyses-micro'], ['allergen','page-allergenes']
+  ];
+  for (var i = 0; i < pairs.length; i++) { if (m.indexOf(pairs[i][0]) > -1) return pairs[i][1]; }
+  return null;
+}
+
 async function chargerControlesCloudCache() {
   try {
     if (typeof ETAB_ID === 'undefined' || !ETAB_ID) return null;
@@ -15062,6 +15091,10 @@ async function chargerControlesCloudCache() {
         ts = (contenu && contenu.savedAt && !isNaN(new Date(contenu.savedAt).getTime())) ? contenu.savedAt : new Date().toISOString();
       }
       var pid = (contenu && contenu.pageId) ? contenu.pageId : null;
+      // DATA-13 — rattrapage : pas de pageId reconnu → le déduire du nom de module,
+      // sinon le contrôle n'apparaît jamais dans le Pack DDPP ni le tableau de bord.
+      if (pid === 'page-tracabilite') pid = 'page-reception';
+      if (!pid) pid = _pageIdDepuisModule(r.module);
       // Clé anti-doublon : même module + même heure de contrôle d'origine = même contrôle
       var cle = (pid || r.module || '') + '|' + ((contenu && contenu.timestamp) ? contenu.timestamp : ts) + '|' + ((contenu && (contenu.signe || contenu.signataire)) || '') + '|' + ((contenu && contenu.uid) || '') + '|' + ((contenu && contenu.channel) || '');
       if (seen[cle]) {
