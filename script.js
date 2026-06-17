@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v263';
+var APP_BUILD = 'v264';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -11342,7 +11342,7 @@ function ajouterEtiquette() {
       '</select>' +
     '</div>' +
     '<div id="etiq_autre_wrap_' + id + '" style="display:none">' +
-      '<div class="frow"><div class="flabel">Précisez le type</div>' +
+      '<div class="frow no-adv"><div class="flabel">Précisez le type</div>' +
         '<input class="finput" id="etiq_autre_' + id + '" placeholder="' + getBySection('Ex : Mousse au chocolat, Terrine...', 'Ex : Financier pistache, Bûche praliné...', 'Ex : Sauce barbecue maison, Garniture...', 'Ex : Farce maison, Préparation traiteur...', 'Ex : Sauce maison, Dessert préparé...') + '"/>' +
       '</div>' +
     '</div>' +
@@ -11352,9 +11352,9 @@ function ajouterEtiquette() {
       '<div id="etiq_dlc_conservation_' + id + '" style="font-size:11px;color:#374151;margin-top:2px"></div>' +
       '<div style="font-size:10px;color:#6b7280;margin-top:4px">⚠️ Référence HACCP FR — Arrêté 21/12/2009 — Règl. CE 852/2004</div>' +
     '</div>' +
-    '<div class="frow"><div class="flabel">Nom du produit</div><input class="finput" id="etiq_nom_' + id + '" placeholder="' + getBySection('Ex : Crème brûlée, Sauce tomate...', 'Ex : Tarte fraises, Croissant, Entremets...', 'Ex : Burger préparé, Sauce maison, Wrap...', 'Ex : Viande hachée, Saucisse fraîche, Côte...', 'Ex : Plat cuisiné, Gratin, Sauce...') + '"/></div>' +
+    '<div class="frow no-adv"><div class="flabel">Nom du produit</div><input class="finput" id="etiq_nom_' + id + '" placeholder="' + getBySection('Ex : Crème brûlée, Sauce tomate...', 'Ex : Tarte fraises, Croissant, Entremets...', 'Ex : Burger préparé, Sauce maison, Wrap...', 'Ex : Viande hachée, Saucisse fraîche, Côte...', 'Ex : Plat cuisiné, Gratin, Sauce...') + '"/></div>' +
     '<div class="frow"><div class="flabel">Date de fabrication / ouverture</div><input class="finput" type="date" id="etiq_date_' + id + '" onchange="calcDLC(' + id + ')"/></div>' +
-    '<div class="frow"><div class="flabel">DLC attribuée</div>' +
+    '<div class="frow no-adv"><div class="flabel">DLC attribuée</div>' +
       '<div style="display:flex;gap:8px;align-items:center">' +
         '<input class="finput" type="date" id="etiq_dlc_' + id + '" style="flex:1"/>' +
         '<button onclick="calcDLC(' + id + ')" style="padding:8px 12px;background:#0f766e;color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">📅 Auto</button>' +
@@ -11367,7 +11367,7 @@ function ajouterEtiquette() {
       '</div>' +
       '<div style="font-size:10px;color:#0891b2;margin-top:3px">Recommandations Gemrcn : viande 100-150g · poisson 100g · légumes 150g · féculents 150g</div>' +
     '</div>' : '') +
-    '<div class="frow"><div class="flabel" style="color:#0f766e;font-weight:800">🖨️ Nombre d\'etiquettes a imprimer</div>' +
+    '<div class="frow no-adv"><div class="flabel" style="color:#0f766e;font-weight:800">🖨️ Nombre d\'etiquettes a imprimer</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' +
         '<button onclick="changeNbEtiq(' + id + ',-1)" style="width:38px;height:38px;border-radius:50%;border:2px solid #0f766e;background:white;color:#0f766e;font-size:20px;font-weight:700;cursor:pointer;flex-shrink:0">−</button>' +
         '<input type="number" id="etiq_nb_' + id + '" value="1" min="1" max="50" style="flex:1;padding:9px;border:1.5px solid #0f766e;border-radius:11px;font-size:18px;font-weight:800;text-align:center;color:#0f766e;font-family:JetBrains Mono,monospace"/>' +
@@ -19233,6 +19233,8 @@ function marquerChampsFacultatifsAuto() {
     page.querySelectorAll('.frow').forEach(function(row) {
       // Ignorer si déjà marqué
       if (row.classList.contains('haccp-adv')) return;
+      // Ignorer si explicitement marqué « toujours visible » (no-adv)
+      if (row.classList.contains('no-adv')) return;
       // Ignorer si contient un champ obligatoire (★)
       if (row.querySelector('.flabel.req')) return;
       // Ignorer si dans un bloc d'action corrective (.nc-action) — toujours visible quand actif
