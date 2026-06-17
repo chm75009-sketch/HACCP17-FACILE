@@ -22,7 +22,7 @@ function dlc(sect, label, fabDate) {
 }
 // resto labels & dlcJours: viande=3, poisson=2, salade=1, fromage=5
 ok(dlc('resto', '🥗 Salade composée préparée', '2026-03-15') === '2026-03-16', 'DLC: salade J+1');
-ok(dlc('resto', '🐟 Poisson déconditionné / fileté', '2026-01-30') === '2026-02-01', 'DLC: poisson J+2 (fin de mois)');
+ok(dlc('resto', '🐟 Poisson frais déconditionné', '2026-01-30') === '2026-02-01', 'DLC: poisson J+2 (fin de mois)');
 ok(dlc('resto', '🥩 Viande découpée / portionnée', '2026-12-30') === '2027-01-02', 'DLC: viande J+3 (passage année)');
 ok(dlc('resto', '🥩 Viande découpée / portionnée', '2024-02-27') === '2024-03-01', 'DLC: viande J+3 (année bissextile)');
 ok(dlc('resto', '🥩 Viande découpée / portionnée', '2025-02-27') === '2025-03-02', 'DLC: viande J+3 (année normale)');

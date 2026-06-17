@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v264';
+var APP_BUILD = 'v265';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -11248,75 +11248,151 @@ var huilePdfData = {};
 var sigCanvasEtiq, sigCtxEtiq, isDrawingEtiq = false, hasSigEtiq = false;
 var etiqCount = 0;
 
+// Format: {label, dlcJours, dlcNote, conservation}
+// Référence: HACCP FR, Arrêté du 21/12/2009, Règlements CE 852/2004, 853/2004,
+// 2073/2005 (critères microbio), guides GBPH de filière, jurisprudence DDPP 2024-2026.
+// dlcJours = nombre de jours ajoutés à la date de fabrication/ouverture (J+n).
+// Note : ces valeurs sont des MAXIMA prudents « maison » — le client peut toujours
+// raccourcir la DLC selon ses propres analyses / conditions.
+
 var TYPES_ETIQ = [
-  // Format: {label, dlcJours, dlcNote, conservation}
-  // Référence: HACCP FR, Arrêté du 21/12/2009, Règlement CE 852/2004, Règlement CE 2073/2005 (critères microbio), jurisprudence DDPP 2024-2026
+  // — Viandes crues —
+  {label:'🥩 Viande hachée maison',              dlcJours:1, dlcNote:'J+1 (24h)', conservation:'Entre 0°C et +2°C — Jour même conseillé'},
+  {label:'🥩 Viande de bœuf découpée',           dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🐷 Viande de porc découpée',           dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🐑 Viande d\'agneau / mouton',          dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
   {label:'🥩 Viande découpée / portionnée',      dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
-  {label:'🐟 Poisson déconditionné / fileté',    dlcJours:2, dlcNote:'J+2 max', conservation:'Entre 0°C et +2°C'},
+  {label:'🍗 Volaille crue découpée',            dlcJours:2, dlcNote:'J+2 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🥩 Viande marinée crue',               dlcJours:2, dlcNote:'J+2 max', conservation:'Entre 0°C et +4°C, récipient fermé'},
+  {label:'🌭 Saucisse / chair à saucisse',       dlcJours:1, dlcNote:'J+1 (24h)', conservation:'Entre 0°C et +2°C'},
+  // — Poissons & produits de la mer —
+  {label:'🐟 Poisson frais déconditionné',       dlcJours:2, dlcNote:'J+2 max', conservation:'Entre 0°C et +2°C, sur glace'},
+  {label:'🐟 Poisson fileté / portionné',        dlcJours:2, dlcNote:'J+2 max', conservation:'Entre 0°C et +2°C'},
+  {label:'🦐 Crustacés cuits décortiqués',       dlcJours:2, dlcNote:'J+2 max', conservation:'Entre 0°C et +2°C'},
+  {label:'🦪 Coquillages / fruits de mer',       dlcJours:1, dlcNote:'J+1 max', conservation:'Entre 0°C et +2°C — Vivants jusqu\'au service'},
+  {label:'🍣 Poisson cru préparé (tartare...)',  dlcJours:0, dlcNote:'Jour même', conservation:'Entre 0°C et +2°C — Service immédiat'},
+  {label:'🐟 Poisson fumé tranché (ouvert)',     dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  // — Préparations cuisinées —
   {label:'🍳 Préparation cuisinée refroidie',    dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +3°C'},
-  {label:'🥛 Produit laitier ouvert',            dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
-  {label:'🥬 Légume préparé / épluché',          dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
-  {label:'🍞 Pâtisserie / dessert préparé',      dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
-  {label:'🫙 Sauce / marinade maison',           dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
-  {label:'🥗 Salade composée préparée',          dlcJours:1, dlcNote:'J+1 max', conservation:'Entre 0°C et +4°C'},
-  {label:'🧀 Fromage découpé / portion',         dlcJours:5, dlcNote:'J+5 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🍲 Plat cuisiné maison',               dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +3°C'},
+  {label:'🥘 Plat mijoté / sauce longue',        dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +3°C'},
+  {label:'🍝 Pâtes / riz / féculent cuit',       dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +3°C'},
+  {label:'🍲 Bouillon / fond / jus',             dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +3°C'},
+  {label:'🥩 Viande cuite portionnée',           dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +3°C'},
+  {label:'🍗 Volaille cuite',                    dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +3°C'},
   {label:'🥚 Préparation aux œufs cuite',        dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🥚 Préparation à base d\'œuf cru',      dlcJours:0, dlcNote:'Jour même', conservation:'Entre 0°C et +4°C — Mayonnaise, mousse...'},
+  // — Légumes, fruits, sauces —
+  {label:'🥬 Légume préparé / épluché',          dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🥕 Légume cuit / blanchi',             dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🍎 Fruits coupés / préparés',          dlcJours:2, dlcNote:'J+2 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🥗 Salade composée préparée',          dlcJours:1, dlcNote:'J+1 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🥗 Crudités assaisonnées',             dlcJours:1, dlcNote:'J+1 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🫙 Sauce / marinade maison',           dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🥫 Coulis / purée / soupe',            dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  // — Produits laitiers & fromages —
+  {label:'🥛 Produit laitier ouvert',            dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🍦 Crème fraîche / liquide ouverte',   dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🧀 Fromage découpé / portion',         dlcJours:5, dlcNote:'J+5 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🧀 Fromage frais / faisselle ouvert',  dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  // — Charcuterie & desserts —
   {label:'🍖 Charcuterie découpée / portionnée', dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🥓 Charcuterie cuite maison',          dlcJours:5, dlcNote:'J+5 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🍞 Pâtisserie / dessert préparé',      dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  {label:'🍮 Crème dessert / entremets',         dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
+  // — Cas particuliers —
+  {label:'❄️ Produit décongelé',                 dlcJours:1, dlcNote:'J+1 max — Ne jamais recongeler', conservation:'Entre 0°C et +4°C — Consommer rapidement'},
+  {label:'🧪 Sous-vide maison (cuisson basse T°)',dlcJours:6, dlcNote:'J+6 max', conservation:'Entre 0°C et +3°C — Selon barème de cuisson'},
+  {label:'🫙 Conserve / semi-conserve ouverte',  dlcJours:3, dlcNote:'J+3 max', conservation:'Transvaser + Entre 0°C et +4°C'},
   {label:'📦 Autre produit transformé',          dlcJours:3, dlcNote:'J+3 max', conservation:'Entre 0°C et +4°C'},
 ];
 
+// Boulangerie / Pâtisserie — GBPH pâtisserie + Arrêté 21/12/2009
 var TYPES_ETIQ_BP = [
-  {label:'🥖 Pain (baguette, spéciaux...)',     dlcJours:2,  dlcNote:'J+2 (48h)', conservation:'Température ambiante, emballé'},
+  // — Boulangerie —
+  {label:'🥖 Pain (baguette, spéciaux...)',      dlcJours:2,  dlcNote:'J+2 (48h)', conservation:'Température ambiante, emballé'},
   {label:'🥐 Viennoiserie (croissant...)',       dlcJours:2,  dlcNote:'J+2 (48h)', conservation:'Température ambiante'},
-  {label:'🎂 Entremets / Gâteau de voyage',     dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🍰 Tarte / Tartelette',               dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🍫 Ganache / Mousse au chocolat',     dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🥛 Crème pâtissière / Crème légère', dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C — Ne jamais recuire'},
-  {label:'🧁 Petits fours / Mignardises',       dlcJours:5,  dlcNote:'J+5 max',  conservation:'Température ambiante, boîte hermétique'},
-  {label:'🍮 Flan / Crème brûlée',             dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🍩 Beignet / Donut',                  dlcJours:1,  dlcNote:'J+1 (24h)', conservation:'Température ambiante'},
-  {label:'🫙 Coulis / Confiture maison',        dlcJours:7,  dlcNote:'J+7 max',  conservation:'Entre 0°C et +4°C après ouverture'},
-  {label:'📦 Autre produit pâtissier',          dlcJours:3,  dlcNote:'À définir', conservation:'Selon produit'},
+  {label:'🥪 Sandwich / produit traiteur',       dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🥧 Quiche / pizza / feuilleté salé',   dlcJours:2,  dlcNote:'J+2 max',  conservation:'Entre 0°C et +4°C'},
+  // — Pâtisserie à base de crème —
+  {label:'🎂 Entremets / gâteau crème',          dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍰 Tarte / tartelette aux fruits',     dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍰 Tarte / gâteau sec (sans crème)',   dlcJours:5,  dlcNote:'J+5 max',  conservation:'Température ambiante, à l\'abri'},
+  {label:'🥛 Crème pâtissière / crème légère',   dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C — Ne jamais recuire'},
+  {label:'🍫 Ganache / mousse au chocolat',      dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍮 Flan / crème brûlée',               dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🧁 Chou / éclair garni',               dlcJours:2,  dlcNote:'J+2 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍓 Pâtisserie aux fruits frais',       dlcJours:2,  dlcNote:'J+2 max',  conservation:'Entre 0°C et +4°C'},
+  // — Sec / longue conservation —
+  {label:'🧁 Petits fours / mignardises',        dlcJours:5,  dlcNote:'J+5 max',  conservation:'Température ambiante, boîte hermétique'},
+  {label:'🍪 Biscuit / macaron / meringue',      dlcJours:7,  dlcNote:'J+7 max',  conservation:'Température ambiante, boîte hermétique'},
+  {label:'🥨 Gâteau de voyage (cake, financier)',dlcJours:7,  dlcNote:'J+7 max',  conservation:'Température ambiante, emballé'},
+  {label:'🍩 Beignet / donut',                   dlcJours:1,  dlcNote:'J+1 (24h)', conservation:'Température ambiante'},
+  {label:'🍫 Chocolat / bonbon / confiserie',    dlcJours:15, dlcNote:'J+15 max',  conservation:'Entre 16°C et 18°C, au sec'},
+  {label:'🍦 Glace / sorbet maison',             dlcJours:30, dlcNote:'J+30 max',  conservation:'≤ −18°C — Ne jamais recongeler'},
+  {label:'🫙 Coulis / confiture maison',         dlcJours:7,  dlcNote:'J+7 max',  conservation:'Entre 0°C et +4°C après ouverture'},
+  {label:'📦 Autre produit pâtissier',           dlcJours:3,  dlcNote:'À définir', conservation:'Selon produit'},
 ];
 
+// Restauration rapide / à emporter
 var TYPES_ETIQ_RAPIDE = [
-  {label:'🍔 Burger / Sandwich préparé',        dlcJours:0,  dlcNote:'4h ambiant / J+1 réfrigéré', conservation:'<+4°C si non servi dans les 4h'},
-  {label:'🌯 Wrap / Pita garni',                dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🥗 Salade composée',                  dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🍟 Garniture préparée',               dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🫙 Sauce maison',                     dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C, récipient fermé'},
-  {label:'🥚 Préparation œuf / omelette',       dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🍕 Pizza préparée',                   dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'🌮 Kebab / Viande marinée cuite',     dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
-  {label:'📦 Autre produit préparé',            dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍔 Burger / sandwich préparé',         dlcJours:0,  dlcNote:'4h ambiant / J+1 réfrigéré', conservation:'<+4°C si non servi dans les 4h'},
+  {label:'🥪 Sandwich froid garni',             dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🌯 Wrap / pita / tacos garni',         dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🌮 Kebab / viande marinée cuite',      dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍕 Pizza préparée / pâte garnie',      dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🥗 Salade composée',                   dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍜 Bowl / poke / plat composé',        dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍟 Garniture / accompagnement',        dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍗 Viande / volaille cuite',           dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍳 Préparation œuf / omelette',        dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🫙 Sauce maison',                      dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C, récipient fermé'},
+  {label:'🥤 Boisson / jus pressé maison',       dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍰 Dessert préparé / pâtisserie',      dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'❄️ Produit décongelé',                 dlcJours:1,  dlcNote:'J+1 — Ne jamais recongeler', conservation:'Entre 0°C et +4°C'},
+  {label:'📦 Autre produit préparé',             dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
 ];
 
 // DLC réglementaires boucherie — Arrêté 21/12/2009 + Règlement CE 853/2004
 var TYPES_ETIQ_BOUCHERIE = [
-  {label:'🥩 Viande hachée fraîche',            dlcJours:1,  dlcNote:'J+1 (24h) — Réglementaire', conservation:'Entre 0°C et +2°C — Consommer le jour même'},
+  {label:'🥩 Viande hachée fraîche',             dlcJours:1,  dlcNote:'J+1 (24h) — Réglementaire', conservation:'Entre 0°C et +2°C — Consommer le jour même'},
   {label:'🥩 Préparation de viande fraîche',     dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🐂 Viande bovine découpée',            dlcJours:5,  dlcNote:'J+5 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🐮 Veau découpé',                      dlcJours:4,  dlcNote:'J+4 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🐷 Viande porcine découpée',           dlcJours:5,  dlcNote:'J+5 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🐑 Viande ovine découpée',             dlcJours:5,  dlcNote:'J+5 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🐐 Viande caprine découpée',           dlcJours:5,  dlcNote:'J+5 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🐴 Viande chevaline découpée',         dlcJours:5,  dlcNote:'J+5 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🍗 Volaille découpée',                 dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🐰 Lapin / gibier découpé',            dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🫀 Abats frais',                       dlcJours:2,  dlcNote:'J+2 max',  conservation:'Entre 0°C et +3°C'},
   {label:'🌭 Saucisse fraîche / Merguez',        dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🌭 Farce / Chair à saucisse',          dlcJours:1,  dlcNote:'J+1 (24h)', conservation:'Entre 0°C et +2°C'},
   {label:'🥓 Charcuterie cuite maison',          dlcJours:5,  dlcNote:'J+5 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🥩 Rôti / viande bardée prête à cuire',dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍖 Brochette / viande préparée',       dlcJours:2,  dlcNote:'J+2 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🥩 Produit mariné / Assaisonné',       dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍲 Plat cuisiné traiteur (boucher)',   dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
   {label:'📦 Autre produit de boucherie',        dlcJours:3,  dlcNote:'À définir', conservation:'Entre 0°C et +4°C'},
 ];
 
-// DLC restauration collective
+// DLC restauration collective — GEMRCN + Arrêté 21/12/2009
 var TYPES_ETIQ_COLLECTIVE = [
   {label:'🍲 Plat cuisiné refroidi',             dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
   {label:'🥩 Viande cuite portionnée',           dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
+  {label:'🍗 Volaille cuite',                    dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
   {label:'🐟 Poisson cuisiné',                   dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
-  {label:'🥘 Gratin / Plat au four',             dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
-  {label:'🫙 Sauce / Jus de cuisson',            dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
+  {label:'🥘 Gratin / plat au four',             dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
+  {label:'🍝 Féculent cuit (pâtes, riz...)',     dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
+  {label:'🥕 Légume cuit / accompagnement',      dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
+  {label:'🫙 Sauce / jus de cuisson',            dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
   {label:'🥗 Salade composée',                   dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🥗 Crudités préparées',                dlcJours:1,  dlcNote:'J+1 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🍮 Dessert préparé maison',            dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +4°C'},
   {label:'🥛 Produit laitier ouvert',            dlcJours:2,  dlcNote:'J+2 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🧀 Fromage découpé / portion',         dlcJours:5,  dlcNote:'J+5 max',  conservation:'Entre 0°C et +4°C'},
+  {label:'🍽️ Plat témoin (échantillon)',         dlcJours:5,  dlcNote:'J+5 (réglementaire)', conservation:'Entre 0°C et +3°C — 80g min, conservé 5 jours'},
+  {label:'❄️ Produit décongelé',                 dlcJours:1,  dlcNote:'J+1 — Ne jamais recongeler', conservation:'Entre 0°C et +4°C'},
   {label:'📦 Autre préparation',                 dlcJours:3,  dlcNote:'J+3 max',  conservation:'Entre 0°C et +3°C'},
 ];
 
