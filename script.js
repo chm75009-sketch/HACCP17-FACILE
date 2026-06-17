@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v259';
+var APP_BUILD = 'v260';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24928,11 +24928,10 @@ function _rthUpsell() {
     + '<div style="max-width:480px;margin:0 auto;padding:16px">'
     + '<div style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.5">Voici les contrôles que vous devez <b>aussi</b> réaliser. <b>Débloquez-les</b> en passant à la formule complète.</div>'
     + li
-    + '<div style="font-size:13px;font-weight:800;text-align:center;margin:14px 0 8px">🔓 Débloquez tous les contrôles</div>'
-    + '<div style="border:1px solid #e2e8f0;border-radius:11px;padding:11px 13px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px"><b style="font-size:17px">19,99 €</b> /mois</span><span style="font-size:11px;color:#64748b">engagement 12 mois</span></div>'
-    + '<div style="border:1.5px solid #34d399;background:#ecfdf5;border-radius:11px;padding:11px 13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px"><b style="font-size:17px">15 €</b> /mois</span><span style="font-size:11px;font-weight:800;color:#15803d">engagement 24 mois ⭐</span></div>'
-    + '<button onclick="_rthDemandeUpgrade()" style="width:100%;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#34d399,#10b981);color:#06281f;font-family:Outfit,sans-serif">Passer à la formule complète</button>'
-    + '<div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px">Les 19 contrôles + Pack DDPP illimité.</div>'
+    + '<div style="font-size:13px;font-weight:800;text-align:center;margin:14px 0 8px">🔓 Besoin de tous les contrôles ?</div>'
+    + '<div style="border:1.5px solid #34d399;background:#ecfdf5;border-radius:11px;padding:12px 13px;margin-bottom:10px;text-align:center;font-size:12.5px;color:#0f172a">Passez à la <b>formule complète</b> : les 19 contrôles + Pack DDPP illimité.</div>'
+    + '<button onclick="_rthDemandeUpgrade()" style="width:100%;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#34d399,#10b981);color:#06281f;font-family:Outfit,sans-serif">Demander la formule complète</button>'
+    + '<div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px">Nous vous recontactons pour l\'activer.</div>'
     + '</div>');
 }
 function _rthDemandeUpgrade() {

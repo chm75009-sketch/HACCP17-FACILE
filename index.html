@@ -386,7 +386,26 @@
             <button id="tarifTabFree" onclick="setTarifMode('mensuel')" style="background:transparent;color:rgba(255,255,255,0.7);border:none;padding:9px 18px;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">Sans engagement</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;max-width:820px;margin:0 auto">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;max-width:1180px;margin:0 auto">
+          <!-- Formule RTH (3 contrôles - petits commerces) -->
+          <div style="background:rgba(56,189,248,0.06);border:1.5px solid rgba(56,189,248,0.35);border-radius:18px;padding:26px">
+            <div style="font-size:11px;color:#7dd3fc;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">🌿 Formule RTH</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:14px">3 contrôles essentiels — petits commerces</div>
+            <div style="background:rgba(56,189,248,0.10);border-radius:11px;padding:14px;margin-bottom:14px">
+              <div style="display:flex;align-items:baseline;gap:4px"><span style="font-size:30px;font-weight:900;color:white">19,99 €</span><span style="font-size:12px;color:rgba(255,255,255,0.6)">HT / mois</span></div>
+              <div style="font-size:10px;color:#7dd3fc;font-weight:700;margin-top:2px">avec engagement 12 mois</div>
+              <div style="height:1px;background:rgba(255,255,255,0.12);margin:9px 0"></div>
+              <div style="display:flex;align-items:baseline;gap:4px"><span style="font-size:24px;font-weight:900;color:white">15 €</span><span style="font-size:12px;color:rgba(255,255,255,0.6)">HT / mois</span></div>
+              <div style="font-size:10px;color:#34d399;font-weight:700;margin-top:2px">avec engagement 24 mois</div>
+            </div>
+            <ul style="list-style:none;padding:0;margin:0 0 16px;font-size:12px;color:rgba(255,255,255,0.78);line-height:1.85">
+              <li>✅ Réception &amp; traçabilité</li>
+              <li>✅ Températures frigos &amp; congélateurs</li>
+              <li>✅ Huile de friture</li>
+              <li>✅ Engagement signé + Pack DDPP des 3 contrôles</li>
+            </ul>
+            <button onclick="showPage('page-login')" style="width:100%;background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#04263a;border:none;padding:11px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;font-family:Outfit,sans-serif">Se connecter pour souscrire</button>
+          </div>
           <!-- Essentiel -->
           <div onclick="openTarifDetail('essentiel')" style="background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:18px;padding:26px;cursor:pointer;transition:all 0.25s ease" onmouseover="this.style.borderColor='rgba(74,222,128,0.3)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.transform='translateY(0)'">
             <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">🥉 Essentiel</div>
