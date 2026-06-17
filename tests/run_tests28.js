@@ -188,6 +188,16 @@ ok(ctx._echap('Frigo N°1') === 'Frigo N°1', '_echap laisse passer un texte nor
   ok(ctx._formuleDepuisCode('RTH75') === 'complet', 'RTH: RTH75 (compte test classique) → formule complète');
 }
 
+// ── N) Étiquettes : format d'impression mémorisé (planche A4 / rouleau / perso) ──
+{
+  ctx.ETAB_ID = 'ETABX';
+  ctx.localStorage.removeItem('haccp_etiq_format_ETABX');
+  ok(ctx._etiqFormatActif().id === 'a4_99x38', 'Étiquettes: format par défaut = planche A4 99×38 (14/feuille)');
+  ctx.localStorage.setItem('haccp_etiq_format_ETABX', 'roll_62x29');
+  var f = ctx._etiqFormatActif();
+  ok(f.id === 'roll_62x29' && f.type === 'rouleau' && f.w === 62, 'Étiquettes: format rouleau mémorisé bien repris (62×29)');
+}
+
 console.log('\n════════════════════════════════════════');
 console.log('ROUND 28 (non-régression audit) RESULTS: ' + pass + ' passed, ' + fail + ' failed');
 console.log('════════════════════════════════════════');

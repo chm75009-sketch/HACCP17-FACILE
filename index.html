@@ -3560,6 +3560,25 @@
     <div class="modal-title">Étiquetage enregistré !</div>
     <div class="modal-desc">Vos étiquettes sont prêtes. Imprimez-les depuis votre téléphone, tablette ou PC.</div>
     <div class="modal-warning">⚠️ SAUVEGARDEZ IMPERATIVEMENT ce document ou imprimez-le. C'est votre seule preuve legale. HACCP Pro ne peut etre tenu responsable de la perte de vos enregistrements.</div>
+    <div style="text-align:left;margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px">📐 Format d'étiquette</label>
+      <select id="etiq_format" onchange="_etiqOnFormatChange()" style="width:100%;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:Outfit,sans-serif;background:#fff">
+        <option value="a4_99x38">Planche A4 — 99×38 mm (14/feuille)</option>
+        <option value="a4_63x38">Planche A4 — 63,5×38 mm (21/feuille)</option>
+        <option value="a4_70x37">Planche A4 — 70×37 mm (24/feuille)</option>
+        <option value="a4_38x21">Planche A4 — 38×21 mm (65/feuille)</option>
+        <option value="roll_62x29">Rouleau — 62×29 mm (Brother)</option>
+        <option value="roll_29x90">Rouleau — 29×90 mm (Brother)</option>
+        <option value="roll_54x25">Rouleau — 54×25 mm (Dymo)</option>
+        <option value="roll_36x89">Rouleau — 36×89 mm (Dymo)</option>
+        <option value="custom">Dimensions personnalisées…</option>
+      </select>
+      <div id="etiq_custom_row" style="display:none;gap:8px;margin-top:8px">
+        <input id="etiq_cw" type="number" step="1" min="10" placeholder="Largeur (mm)" oninput="_etiqSaveCustom()" style="flex:1;width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:Outfit,sans-serif">
+        <input id="etiq_ch" type="number" step="1" min="10" placeholder="Hauteur (mm)" oninput="_etiqSaveCustom()" style="flex:1;width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:Outfit,sans-serif">
+      </div>
+      <div style="font-size:10.5px;color:#9ca3af;margin-top:5px;line-height:1.4">Planche A4 = imprimante classique · Rouleau/perso = imprimante d'étiquettes. Impression via WiFi/AirPrint ou PDF.</div>
+    </div>
     <button class="modal-btn-dl" style="background:linear-gradient(135deg,#0d6464,#0f766e);box-shadow:0 4px 16px rgba(15,118,110,.3);margin-bottom:8px" onclick="imprimerEtiquettesHTML()">🖨️ Imprimer les étiquettes</button>
     <button class="modal-btn-skip" style="color:#374151;border:1.5px solid #e5e7eb;margin-bottom:4px" onclick="document.getElementById('modalEtiqPdf').classList.remove('visible'); openModule('etiquetage')">← Retour au module</button>
     <button class="modal-btn-skip" onclick="confirmerSansEtiqPDF()">Fermer sans imprimer (non recommandé)</button>

@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v261';
+var APP_BUILD = 'v262';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -11544,6 +11544,7 @@ async function validerEtiquetage() {
     } catch(eSB) { console.warn('Supabase save error (etiquetage):', eSB); }
   }
   document.getElementById('modalEtiqPdf').classList.add('visible');
+  try { _etiqInitFormatUI(); } catch (eFmt) {}
   sauvegarderHistorique('Étiquetage interne', prenom);
   sauvegarderDonnesModule('page-etiquetage');
   stopBrouillonAuto(); effacerBrouillon('page-etiquetage');
@@ -11557,6 +11558,51 @@ async function validerEtiquetage() {
 // ══════════════════════════════════════════════════════
 function genererEtiquettesPDF() {
   imprimerEtiquettes();
+}
+
+// ── ÉTIQUETTES : formats d'impression (planches A4 + rouleaux) + dimensions perso ──
+// Le format est mémorisé par établissement. Impression via le système (AirPrint/WiFi)
+// ou PDF. Les rouleaux = 1 étiquette par page (taille exacte) ; les planches = grille A4.
+var _ETIQ_FORMATS = [
+  { id: 'a4_99x38', label: 'Planche A4 — 99×38 mm (14/feuille)',  type: 'planche', w: 99.1, h: 38.1, cols: 2, colGap: 2.54, rowGap: 0, top: 15.15, left: 4.67 },
+  { id: 'a4_63x38', label: 'Planche A4 — 63,5×38 mm (21/feuille)', type: 'planche', w: 63.5, h: 38.1, cols: 3, colGap: 2.54, rowGap: 0, top: 15.15, left: 7.21 },
+  { id: 'a4_70x37', label: 'Planche A4 — 70×37 mm (24/feuille)',  type: 'planche', w: 70,   h: 37,   cols: 3, colGap: 0,    rowGap: 0, top: 8.5,   left: 0 },
+  { id: 'a4_38x21', label: 'Planche A4 — 38×21 mm (65/feuille)',  type: 'planche', w: 38.1, h: 21.2, cols: 5, colGap: 2.54, rowGap: 0, top: 10.7,  left: 4.67 },
+  { id: 'roll_62x29', label: 'Rouleau — 62×29 mm (Brother)', type: 'rouleau', w: 62, h: 29 },
+  { id: 'roll_29x90', label: 'Rouleau — 29×90 mm (Brother)', type: 'rouleau', w: 29, h: 90 },
+  { id: 'roll_54x25', label: 'Rouleau — 54×25 mm (Dymo)',    type: 'rouleau', w: 54, h: 25 },
+  { id: 'roll_36x89', label: 'Rouleau — 36×89 mm (Dymo)',    type: 'rouleau', w: 36, h: 89 }
+];
+function _etiqFmtKey() { return 'haccp_etiq_format_' + ((typeof ETAB_ID !== 'undefined' && ETAB_ID) ? ETAB_ID : 'x'); }
+function _etiqFormatActif() {
+  var sel = document.getElementById('etiq_format');
+  var id = sel ? sel.value : (lsGet(_etiqFmtKey()) || 'a4_99x38');
+  if (id === 'custom') {
+    var w = parseFloat((document.getElementById('etiq_cw') || {}).value) || parseFloat(lsGet('haccp_etiq_cw_' + (ETAB_ID || ''))) || 50;
+    var h = parseFloat((document.getElementById('etiq_ch') || {}).value) || parseFloat(lsGet('haccp_etiq_ch_' + (ETAB_ID || ''))) || 30;
+    return { id: 'custom', label: 'Personnalisé', type: 'rouleau', w: w, h: h };
+  }
+  for (var i = 0; i < _ETIQ_FORMATS.length; i++) { if (_ETIQ_FORMATS[i].id === id) return _ETIQ_FORMATS[i]; }
+  return _ETIQ_FORMATS[0];
+}
+function _etiqOnFormatChange() {
+  var sel = document.getElementById('etiq_format'); if (!sel) return;
+  var row = document.getElementById('etiq_custom_row'); if (row) row.style.display = (sel.value === 'custom') ? 'flex' : 'none';
+  try { lsSet(_etiqFmtKey(), sel.value); } catch (e) {}
+}
+function _etiqSaveCustom() {
+  try {
+    lsSet('haccp_etiq_cw_' + (ETAB_ID || ''), (document.getElementById('etiq_cw') || {}).value || '');
+    lsSet('haccp_etiq_ch_' + (ETAB_ID || ''), (document.getElementById('etiq_ch') || {}).value || '');
+  } catch (e) {}
+}
+function _etiqInitFormatUI() {
+  var sel = document.getElementById('etiq_format'); if (!sel) return;
+  try { sel.value = lsGet(_etiqFmtKey()) || 'a4_99x38'; } catch (e) {}
+  if (!sel.value) sel.value = 'a4_99x38';
+  var cw = document.getElementById('etiq_cw'); if (cw) cw.value = lsGet('haccp_etiq_cw_' + (ETAB_ID || '')) || '';
+  var ch = document.getElementById('etiq_ch'); if (ch) ch.value = lsGet('haccp_etiq_ch_' + (ETAB_ID || '')) || '';
+  _etiqOnFormatChange();
 }
 
 function imprimerEtiquettesHTML() {
@@ -11596,44 +11642,60 @@ function imprimerEtiquettesHTML() {
 
   if (allEtiq.length === 0) { showToast('Aucune etiquette a imprimer', 'warn'); return; }
 
-  var css = '<style>' +
-    '@page{size:A4 portrait;margin:0}' +
-    'html,body{margin:0;padding:0;font-family:Arial,sans-serif;font-size:0}' +
-    '.etiq-page{width:210mm;padding-top:15.15mm;padding-left:4.67mm;box-sizing:border-box}' +
-    '.etiq-grid{display:grid;grid-template-columns:99.1mm 99.1mm;column-gap:2.54mm;row-gap:0}' +
-    '.etiq{border:0.3pt dashed #bbb;overflow:hidden;break-inside:avoid;' +
-      'height:38.1mm;width:99.1mm;box-sizing:border-box;display:inline-block;vertical-align:top}' +
-    '.etiq-header{background:#0f766e;color:white;font-size:6pt;padding:1mm 2.5mm;' +
-      'font-family:Arial;line-height:1.3;font-size:0}' +
-    '.etiq-header span{font-size:6pt;display:block}' +
-    '.etiq-body{padding:1.5mm 2.5mm;font-size:0}' +
-    '.etiq-nom{font-size:10pt;font-weight:900;color:#111;margin-bottom:1.5mm;line-height:1.2;' +
-      'display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.etiq-sep{border:none;border-top:0.3pt solid #ddd;margin:1.5mm 0;display:block}' +
-    '.etiq-row{display:flex;gap:2mm;align-items:baseline;margin-bottom:1mm;font-size:0}' +
-    '.etiq-lbl{font-size:6.5pt;font-weight:700;color:#555;min-width:18mm;flex-shrink:0}' +
-    '.etiq-val{font-size:7.5pt;color:#111}' +
-    '.etiq-dlc .etiq-lbl{color:#dc2626}' +
-    '.etiq-dlc .etiq-val{color:#dc2626;font-weight:700;font-size:8.5pt}' +
-    '@media print{' +
-      '.no-print{display:none!important}' +
-      'body{-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '}' +
-  '</style>';
-
-  var html = css + '<div class="etiq-page"><div class="etiq-grid">';
-  allEtiq.forEach(function(etiq) {
-    html += '<div class="etiq">';
-    html += '<div class="etiq-header">' + etiq.etab + '</div>';
-    html += '<div class="etiq-body">';
-    html += '<div class="etiq-nom">' + etiq.nom + '</div>';
-    html += '<hr class="etiq-sep">';
-    html += '<div class="etiq-row"><span class="etiq-lbl">Fabrication :</span><span class="etiq-val">' + etiq.dateFab + '</span></div>';
-    html += '<div class="etiq-row etiq-dlc"><span class="etiq-lbl">DLC :</span><span class="etiq-val">' + etiq.dlc + '</span></div>';
-    html += '<div class="etiq-row"><span class="etiq-lbl">Conservation :</span><span class="etiq-val">' + etiq.conservation + '</span></div>';
+  var fmt = _etiqFormatActif();
+  var html;
+  if (fmt.type === 'rouleau') {
+    // 1 étiquette par page, à la taille exacte du rouleau / des dimensions perso.
+    var petit = (fmt.h < 26 || fmt.w < 40);
+    var css = '<style>'
+      + '@page{size:' + fmt.w + 'mm ' + fmt.h + 'mm;margin:1.5mm}'
+      + 'html,body{margin:0;padding:0;font-family:Arial,sans-serif}'
+      + '.etiq-roll{width:100%;box-sizing:border-box;page-break-after:always;padding:0.5mm 1mm;overflow:hidden}'
+      + '.etiq-etab{font-size:6pt;color:#555;margin-bottom:0.6mm}'
+      + '.etiq-nom{font-weight:900;color:#111;font-size:' + (petit ? '8pt' : '12pt') + ';margin-bottom:0.8mm;line-height:1.1}'
+      + '.etiq-row{font-size:' + (petit ? '7pt' : '9pt') + ';color:#111;margin-bottom:0.5mm}'
+      + '.etiq-dlc{color:#dc2626;font-weight:700}'
+      + '@media print{.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
+      + '</style>';
+    html = css;
+    allEtiq.forEach(function (etiq) {
+      html += '<div class="etiq-roll"><div class="etiq-etab">' + etiq.etab + '</div>'
+        + '<div class="etiq-nom">' + etiq.nom + '</div>'
+        + '<div class="etiq-row">Fab : ' + etiq.dateFab + '</div>'
+        + '<div class="etiq-row etiq-dlc">DLC : ' + etiq.dlc + '</div>'
+        + '<div class="etiq-row">' + etiq.conservation + '</div></div>';
+    });
+  } else {
+    // Planche A4 : grille selon le format choisi.
+    var pp = (fmt.h < 30);
+    var css2 = '<style>'
+      + '@page{size:A4 portrait;margin:0}'
+      + 'html,body{margin:0;padding:0;font-family:Arial,sans-serif}'
+      + '.etiq-page{width:210mm;padding-top:' + fmt.top + 'mm;padding-left:' + fmt.left + 'mm;box-sizing:border-box}'
+      + '.etiq-grid{display:grid;grid-template-columns:repeat(' + fmt.cols + ',' + fmt.w + 'mm);column-gap:' + fmt.colGap + 'mm;row-gap:' + fmt.rowGap + 'mm}'
+      + '.etiq{border:0.3pt dashed #bbb;overflow:hidden;break-inside:avoid;height:' + fmt.h + 'mm;width:' + fmt.w + 'mm;box-sizing:border-box;vertical-align:top}'
+      + '.etiq-header{background:#0f766e;color:white;padding:0.8mm 2mm;line-height:1.2}'
+      + '.etiq-header span,.etiq-header{font-size:6pt;display:block}'
+      + '.etiq-body{padding:1mm 2mm}'
+      + '.etiq-nom{font-size:' + (pp ? '7.5pt' : '10pt') + ';font-weight:900;color:#111;margin-bottom:0.8mm;line-height:1.15;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+      + '.etiq-sep{border:none;border-top:0.3pt solid #ddd;margin:0.8mm 0;display:block}'
+      + '.etiq-row{display:flex;gap:1.5mm;align-items:baseline;margin-bottom:0.5mm}'
+      + '.etiq-lbl{font-size:' + (pp ? '5.5pt' : '6.5pt') + ';font-weight:700;color:#555;min-width:' + (pp ? '11mm' : '17mm') + ';flex-shrink:0}'
+      + '.etiq-val{font-size:' + (pp ? '6.5pt' : '7.5pt') + ';color:#111}'
+      + '.etiq-dlc .etiq-lbl{color:#dc2626}.etiq-dlc .etiq-val{color:#dc2626;font-weight:700}'
+      + '@media print{.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
+      + '</style>';
+    html = css2 + '<div class="etiq-page"><div class="etiq-grid">';
+    allEtiq.forEach(function (etiq) {
+      html += '<div class="etiq"><div class="etiq-header">' + etiq.etab + '</div><div class="etiq-body">'
+        + '<div class="etiq-nom">' + etiq.nom + '</div><hr class="etiq-sep">'
+        + '<div class="etiq-row"><span class="etiq-lbl">Fabrication :</span><span class="etiq-val">' + etiq.dateFab + '</span></div>'
+        + '<div class="etiq-row etiq-dlc"><span class="etiq-lbl">DLC :</span><span class="etiq-val">' + etiq.dlc + '</span></div>'
+        + '<div class="etiq-row"><span class="etiq-lbl">Conservation :</span><span class="etiq-val">' + etiq.conservation + '</span></div>'
+        + '</div></div>';
+    });
     html += '</div></div>';
-  });
-  html += '</div></div>';
+  }
 
   var existing = document.getElementById('printOverlay');
   if (existing) existing.remove();
