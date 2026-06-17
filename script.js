@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v262';
+var APP_BUILD = 'v263';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -8060,6 +8060,7 @@ function openModule(id) {
     ajouterEtiquette();
     showPage('page-etiquetage');
     updateModuleHeader('page-etiquetage', 'etiquetage');
+    try { _etiqInitFormatUI(); } catch(eFmt) {}   // restaure le format mémorisé sur la page
     setTimeout(function(){ initSigEtiq(); }, 150);
     return;
   }
@@ -11544,7 +11545,7 @@ async function validerEtiquetage() {
     } catch(eSB) { console.warn('Supabase save error (etiquetage):', eSB); }
   }
   document.getElementById('modalEtiqPdf').classList.add('visible');
-  try { _etiqInitFormatUI(); } catch (eFmt) {}
+  try { var _fr = document.getElementById('etiq_format_resume'); if (_fr) _fr.textContent = _etiqFormatActif().label; } catch (eFmt) {}
   sauvegarderHistorique('Étiquetage interne', prenom);
   sauvegarderDonnesModule('page-etiquetage');
   stopBrouillonAuto(); effacerBrouillon('page-etiquetage');
