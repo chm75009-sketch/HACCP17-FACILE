@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v260';
+var APP_BUILD = 'v261';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -24831,7 +24831,16 @@ function _rthShow(html) {
   var o = document.createElement('div');
   o.id = 'rthOverlay';
   o.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#f8f9fc;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;font-family:Outfit,sans-serif;color:#0f172a';
-  o.innerHTML = html;
+  // Blindage anti-débordement horizontal (texte coupé / bouton inaccessible) : tout
+  // élément de l'écran RTH reste dans la largeur, les textes et boutons se replient.
+  var _rthCSS = '<style>'
+    + '#rthOverlay *{box-sizing:border-box}'
+    + '#rthOverlay div,#rthOverlay label,#rthOverlay span,#rthOverlay button,#rthOverlay input{max-width:100%}'
+    + '#rthOverlay button{white-space:normal;word-break:break-word}'
+    + '#rthOverlay canvas{max-width:100%!important}'
+    + '#rthOverlay .rthwrap{width:100%;max-width:480px;margin:0 auto;padding-left:16px;padding-right:16px}'
+    + '</style>';
+  o.innerHTML = _rthCSS + html;
   document.body.appendChild(o);
   try { o.scrollTop = 0; } catch (e) {}
   // Pendant l'écran RTH, masquer la barre du haut + la nav du bas de l'app (sinon
