@@ -9,7 +9,7 @@
  *    en arriere-plan : chargement instantane, mise a jour discrete.
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptes.
  */
-const CACHE = 'haccp-pro-v267';
+const CACHE = 'haccp-pro-v268';
 const CORE = [
   './',
   './index.html',
@@ -30,7 +30,17 @@ const CORE = [
   './slides/slide-5.webp',
   './slides/slide-6.webp',
   './slides/slide-7.webp',
-  './slides/slide-8.webp'
+  './slides/slide-8.webp',
+  // Module Audit (ExpertAudit / Clean Food) — même PWA, même scope « / ».
+  './audit/index.html',
+  './audit/audit.html',
+  './audit/controles.html',
+  './audit/documents.html',
+  './audit/sanctions.html',
+  './audit/tarifs.html',
+  './audit/shared.js',
+  './audit/icon-192.png',
+  './audit/apple-touch-icon.png'
 ];
 
 // SW-3 — CDN critiques mis en cache pour que l'app fonctionne VRAIMENT hors-ligne

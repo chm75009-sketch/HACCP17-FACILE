@@ -1,7 +1,7 @@
 {
   "name": "HACCP Pro",
   "short_name": "HACCP Pro",
-  "description": "Application HACCP — relevés de température, traçabilité, non-conformités et preuve DDPP pour la restauration.",
+  "description": "Application HACCP tout-en-un : relevés de température, traçabilité, non-conformités, preuve DDPP et module d'audit hygiène multi-secteurs (ExpertAudit). Une seule installation.",
   "lang": "fr",
   "dir": "ltr",
   "start_url": "./index.html",

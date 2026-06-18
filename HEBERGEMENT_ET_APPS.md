@@ -1,49 +1,52 @@
-# Hébergement unique + publication iOS / Android
+# Hébergement unique + UNE seule application installable (iOS / Android)
 
-Ce dépôt regroupe **deux applications** sous **un seul hébergement** (un seul site,
-donc plus de double facture d'hébergement) :
+Ce dépôt regroupe **deux outils** dans **une seule application** PWA, servie par
+**un seul hébergement** (plus de double facture, et **une seule installation /
+une seule icône** sur le téléphone) :
 
-| Application | Rôle | URL (depuis la racine du site) | Installable |
-|---|---|---|---|
-| **HACCP Pro** | Gestion quotidienne du PMS (relevés, traçabilité, NC, Pack DDPP…) | `/` (racine) | ✅ PWA |
-| **ExpertAudit — Clean Food** | Audit hygiène multi-secteurs (grilles GBPH, score, rapport, documents, sanctions, tarifs) | `/audit/` | ✅ PWA |
+| Outil | Rôle | URL (dans l'app) |
+|---|---|---|
+| **HACCP Pro** | Gestion quotidienne du PMS (relevés, traçabilité, NC, Pack DDPP…) | `/` (racine) |
+| **Module Audit (ExpertAudit — Clean Food)** | Audit hygiène multi-secteurs (grilles GBPH, score, rapport, documents, sanctions, tarifs) | `/audit/` |
 
-Les deux applications restent **indépendantes** (chacune garde sa logique, sa base
-Supabase et son service worker), mais elles sont **servies par le même domaine** et
-**reliées entre elles** :
+Les deux outils gardent leur logique interne (et leur base Supabase respective),
+mais forment **une seule PWA** : **un seul `manifest.webmanifest`** et **un seul
+service worker** (`sw.js`) à la racine, avec un **scope unique `/`** qui englobe
+`/audit/`. L'utilisateur installe **une seule fois** ; à l'intérieur, il passe
+d'un outil à l'autre :
 
-- Dans **HACCP Pro** : depuis l'écran « Que voulez-vous faire ? » → section
+- Dans **HACCP Pro** : écran « Que voulez-vous faire ? » → section
   **« Audit & conformité »** → carte *« Je réalise un audit hygiène complet »*
-  qui ouvre `/audit/`.
-- Dans **ExpertAudit** : lien **« ⟵ HACCP Pro »** en haut de la navigation, qui
-  ramène à la racine.
+  qui ouvre le module d'audit (`/audit/`).
+- Dans le **module Audit** : lien **« ⟵ HACCP Pro »** en haut de la navigation.
 
 ## Arborescence
 
 ```
-/                      → HACCP Pro (index.html, script.js, style.css, sw.js, manifest…)
-/audit/                → ExpertAudit / Clean Food (index.html, audit.html, controles.html,
-                          documents.html, sanctions.html, tarifs.html, shared.js,
-                          sw.js, manifest.webmanifest, icônes)
+/            → PWA unique : index.html, script.js, style.css,
+               sw.js (UNIQUE), manifest.webmanifest (UNIQUE), icônes, slides…
+/audit/      → Module d'audit : index.html, audit.html, controles.html,
+               documents.html, sanctions.html, tarifs.html, shared.js, icônes
+               (pas de manifest ni de sw propres : géré par la racine)
 ```
 
-Chaque dossier a **son propre `manifest.webmanifest` et son `sw.js`**, avec un
-`scope` distinct (`/` pour HACCP Pro, `/audit/` pour ExpertAudit). Résultat : les
-deux peuvent être **installées séparément** (deux icônes sur le téléphone), ou
-utilisées dans le même onglet via les liens croisés.
+Les pages du dossier `/audit/` pointent vers le **manifeste racine**
+(`../manifest.webmanifest`) et enregistrent le **service worker racine**
+(`../sw.js`). Résultat : **une seule application installable** ; aucune
+invite « installer une 2ᵉ appli » n'apparaît dans le module d'audit.
 
 ---
 
 ## 1) Le plus simple et gratuit : installation PWA (« Ajouter à l'écran d'accueil »)
 
-Aucun store, aucun frais. Les deux applis sont déjà des PWA hors-ligne.
+Aucun store, aucun frais. C'est **une seule PWA hors-ligne** (une icône) qui
+contient les deux outils.
 
-- **Android (Chrome)** : ouvrir l'URL → menu ⋮ → *Installer l'application* /
+- **Android (Chrome)** : ouvrir l'URL racine → menu ⋮ → *Installer l'application* /
   *Ajouter à l'écran d'accueil*.
-- **iPhone/iPad (Safari)** : ouvrir l'URL → bouton Partager → *Sur l'écran d'accueil*.
+- **iPhone/iPad (Safari)** : ouvrir l'URL racine → bouton Partager → *Sur l'écran d'accueil*.
 
-Pour proposer les deux applis, on installe `/` (HACCP Pro) **et** `/audit/`
-(ExpertAudit) : deux icônes distinctes.
+Une seule installation suffit : le module d'audit est accessible **dans** l'appli.
 
 > Prérequis : le site doit être servi en **HTTPS** (GitHub Pages, Netlify,
 > Cloudflare Pages… le font automatiquement).
@@ -57,8 +60,8 @@ Méthode recommandée : **TWA (Trusted Web Activity)** via
 [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap).
 
 1. Déployer le site en HTTPS (URL publique stable).
-2. Sur **pwabuilder.com**, coller l'URL (`https://…/` pour HACCP Pro, ou
-   `https://…/audit/` pour ExpertAudit) → *Package for stores* → **Android**.
+2. Sur **pwabuilder.com**, coller l'**URL racine** (`https://…/`) — une seule
+   appli, le module d'audit est inclus → *Package for stores* → **Android**.
 3. Télécharger le `.aab` généré + le fichier **`assetlinks.json`**.
 4. Déposer `assetlinks.json` à la racine du site sous
    **`/.well-known/assetlinks.json`** (vérification Digital Asset Links — supprime
