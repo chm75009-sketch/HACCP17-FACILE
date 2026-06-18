@@ -1,0 +1,19 @@
+{
+  "name": "ExpertAudit HACCP — Clean Food",
+  "short_name": "ExpertAudit",
+  "description": "Application d'audit hygiene HACCP multi-secteurs (restauration, rapide, boulangerie, boucherie) : grilles GBPH, score pondere, rapport, documents et sanctions. Fonctionne hors-ligne.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f2ea",
+  "theme_color": "#153e35",
+  "categories": ["business", "food", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
