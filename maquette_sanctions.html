@@ -57,13 +57,13 @@
       radial-gradient(900px 500px at 80% -10%, rgba(220,38,38,.26), transparent 60%),
       radial-gradient(700px 500px at -10% 120%, rgba(67,56,202,.30), transparent 60%),
       linear-gradient(165deg,#070a12 0%, #0b0f1a 55%, #11131f 100%);
-    color:#fff;padding:42px 0 30px;overflow:hidden}
+    color:#fff;padding:24px 0 26px;overflow:hidden}
   .hero::before{content:"";position:absolute;inset:0;
     background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
     background-size:44px 44px;mask:radial-gradient(700px 420px at 50% 20%,#000,transparent 75%)}
   .eyebrow{position:relative;display:inline-flex;align-items:center;gap:9px;background:rgba(220,38,38,.16);border:1px solid rgba(248,113,113,.4);
     color:#fecaca;font-weight:800;font-size:12px;letter-spacing:.5px;padding:7px 14px;border-radius:999px;text-transform:uppercase}
-  .hero h1{position:relative;font-size:clamp(28px,5.6vw,52px);line-height:1.04;font-weight:900;letter-spacing:-.8px;margin:16px 0 14px;max-width:860px}
+  .hero h1{position:relative;font-size:clamp(24px,4.4vw,40px);line-height:1.03;font-weight:900;letter-spacing:-.8px;margin:12px 0 10px;max-width:820px}
   .hero h1 .q{display:block;background:linear-gradient(90deg,#34d399,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent;font-style:italic;font-weight:800}
   .hero .sub{position:relative;color:rgba(255,255,255,.74);font-size:clamp(14px,2.1vw,17px);line-height:1.55;max-width:640px}
 
@@ -74,29 +74,47 @@
     color:#fff;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:999px}
 
   /* ── FORMULE MISE EN AVANT ── */
-  .formula{position:relative;margin:26px 0 4px;font-size:clamp(20px,3.4vw,30px);line-height:1.18;font-weight:800;color:#fff}
+  .formula{position:relative;margin:14px 0 4px;font-size:clamp(17px,2.7vw,24px);line-height:1.16;font-weight:800;color:#fff}
   .formula span{background:linear-gradient(90deg,#34d399,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
 
   /* ── DOUBLE CHOIX IMMÉDIAT (les 2 solutions tout de suite) ── */
-  .pickline{position:relative;color:rgba(255,255,255,.6);font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin:26px 0 12px}
+  .pickline{position:relative;color:rgba(255,255,255,.6);font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin:16px 0 10px}
   .picker{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:720px){.picker{grid-template-columns:1fr}}
-  .pick{display:flex;flex-direction:column;border-radius:18px;padding:20px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,.12);position:relative;overflow:hidden}
+  .pick{display:flex;flex-direction:column;border-radius:18px;padding:16px 16px 15px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,.12);position:relative;overflow:hidden}
   .pick.audit{background:linear-gradient(150deg,#0f766e,#11352f)}
   .pick.pro{background:linear-gradient(150deg,#4f46e5,#1e1b4b)}
   .pick .pk-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
   .pick .pk-ico{width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
   .pick .pk-tag{font-size:10.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.7)}
   .pick h3{font-size:19px;font-weight:800;line-height:1.12}
-  .pick p{font-size:13px;color:rgba(255,255,255,.8);line-height:1.45;margin-bottom:16px}
+  .pick p{font-size:13px;color:rgba(255,255,255,.8);line-height:1.4;margin-bottom:13px}
   .pick .go{margin-top:auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#fff;font-weight:800;font-size:14.5px;padding:13px;border-radius:12px}
   .pick.audit .go{color:#0f4a43}
   .pick.pro .go{color:#312e81}
   .choice-mini{position:relative;text-align:center;color:rgba(255,255,255,.7);font-size:13.5px;margin-top:16px;font-weight:600}
   .choice-mini b{color:#fff}
 
+  /* ── CENTRAGE DU HAUT (hero) ── */
+  .hero .wrap{text-align:center}
+  .hero h1{margin-left:auto;margin-right:auto}
+  .hero .formula{margin-left:auto;margin-right:auto}
+  .hero .pickline{margin-left:0;margin-right:0}
+  .hero .picker{text-align:left}
+
+  /* ── BANDEROLE ANIMÉE (chiffres qui défilent) ── */
+  .ticker{background:linear-gradient(90deg,#7f1d1d,#dc2626,#7f1d1d);color:#fff;overflow:hidden;white-space:nowrap;
+    padding:13px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.18)}
+  .ticker-track{display:inline-flex;align-items:center;animation:ticker 32s linear infinite;will-change:transform}
+  .ticker:hover .ticker-track{animation-play-state:paused}
+  .ticker .it{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:14px;padding:0 22px}
+  .ticker .it b{font-family:'Fraunces',serif;font-weight:900;font-size:18px;color:#fff}
+  .ticker .it .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.45)}
+  @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+
   /* ── SECTIONS ── */
-  section{padding:58px 0}
+  section{padding:40px 0}
   .lead-tag{font-size:12px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--danger)}
   .lead-tag.calm{color:var(--green)}
   h2.sec{font-family:'Fraunces',serif;font-weight:800;font-size:clamp(23px,4.2vw,38px);line-height:1.08;letter-spacing:-.5px;margin:12px 0 14px;max-width:760px}
@@ -141,8 +159,9 @@
   footer{padding:36px 0 44px;text-align:center;color:#8a93a3;font-size:12px;line-height:1.7;border-top:1px solid #e7e9ef;margin-top:24px}
   .disclaimer{max-width:1080px;margin:24px auto 0;padding:13px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;color:#9a3412;font-size:12px;line-height:1.5}
 
-  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
-  .reveal.in{opacity:1;transform:none}
+  /* Apparition douce uniquement si JS actif ; sinon tout reste visible (pas de vide blanc). */
+  .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+  .js .reveal.in{opacity:1;transform:none}
 </style>
 </head>
 <body>
@@ -171,8 +190,6 @@
     <div class="mfoot">Outils d'aide à la gestion et à la mise en conformité HACCP.</div>
   </nav>
 
-  <div class="topbar">⚠️ Contrôles DDPP renforcés — résultats <b>publiés sur Alim'confiance</b>, visibles par vos clients.</div>
-
   <!-- ══ HERO ══ -->
   <header class="hero" id="top">
     <div class="wrap">
@@ -183,7 +200,6 @@
       <p class="formula serif">Deux solutions, un seul objectif :<br><span>votre tranquillité face aux contrôles.</span></p>
 
       <!-- LES 2 SOLUTIONS, TOUT DE SUITE -->
-      <div class="pickline">Vos 2 solutions</div>
       <div class="picker">
         <a class="pick audit" href="audit/index.html">
           <div class="pk-top"><div class="pk-ico">🔍</div><div><div class="pk-tag">Accompagnement</div><h3>Auditer & préparer le contrôle</h3></div></div>
@@ -199,6 +215,23 @@
       <p class="choice-mini">Utilisez <b>l'une</b>, <b>l'autre</b>, ou <b>les deux</b> — c'est vous qui choisissez.</p>
     </div>
   </header>
+
+  <!-- ══ BANDEROLE ANIMÉE — CHIFFRES ══ -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span class="it"><b>1</b> contrôle inopiné suffit</span><span class="it"><span class="dot"></span></span>
+      <span class="it">⏱️ Fermeture possible <b>le jour même</b></span><span class="it"><span class="dot"></span></span>
+      <span class="it">📢 Résultat <b>publié</b> sur Alim'confiance</span><span class="it"><span class="dot"></span></span>
+      <span class="it">🌡️ Chaîne du froid : <b>cause n°1</b></span><span class="it"><span class="dot"></span></span>
+      <span class="it">📦 Traçabilité absente : <b>PV quasi systématique</b></span><span class="it"><span class="dot"></span></span>
+      <!-- duplicata pour défilement continu -->
+      <span class="it"><b>1</b> contrôle inopiné suffit</span><span class="it"><span class="dot"></span></span>
+      <span class="it">⏱️ Fermeture possible <b>le jour même</b></span><span class="it"><span class="dot"></span></span>
+      <span class="it">📢 Résultat <b>publié</b> sur Alim'confiance</span><span class="it"><span class="dot"></span></span>
+      <span class="it">🌡️ Chaîne du froid : <b>cause n°1</b></span><span class="it"><span class="dot"></span></span>
+      <span class="it">📦 Traçabilité absente : <b>PV quasi systématique</b></span><span class="it"><span class="dot"></span></span>
+    </div>
+  </div>
 
   <!-- ══ RISQUES ══ -->
   <section id="risques">
@@ -272,8 +305,9 @@
     function openMenu(){document.getElementById('menu').classList.add('open');document.getElementById('menuOverlay').classList.add('open');document.getElementById('menu').setAttribute('aria-hidden','false');}
     function closeMenu(){document.getElementById('menu').classList.remove('open');document.getElementById('menuOverlay').classList.remove('open');document.getElementById('menu').setAttribute('aria-hidden','true');}
     document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMenu();});
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.14});
-    document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+    // Apparition douce une seule fois au chargement — tout finit visible (jamais de vide).
+    document.documentElement.classList.add('js');
+    requestAnimationFrame(function(){document.querySelectorAll('.reveal').forEach(function(el){el.classList.add('in');});});
   </script>
 
 </body>
