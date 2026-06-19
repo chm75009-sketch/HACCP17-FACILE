@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prospection Nemos — Trouver des restaurants & proposer Nemos</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif}
+  :root{--acc:#4ade80;--acc2:#22c55e;--blue:#38bdf8;--bg:#0a0e1a;--card:rgba(255,255,255,.04);--bd:rgba(255,255,255,.1)}
+  body{background:var(--bg);color:#fff;line-height:1.5;padding-bottom:60px}
+  a{color:var(--blue)}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 18px}
+  header{padding:26px 0 10px;border-bottom:1px solid var(--bd);margin-bottom:18px}
+  .kw{font-size:11px;color:var(--acc);font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+  h1{font-size:clamp(22px,4vw,32px);font-weight:900;margin:0 0 6px}
+  .lead{font-size:14px;color:rgba(255,255,255,.7);max-width:680px}
+  .panel{background:var(--card);border:1.5px solid var(--bd);border-radius:16px;padding:18px;margin-bottom:18px}
+  .panel h2{font-size:15px;font-weight:800;margin-bottom:12px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:11px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px}
+  input,select,textarea{background:rgba(255,255,255,.06);border:1.5px solid var(--bd);border-radius:10px;color:#fff;padding:10px 12px;font-size:14px;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+  textarea{width:100%;resize:vertical;min-height:90px;font-size:13px}
+  .btn{border:none;cursor:pointer;font-weight:800;font-size:13px;padding:11px 18px;border-radius:10px;transition:.15s}
+  .btn.g{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#0a0e1a}
+  .btn.b{background:linear-gradient(135deg,var(--blue),#0ea5e9);color:#04263a}
+  .btn.ghost{background:transparent;border:1.5px solid var(--bd);color:#fff}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .checks{display:flex;flex-wrap:wrap;gap:14px;margin-top:4px}
+  .checks label{display:flex;align-items:center;gap:6px;font-size:13px;color:rgba(255,255,255,.85);cursor:pointer}
+  .checks input{width:auto}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;font-size:12px}
+  .pill{background:rgba(255,255,255,.06);border:1px solid var(--bd);border-radius:20px;padding:5px 12px}
+  .pill b{color:var(--acc)}
+  #status{font-size:13px;color:rgba(255,255,255,.7);min-height:20px;margin:6px 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .resto{background:var(--card);border:1.5px solid var(--bd);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+  .resto h3{font-size:16px;font-weight:800}
+  .meta{font-size:12.5px;color:rgba(255,255,255,.65);display:flex;flex-direction:column;gap:3px}
+  .meta .line{display:flex;gap:6px;align-items:center}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .tag{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(56,189,248,.15);color:#7dd3fc}
+  .tag.warn{background:rgba(245,158,11,.15);color:#fde68a}
+  .tag.no{background:rgba(248,113,113,.15);color:#fca5a5}
+  .statusbar{display:flex;gap:8px;align-items:center;margin-top:4px}
+  select.st{padding:7px 10px;font-size:12px;flex:1}
+  .st-acontacter{border-color:rgba(245,158,11,.5)!important}
+  .st-contacte{border-color:rgba(56,189,248,.5)!important}
+  .st-interesse{border-color:rgba(74,222,128,.6)!important}
+  .st-client{border-color:var(--acc)!important;background:rgba(74,222,128,.12)!important}
+  .st-non{border-color:rgba(248,113,113,.4)!important;opacity:.7}
+  .resto-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .resto-actions .btn{padding:8px 12px;font-size:12px;flex:1}
+  details{margin-top:6px;border-top:1px dashed var(--bd);padding-top:8px}
+  summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--acc)}
+  .gen{margin-top:8px}
+  .gen textarea{min-height:120px}
+  .empty{text-align:center;padding:50px 20px;color:rgba(255,255,255,.5)}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .modal-bg.show{display:flex}
+  .modal{background:#0f1626;border:1.5px solid var(--bd);border-radius:16px;padding:22px;max-width:520px;width:100%}
+  .modal h2{margin-bottom:14px}
+  .modal .field{margin-bottom:12px}
+  .modal .field input,.modal .field textarea{width:100%}
+  .note{background:#11203a;border:1px dashed var(--acc);color:#bbf7d0;font-size:12px;padding:10px 14px;border-radius:10px;margin-top:12px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  footer{margin-top:30px;font-size:11px;color:rgba(255,255,255,.4);text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kw">Outil commercial</div>
+    <h1>🔎 Prospection <span style="color:var(--acc)" id="brandTitle">Nemos</span></h1>
+    <p class="lead">Trouvez de vrais restaurants par zone géographique (données <b>OpenStreetMap</b>, gratuit et sans clé), générez un argumentaire et un e-mail personnalisés, et suivez votre prospection. Tout est sauvegardé dans votre navigateur.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ RECHERCHE ============ -->
+  <section class="panel">
+    <h2>1. Rechercher des restaurants</h2>
+    <div class="row">
+      <div class="field" style="flex:2;min-width:200px">
+        <label>Ville / zone</label>
+        <input id="city" placeholder="Ex : La Rochelle, Rochefort, 17000…" value="">
+      </div>
+      <div class="field">
+        <label>Rayon</label>
+        <select id="radius">
+          <option value="1500">1,5 km</option>
+          <option value="3000" selected>3 km</option>
+          <option value="6000">6 km</option>
+          <option value="12000">12 km</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="btn g" id="searchBtn">Lancer la recherche</button>
+      </div>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" class="ftype" value="restaurant" checked> Restaurants</label>
+      <label><input type="checkbox" class="ftype" value="fast_food"> Fast-food</label>
+      <label><input type="checkbox" class="ftype" value="cafe"> Cafés / brasseries</label>
+      <label><input type="checkbox" class="ftype" value="bar"> Bars</label>
+      <label style="margin-left:auto"><input type="checkbox" id="onlyNoWeb"> Uniquement sans site web</label>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <!-- ============ RÉSULTATS ============ -->
+  <div class="toolbar">
+    <div class="stats" id="stats"></div>
+    <div style="display:flex;gap:8px">
+      <select id="filterStatus" class="st" style="max-width:180px">
+        <option value="">Tous les statuts</option>
+        <option value="acontacter">À contacter</option>
+        <option value="contacte">Contacté</option>
+        <option value="interesse">Intéressé</option>
+        <option value="client">Client</option>
+        <option value="non">Pas intéressé</option>
+      </select>
+      <button class="btn ghost" id="cfgBtn">⚙️ Réglages Nemos</button>
+      <button class="btn ghost" id="csvBtn">⬇️ Export CSV</button>
+    </div>
+  </div>
+
+  <div id="results" class="grid"></div>
+  <div id="empty" class="empty">Lancez une recherche pour afficher des restaurants à prospecter.</div>
+
+  <footer>Données © contributeurs OpenStreetMap (ODbL). Géocodage Nominatim. Usage raisonnable — outil de prospection interne.</footer>
+</main>
+
+<!-- ============ MODALE RÉGLAGES ============ -->
+<div class="modal-bg" id="cfgModal">
+  <div class="modal">
+    <h2>⚙️ Réglages du produit & du vendeur</h2>
+    <div class="field"><label>Nom du produit</label><input id="cfgBrand" value="Nemos"></div>
+    <div class="field"><label>Phrase d'accroche produit</label><input id="cfgTag" value="le capteur de température connecté qui automatise votre HACCP"></div>
+    <div class="field"><label>Prix indicatif</label><input id="cfgPrice" value="à partir de +15 €/mois + capteurs"></div>
+    <div class="field"><label>Votre nom / société</label><input id="cfgSender" value="L'équipe HACCP Pro"></div>
+    <div class="field"><label>Votre e-mail / téléphone (signature)</label><input id="cfgContact" value="contact@haccp-pro.fr"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn ghost" id="cfgCancel">Fermer</button>
+      <button class="btn g" id="cfgSave">Enregistrer</button>
+    </div>
+    <div class="note">Ces infos servent à personnaliser automatiquement les argumentaires et e-mails générés.</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Persistance ---------- */
+const LS_CRM = "nemos_crm_v1";
+const LS_CFG = "nemos_cfg_v1";
+const crm = JSON.parse(localStorage.getItem(LS_CRM) || "{}");           // id -> {status, notes}
+const defaultCfg = {brand:"Nemos", tag:"le capteur de température connecté qui automatise votre HACCP",
+  price:"à partir de +15 €/mois + capteurs", sender:"L'équipe HACCP Pro", contact:"contact@haccp-pro.fr"};
+let cfg = Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(LS_CFG) || "{}"));
+
+let restos = [];   // résultats courants
+
+const $ = s => document.querySelector(s);
+const statusEl = $("#status");
+
+function saveCrm(){ localStorage.setItem(LS_CRM, JSON.stringify(crm)); }
+function saveCfg(){ localStorage.setItem(LS_CFG, JSON.stringify(cfg)); }
+function esc(s){ return (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---------- Réglages ---------- */
+function applyCfgToForm(){
+  $("#cfgBrand").value=cfg.brand; $("#cfgTag").value=cfg.tag; $("#cfgPrice").value=cfg.price;
+  $("#cfgSender").value=cfg.sender; $("#cfgContact").value=cfg.contact;
+  $("#brandTitle").textContent=cfg.brand;
+}
+$("#cfgBtn").onclick=()=>{ applyCfgToForm(); $("#cfgModal").classList.add("show"); };
+$("#cfgCancel").onclick=()=>$("#cfgModal").classList.remove("show");
+$("#cfgSave").onclick=()=>{
+  cfg={brand:$("#cfgBrand").value.trim()||"Nemos", tag:$("#cfgTag").value.trim(), price:$("#cfgPrice").value.trim(),
+    sender:$("#cfgSender").value.trim(), contact:$("#cfgContact").value.trim()};
+  saveCfg(); applyCfgToForm(); $("#cfgModal").classList.remove("show"); render();
+};
+applyCfgToForm();
+
+/* ---------- Recherche OSM ---------- */
+async function geocode(q){
+  const url="https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(q+", France");
+  const r=await fetch(url,{headers:{"Accept":"application/json"}});
+  if(!r.ok) throw new Error("Géocodage indisponible ("+r.status+")");
+  const j=await r.json();
+  if(!j.length) throw new Error("Ville introuvable : « "+q+" »");
+  return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon), name:j[0].display_name};
+}
+
+async function overpass(lat,lon,radius,types){
+  const parts=[];
+  types.forEach(t=>{
+    parts.push(`node["amenity"="${t}"](around:${radius},${lat},${lon});`);
+    parts.push(`way["amenity"="${t}"](around:${radius},${lat},${lon});`);
+  });
+  const query=`[out:json][timeout:30];(${parts.join("")});out center tags;`;
+  const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(query)});
+  if(!r.ok) throw new Error("Service OpenStreetMap occupé, réessayez ("+r.status+")");
+  const j=await r.json();
+  return (j.elements||[]).map(parseEl).filter(x=>x && x.name);
+}
+
+function parseEl(el){
+  const t=el.tags||{};
+  const addr=[t["addr:housenumber"],t["addr:street"]].filter(Boolean).join(" ");
+  const cityLine=[t["addr:postcode"],t["addr:city"]].filter(Boolean).join(" ");
+  return {
+    id:el.type+"/"+el.id,
+    name:t.name,
+    type:t.amenity,
+    cuisine:(t.cuisine||"").replace(/_/g," ").replace(/;/g,", "),
+    addr, cityLine,
+    fullAddr:[addr,cityLine].filter(Boolean).join(", "),
+    phone:t.phone||t["contact:phone"]||t["contact:mobile"]||"",
+    website:t.website||t["contact:website"]||"",
+    email:t.email||t["contact:email"]||""
+  };
+}
+
+$("#searchBtn").onclick=runSearch;
+$("#city").addEventListener("keydown",e=>{ if(e.key==="Enter") runSearch(); });
+
+async function runSearch(){
+  const city=$("#city").value.trim();
+  if(!city){ statusEl.textContent="⚠️ Indiquez une ville ou un code postal."; return; }
+  const types=[...document.querySelectorAll(".ftype:checked")].map(c=>c.value);
+  if(!types.length){ statusEl.textContent="⚠️ Sélectionnez au moins un type d'établissement."; return; }
+  const radius=$("#radius").value;
+  const btn=$("#searchBtn"); btn.disabled=true;
+  statusEl.innerHTML='<span class="spin"></span> Localisation de « '+esc(city)+' »…';
+  try{
+    const g=await geocode(city);
+    statusEl.innerHTML='<span class="spin"></span> Recherche des établissements autour de '+esc(g.name.split(",")[0])+'…';
+    restos=await overpass(g.lat,g.lon,radius,types);
+    // tri : sans site web d'abord (meilleurs prospects), puis alpha
+    restos.sort((a,b)=> (a.website?1:0)-(b.website?1:0) || a.name.localeCompare(b.name));
+    statusEl.textContent="✅ "+restos.length+" établissement(s) trouvé(s).";
+    render();
+  }catch(e){
+    statusEl.textContent="❌ "+e.message;
+  }finally{ btn.disabled=false; }
+}
+
+/* ---------- Génération argumentaire & e-mail ---------- */
+function pitch(r){
+  const who = r.cuisine ? `votre établissement de cuisine ${r.cuisine}` : `votre restaurant`;
+  return `Pour ${r.name}, ${cfg.brand} c'est ${cfg.tag}.
+
+Concrètement, dans ${who} :
+• Plus de relevés de température oubliés : les frigos, congélateurs et chambres froides sont surveillés 24h/24, 7j/7 — même la nuit et le week-end.
+• Une alerte e-mail immédiate en cas de dépassement de seuil ou de panne, pour protéger vos stocks.
+• Des courbes de température prêtes pour un contrôle DDPP : conformité maximale, zéro paperasse.
+• Tarif : ${cfg.price}.
+
+En cas de contrôle d'hygiène, ${r.name} présente un historique complet et infalsifiable, sans aucune saisie manuelle.`;
+}
+
+function email(r){
+  const greet = `Bonjour,`;
+  return `Objet : ${r.name} — automatisez vos relevés de température HACCP avec ${cfg.brand}
+
+${greet}
+
+Je me permets de vous contacter au sujet de ${r.name}${r.cityLine?` (${r.cityLine})`:""}.
+
+${cfg.brand} est ${cfg.tag}. Vos enceintes froides sont mesurées en continu, les relevés sont enregistrés automatiquement et horodatés, et vous êtes alerté immédiatement en cas de problème. Lors d'un contrôle, vous présentez des courbes complètes, sans aucune saisie manuelle.
+
+Tarif : ${cfg.price}.
+
+Seriez-vous disponible quelques minutes cette semaine pour en discuter ? Je peux vous faire une démonstration rapide.
+
+Bien cordialement,
+${cfg.sender}
+${cfg.contact}`;
+}
+
+/* ---------- Rendu ---------- */
+const STATUS_LABELS={acontacter:"À contacter",contacte:"Contacté",interesse:"Intéressé",client:"Client",non:"Pas intéressé"};
+
+function getStatus(id){ return (crm[id]&&crm[id].status) || "acontacter"; }
+
+function render(){
+  const list=$("#results"); list.innerHTML="";
+  const onlyNoWeb=$("#onlyNoWeb").checked;
+  const fStatus=$("#filterStatus").value;
+  let shown=restos.filter(r=>{
+    if(onlyNoWeb && r.website) return false;
+    if(fStatus && getStatus(r.id)!==fStatus) return false;
+    return true;
+  });
+  $("#empty").style.display = shown.length ? "none" : (restos.length? "none":"block");
+  if(restos.length && !shown.length){ $("#empty").style.display="block"; $("#empty").textContent="Aucun établissement pour ce filtre."; }
+
+  shown.forEach(r=>{
+    const st=getStatus(r.id);
+    const notes=(crm[r.id]&&crm[r.id].notes)||"";
+    const el=document.createElement("div"); el.className="resto";
+    const mailHref = r.email ? `mailto:${r.email}?subject=${encodeURIComponent(r.name+" — "+cfg.brand)}` : "";
+    el.innerHTML=`
+      <h3>${esc(r.name)}</h3>
+      <div class="tags">
+        <span class="tag">${esc(r.type)}</span>
+        ${r.cuisine?`<span class="tag">${esc(r.cuisine)}</span>`:""}
+        ${r.website?`<span class="tag">site web</span>`:`<span class="tag warn">sans site ✦ bon prospect</span>`}
+        ${r.phone?"":`<span class="tag no">sans téléphone</span>`}
+      </div>
+      <div class="meta">
+        ${r.fullAddr?`<div class="line">📍 ${esc(r.fullAddr)}</div>`:""}
+        ${r.phone?`<div class="line">📞 <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></div>`:""}
+        ${r.email?`<div class="line">✉️ <a href="${mailHref}">${esc(r.email)}</a></div>`:""}
+        ${r.website?`<div class="line">🌐 <a href="${esc(r.website)}" target="_blank" rel="noopener">site web</a></div>`:""}
+        <div class="line">🗺️ <a href="https://www.openstreetmap.org/${esc(r.id)}" target="_blank" rel="noopener">voir sur la carte</a></div>
+      </div>
+      <div class="statusbar">
+        <select class="st st-${st}" data-id="${esc(r.id)}">
+          ${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${k===st?"selected":""}>${v}</option>`).join("")}
+        </select>
+      </div>
+      <details class="gen">
+        <summary>📝 Argumentaire ${esc(cfg.brand)}</summary>
+        <textarea readonly>${esc(pitch(r))}</textarea>
+        <button class="btn ghost copy" data-mode="pitch" style="margin-top:6px;width:100%">Copier l'argumentaire</button>
+      </details>
+      <details class="gen">
+        <summary>✉️ E-mail prêt à envoyer</summary>
+        <textarea readonly>${esc(email(r))}</textarea>
+        <div class="resto-actions">
+          <button class="btn ghost copy" data-mode="email">Copier l'e-mail</button>
+          ${r.email?`<a class="btn b" href="${mailHref}" style="text-align:center;text-decoration:none">Ouvrir mail</a>`:""}
+        </div>
+      </details>
+      <div class="gen">
+        <textarea class="notes" data-id="${esc(r.id)}" placeholder="Notes de suivi (rappel, interlocuteur, date…)">${esc(notes)}</textarea>
+      </div>
+    `;
+    // statut
+    el.querySelector("select.st").onchange=function(){
+      crm[r.id]=crm[r.id]||{}; crm[r.id].status=this.value; saveCrm();
+      this.className="st st-"+this.value; updateStats();
+      if(fStatus) render();
+    };
+    // notes
+    el.querySelector("textarea.notes").onchange=function(){
+      crm[r.id]=crm[r.id]||{}; crm[r.id].notes=this.value; saveCrm();
+    };
+    // copier
+    el.querySelectorAll(".copy").forEach(b=>{
+      b.onclick=()=>{
+        const txt=b.dataset.mode==="pitch"?pitch(r):email(r);
+        navigator.clipboard.writeText(txt).then(()=>{ const o=b.textContent; b.textContent="✅ Copié !"; setTimeout(()=>b.textContent=o,1200); });
+      };
+    });
+    list.appendChild(el);
+  });
+  updateStats();
+}
+
+function updateStats(){
+  const counts={total:restos.length,acontacter:0,contacte:0,interesse:0,client:0,non:0,noweb:0};
+  restos.forEach(r=>{ counts[getStatus(r.id)]++; if(!r.website) counts.noweb++; });
+  $("#stats").innerHTML=`
+    <span class="pill"><b>${counts.total}</b> trouvés</span>
+    <span class="pill"><b>${counts.noweb}</b> sans site</span>
+    <span class="pill">À contacter <b>${counts.acontacter}</b></span>
+    <span class="pill">Contactés <b>${counts.contacte}</b></span>
+    <span class="pill">Intéressés <b>${counts.interesse}</b></span>
+    <span class="pill">Clients <b>${counts.client}</b></span>`;
+}
+
+$("#onlyNoWeb").onchange=render;
+$("#filterStatus").onchange=render;
+
+/* ---------- Export CSV ---------- */
+$("#csvBtn").onclick=()=>{
+  if(!restos.length){ statusEl.textContent="⚠️ Rien à exporter, lancez d'abord une recherche."; return; }
+  const head=["Nom","Type","Cuisine","Adresse","Téléphone","Email","Site","Statut","Notes"];
+  const rows=restos.map(r=>{
+    const c=crm[r.id]||{};
+    return [r.name,r.type,r.cuisine,r.fullAddr,r.phone,r.email,r.website,STATUS_LABELS[getStatus(r.id)],(c.notes||"").replace(/\n/g," ")];
+  });
+  const csv=[head,...rows].map(line=>line.map(v=>'"'+String(v||"").replace(/"/g,'""')+'"').join(";")).join("\r\n");
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="prospection_"+cfg.brand.toLowerCase()+"_"+new Date().toISOString().slice(0,10)+".csv";
+  a.click(); URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>
