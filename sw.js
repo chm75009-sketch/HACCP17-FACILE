@@ -9,10 +9,15 @@
  *    en arriere-plan : chargement instantane, mise a jour discrete.
  * Les CDN externes (Supabase, Chart.js, polices…) ne sont pas interceptes.
  */
-const CACHE = 'haccp-pro-v312';
+const CACHE = 'haccp-pro-v313';
 const CORE = [
   './',
   './index.html',
+  './mentions.html',
+  './politique-confidentialite.html',
+  './cgv.html',
+  './cgu.html',
+  './registre-traitements.html',
   './style.css',
   './pms_secteurs.js',
   './script.js',
