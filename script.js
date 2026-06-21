@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v275';
+var APP_BUILD = 'v312';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -1819,11 +1819,10 @@ async function getEssaiConfig() {
   var def = { active: true, max: ESSAI_UNIVERSEL_MAX };
   if (!window._supabase) return def;
   try {
-    var r = await window._supabase.from('historique_admin')
-      .select('motif').eq('action', 'CONFIG_ESSAI')
-      .order('date_action', { ascending: false }).limit(1);
-    if (r.error || !r.data || !r.data.length) return def;
-    var cfg = JSON.parse(r.data[0].motif || '{}');
+    // SEC — lecture via RPC serveur (historique_admin n'est plus lisible en anonyme).
+    var r = await window._supabase.rpc('get_essai_config');
+    if (r.error || !r.data) return def;
+    var cfg = (typeof r.data === 'string') ? JSON.parse(r.data) : r.data;
     return {
       active: (typeof cfg.active === 'boolean') ? cfg.active : true,
       max: (cfg.max > 0) ? cfg.max : ESSAI_UNIVERSEL_MAX
@@ -1903,21 +1902,19 @@ window.validerEssaiUniversel = async function() {
       show('L\'offre d\'essai gratuite est actuellement fermée. Contactez-nous pour un accès.');
       reset(); return;
     }
-    // Tous les essais universels existants (préfixe EU3J-)
-    var ex = await window._supabase.from('etablissements').select('code_acces,adresse').like('code_acces', 'EU3J-%');
-    if (ex.error) { show('Erreur : ' + ex.error.message); reset(); return; }
-    var rows = ex.data || [];
+    // SEC — stats EU3J via RPC serveur (plafond + email déjà utilisé).
+    // etablissements n'est plus lisible avec la clé anonyme.
+    var stRes = await window._supabase.rpc('eu3j_stats', { p_email: mail });
+    if (stRes.error) { show('Erreur : ' + stRes.error.message); reset(); return; }
+    var stats = stRes.data || { count: 0, email_exists: false };
+    var euCount = stats.count || 0;
     // Plafond d'activations (valeur pilotée depuis l'admin)
-    if (rows.length >= cfg.max) {
+    if (euCount >= cfg.max) {
       show('L\'offre d\'essai gratuite est terminée (limite atteinte). Contactez-nous pour un accès.');
       reset(); return;
     }
-    // 1 essai par e-mail (l'e-mail est rangé dans adresse : "... | mail")
-    // L'e-mail est rangé entre des séparateurs « | » AVEC espaces (« ... | mail | ... »).
-    // On normalise les espaces autour des « | » avant la recherche, sinon le contrôle
-    // « 1 essai par e-mail » ne matchait jamais (il cherchait « |mail » sans espace).
-    var dejaVu = rows.some(function(r){ return (r.adresse||'').toLowerCase().replace(/\s*\|\s*/g, '|').indexOf('|' + mail) > -1; });
-    if (dejaVu) {
+    // 1 essai par e-mail
+    if (stats.email_exists) {
       show('Un essai a déjà été activé avec cet e-mail.');
       reset(); return;
     }
@@ -1944,7 +1941,7 @@ window.validerEssaiUniversel = async function() {
 
     try {
       await window._supabase.from('historique_admin').insert([{
-        action: 'Essai universel ' + ESSAI_UNIVERSEL_JOURS + ' j (' + (rows.length+1) + '/' + cfg.max + ')',
+        action: 'Essai universel ' + ESSAI_UNIVERSEL_JOURS + ' j (' + (euCount+1) + '/' + cfg.max + ')',
         code_concerne: code,
         motif: etab + ' — ' + resp + ' — ' + tel + ' — ' + mail + ' — exp. ' + dateExp
       }]);
@@ -1976,27 +1973,18 @@ window.motDePasseOublie = async function() {
   if (!window._supabase) { alert('Connexion à la base impossible. Réessayez avec une connexion internet.'); return; }
 
   try {
-    var res = await window._supabase.from('etablissements')
-      .select('*').eq('code_acces', code).limit(1);
-    if (res.error) { alert('Erreur : ' + res.error.message); return; }
-    if (!res.data || !res.data.length) { alert('Code d\'accès non reconnu. Vérifiez votre code.'); return; }
-    var etab = res.data[0];
-
-    // Retrouver l'e-mail ENREGISTRÉ selon le type de compte
-    var email = '';
-    if (code.indexOf('EU3J-') === 0) {
-      // Essai flyer : e-mail rangé dans adresse "adresse | email | tel | resp"
-      var parts = (etab.adresse || '').split('|');
-      if (parts[1]) email = parts[1].trim();
-    }
-    if (!email && etab.email) email = etab.email;
-    if (!email) {
-      // Clients payants : e-mail dans comptes_clients
-      try {
-        var cc = await window._supabase.from('comptes_clients').select('email').eq('code_acces', code).limit(1);
-        if (cc.data && cc.data.length && cc.data[0].email) email = cc.data[0].email;
-      } catch(e) {}
-    }
+    // SEC — recherche via RPC serveur : etablissements/comptes_clients ne sont plus
+    // lisibles avec la clé anonyme. La RPC résout déjà l'e-mail enregistré du compte.
+    // SEC — RESET : impossible de renvoyer l'ancien mot de passe (haché = illisible).
+    // reset_password génère un NOUVEAU mot de passe, l'enregistre (haché) et le renvoie
+    // pour l'email. L'ancien cesse de fonctionner.
+    var look = await window._supabase.rpc('reset_password', { p_code: code });
+    if (look.error) { alert('Erreur : ' + look.error.message); return; }
+    var info = look.data;
+    if (!info || !info.found) { alert('Code d\'accès non reconnu. Vérifiez votre code.'); return; }
+    var etab = { nom: info.nom, code_acces: info.code_acces, mot_de_passe: info.new_password,
+                 date_expiration: info.date_expiration, email: info.email };
+    var email = info.email || '';
     if (!email) {
       try { window._supabase.from('historique_admin').insert([{ action: 'Mot de passe oublié (sans e-mail)', code_concerne: code }]).then(function(){}); } catch(e){}
       alert('Aucune adresse e-mail n\'est associée à ce compte. Contactez HACCP Pro pour récupérer votre accès.');
@@ -2023,7 +2011,7 @@ window.motDePasseOublie = async function() {
             code_acces: etab.code_acces,
             mot_de_passe: etab.mot_de_passe || '',
             formule: '',
-            message: 'Voici vos identifiants HACCP Pro.' + infoEssai
+            message: 'Voici votre NOUVEAU mot de passe HACCP Pro (l\'ancien ne fonctionne plus).' + infoEssai
           }
         );
         envoye = true;
@@ -2041,7 +2029,7 @@ window.motDePasseOublie = async function() {
     } catch(e) {}
 
     if (envoye) {
-      alert('✅ C\'est envoyé !\n\nVos identifiants ont été adressés par e-mail à : ' + emailMasque + '\n\nPensez à vérifier vos spams.');
+      alert('✅ C\'est envoyé !\n\nUn NOUVEAU mot de passe a été adressé par e-mail à : ' + emailMasque + '\n\n(L\'ancien ne fonctionne plus.) Pensez à vérifier vos spams.');
     } else {
       alert('Votre demande a bien été enregistrée, mais l\'envoi automatique n\'a pas pu aboutir. HACCP Pro va vous recontacter.');
     }
@@ -2058,14 +2046,14 @@ async function _ouvrirSessionAuth(code, pwd) {
   try {
     if (!window._supabase || !window._supabase.auth) {
       console.warn('[Auth] SDK indisponible');
-      if (typeof showToast === 'function') showToast('🔐 Auth : SDK Supabase non chargé', 'err', 6000);
       return false;
     }
     var email = _codeVersEmailAuth(code);
     var res = await window._supabase.auth.signInWithPassword({ email: email, password: pwd });
     if (res && res.error) {
+      // Session Auth optionnelle (additive) : son échec ne bloque PAS le login.
+      // On reste SILENCIEUX côté client (pas de toast rouge) — log console seulement.
       console.warn('[Auth] Échec session pour ' + email + ' : ' + res.error.message);
-      if (typeof showToast === 'function') showToast('🔐 Auth échec (' + email + ') : ' + res.error.message, 'err', 8000);
       _SB_ACCESS_TOKEN = null; return false;
     }
     var sess = res && res.data && res.data.session;
@@ -2076,14 +2064,9 @@ async function _ouvrirSessionAuth(code, pwd) {
       _SB_AUTH_ETAB = (payload.app_metadata && payload.app_metadata.establishment_id) || null;
     } catch(eJwt) { _SB_AUTH_ETAB = null; }
     console.info('[Auth] ✓ Session sécurisée ouverte. establishment_id (JWT) = ' + (_SB_AUTH_ETAB || '(absent)'));
-    if (typeof showToast === 'function') {
-      if (_SB_AUTH_ETAB) showToast('🔐 Session sécurisée active (cloisonnement prêt)', 'ok', 3500);
-      else showToast('🔐 Session Auth ouverte, mais establishment_id absent du jeton', 'warn', 5000);
-    }
     return true;
   } catch(e) {
     console.warn('[Auth] Exception session :', e && e.message);
-    if (typeof showToast === 'function') showToast('🔐 Auth exception : ' + (e && e.message), 'err', 7000);
     _SB_ACCESS_TOKEN = null; return false;
   }
 }
@@ -12368,11 +12351,11 @@ function uploadDoc(previewId) {
       if (file.type.startsWith('image/')) {
         var reader = new FileReader();
         reader.onload = function(ev) {
-          prev.innerHTML = '<img src="' + ev.target.result + '" alt="' + (file.name||'Document') + '" style="width:100%;border-radius:8px;margin-top:6px;max-height:120px;object-fit:cover"/><div style="font-size:11px;color:var(--green);font-weight:600;margin-top:4px">✅ ' + file.name + '</div>';
+          prev.innerHTML = '<img src="' + ev.target.result + '" alt="' + _echap(file.name||'Document') + '" style="width:100%;border-radius:8px;margin-top:6px;max-height:120px;object-fit:cover"/><div style="font-size:11px;color:var(--green);font-weight:600;margin-top:4px">✅ ' + file.name + '</div>';
         };
         reader.readAsDataURL(file);
       } else {
-        prev.innerHTML = '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:6px;padding:8px;background:#f0fdf4;border-radius:8px">✅ PDF joint : ' + file.name + '</div>';
+        prev.innerHTML = '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:6px;padding:8px;background:#f0fdf4;border-radius:8px">✅ PDF joint : ' + _echap(file.name) + '</div>';
       }
     }
   };
@@ -12883,12 +12866,78 @@ async function _packInjecterCourbes(from, to) {
   ct.appendChild(sec);
 }
 
+// V283 — Écran d'attente immédiat pendant la génération du Pack DDPP.
+// Affiché dès le clic pour que le bouton « réponde » visiblement, même quand la
+// phase réseau (sous-sol) prend quelques secondes. Retiré dès que le Pack s'affiche.
+function _packShowLoading() {
+  try {
+    if (document.getElementById('packLoadingOverlay')) return;
+    var ov = document.createElement('div');
+    ov.id = 'packLoadingOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(30,27,75,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:Outfit,sans-serif;padding:24px;text-align:center';
+    ov.innerHTML =
+      '<div style="width:46px;height:46px;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:packSpin .8s linear infinite"></div>'
+      + '<div style="margin-top:18px;font-size:16px;font-weight:800">Génération du Pack DDPP…</div>'
+      + '<div style="margin-top:6px;font-size:12.5px;opacity:.8;max-width:280px;line-height:1.5">Préparation de vos preuves de contrôle. Cela peut prendre quelques secondes selon le réseau.</div>';
+    if (!document.getElementById('packSpinStyle')) {
+      var st = document.createElement('style');
+      st.id = 'packSpinStyle';
+      st.textContent = '@keyframes packSpin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(st);
+    }
+    document.body.appendChild(ov);
+  } catch (e) {}
+}
+function _packHideLoading() {
+  try { var el = document.getElementById('packLoadingOverlay'); if (el) el.remove(); } catch (e) {}
+}
+// V283 — Borne une promesse réseau dans le temps : si elle dépasse `ms`, on
+// continue sans attendre (offline-first). Ne rejette jamais : renvoie null au timeout.
+function _packAvecDelaiMax(promesse, ms) {
+  return Promise.race([
+    Promise.resolve(promesse).catch(function(){ return null; }),
+    new Promise(function(resolve){ setTimeout(function(){ resolve(null); }, ms || 5000); })
+  ]);
+}
+
 // V116 — Livraison 3 : wrapper qui récupère les photos de la période avant de lancer le Pack DDPP,
 // puis les injecte directement dans chaque bloc de contrôle après le rendu.
 async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
-  // V118 — D'abord, récupérer tous les contrôles depuis Supabase (tous appareils)
-  try { if (typeof chargerControlesCloudCache === 'function') await chargerControlesCloudCache(); } catch(ePc) {}
-  // 1) Récupérer les contrôles de la période qui ont des photos
+  // V283 — Réactivité + hors-ligne (cuisines en sous-sol) :
+  //  1) On affiche IMMÉDIATEMENT un écran « génération en cours » dès le clic, pour
+  //     que le bouton réponde visiblement (avant, aucun retour pendant la phase réseau
+  //     → l'utilisateur croyait que ça ne répondait pas).
+  //  2) Les appels réseau (contrôles cloud + photos) sont BORNÉS dans le temps : sur
+  //     mauvais réseau / hors-ligne, on n'attend plus indéfiniment, on génère le Pack
+  //     à partir des données locales déjà en cache.
+  _packShowLoading();
+  // V285 — RENDU IMMÉDIAT depuis les données LOCALES (offline-first, instantané).
+  //  getDonneesPeriode() lit d'abord le localStorage : sur un seul appareil, le Pack est
+  //  donc complet SANS réseau. On affiche le document tout de suite, puis on complète en
+  //  arrière-plan (contrôles d'autres appareils + photos) sans jamais bloquer l'écran.
+  try { lancerPackDDPP(dateFrom, dateTo, selectionIds); }
+  catch (eRender) { console.warn('[Pack DDPP] rendu local:', eRender && eRender.message); }
+  finally { _packHideLoading(); }
+
+  // Arrière-plan #1 — compléter avec les contrôles du cloud (multi-appareils). Si cela
+  //  apporte des contrôles absents en local, on re-rend UNE seule fois (sinon flash inutile).
+  var _packEmpreinteCloud = function(){
+    try {
+      if (!window._cloudCache) return '';
+      return Object.keys(window._cloudCache).map(function(k){ return k + ':' + ((window._cloudCache[k]||[]).length); }).join(',');
+    } catch (e) { return ''; }
+  };
+  try {
+    var _empAvant = _packEmpreinteCloud();
+    if (typeof chargerControlesCloudCache === 'function') {
+      await _packAvecDelaiMax(chargerControlesCloudCache(), 8000);
+    }
+    if (_packEmpreinteCloud() !== _empAvant && document.getElementById('printOverlay')) {
+      lancerPackDDPP(dateFrom, dateTo, selectionIds);
+    }
+  } catch(ePc) {}
+
+  // Arrière-plan #2 — récupérer les contrôles de la période qui ont des photos
   var photosParModule = {}; // { codeModule: [ {ts: ISO, photos: [url,...]}, ... ] }
 
   try {
@@ -12902,10 +12951,16 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
         + '&photos=not.is.null'
         + '&select=id,module,date_controle,photos'
         + '&order=date_controle.asc';
+      // V283 — fetch borné à 6 s (offline-first) : on n'attend pas le réseau du
+      // sous-sol indéfiniment, on continue sans les photos si ça traîne.
+      var _ctlPh = new AbortController();
+      var _tPh = setTimeout(function(){ _ctlPh.abort(); }, 6000);
       var resp = await fetch(url, {
         method: 'GET',
+        signal: _ctlPh.signal,
         headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + _sbBearer() }
       });
+      clearTimeout(_tPh);
       if (resp.ok) {
         var rows = await resp.json();
         rows.forEach(function(r) {
@@ -12934,10 +12989,7 @@ async function lancerPackDDPPAvecPhotos(dateFrom, dateTo, selectionIds) {
     console.warn('[Pack DDPP] Erreur récupération photos :', e);
   }
 
-  // 2) Lancer le Pack DDPP classique (rendu synchrone)
-  lancerPackDDPP(dateFrom, dateTo, selectionIds);
-
-  // 2bis) Injecter les COURBES de température (image) à la fin du Pack (protégé).
+  // Arrière-plan #3 — courbes de température (image) à la fin du Pack (protégé).
   try { await _packInjecterCourbes(dateFrom, dateTo); } catch (eCb) { console.warn('[Pack DDPP] courbes:', eCb && eCb.message); }
 
   // 3) Injecter les photos dans les bons blocs (après que le DOM soit prêt)
@@ -19163,9 +19215,9 @@ function amSaveDoc(input) {
         var preview = document.getElementById('am_doc_preview');
         if (preview) {
           if (dataURL.startsWith('data:image')) {
-            preview.innerHTML = '<img src="' + dataURL + '" alt="' + (file.name||'Document rapport') + '" style="max-width:100%;max-height:100px;border-radius:6px;margin-top:4px"/>';
+            preview.innerHTML = '<img src="' + dataURL + '" alt="' + _echap(file.name||'Document rapport') + '" style="max-width:100%;max-height:100px;border-radius:6px;margin-top:4px"/>';
           } else {
-            preview.innerHTML = '<div style="background:#f3f4f6;border-radius:6px;padding:8px;font-size:12px;margin-top:4px">📄 ' + file.name + '</div>';
+            preview.innerHTML = '<div style="background:#f3f4f6;border-radius:6px;padding:8px;font-size:12px;margin-top:4px">📄 ' + _echap(file.name) + '</div>';
           }
         }
         // V116 — Range aussi dans la boîte d'attente (cloud)
@@ -20492,7 +20544,10 @@ function testEffacerDonnees() {
           adresse: (document.getElementById('insc_adresse') || {}).value || '',
           siret: (document.getElementById('insc_siret') || {}).value || '',
           message: (document.getElementById('insc_message') || {}).value || '',
-          statut: 'en_attente'
+          statut: 'en_attente',
+          // RGPD — preuve de consentement : à ce stade la case « j'accepte » est
+          // OBLIGATOIREMENT cochée (vérifié plus haut), on horodate l'acceptation.
+          rgpd_accepte_le: new Date().toISOString()
         };
 
         // SW-6 — insertion via REST direct (le SDK supabase-js peut lever un
@@ -20678,7 +20733,7 @@ function testEffacerDonnees() {
         if (!c || !window._supabase) { return; }
         c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Chargement…</div>';
 
-        window._supabase.from('demandes_inscription').select('*').order('date_demande', { ascending: false }).then(function(res) {
+        window._supabase.rpc('admin_list_demandes', { p_pwd: _adminPwd }).then(function(res) {
           if (res.error) {
             c.innerHTML = '<div style="color:#fca5a5;padding:20px;text-align:center">Erreur: ' + escapeHtml(res.error.message) + '</div>';
             return;
@@ -20707,12 +20762,18 @@ function testEffacerDonnees() {
             html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-size:12px;color:rgba(255,255,255,0.75);margin-bottom:10px">';
             html += '<div>👤 ' + escapeHtml(r.responsable) + '</div>';
             html += '<div>📧 ' + escapeHtml(r.email) + '</div>';
+            html += '<div>🍽️ ' + escapeHtml(({resto:'Restauration traditionnelle',bp:'Boulangerie / Pâtisserie',rapide:'Restauration rapide',boucherie:'Boucherie / Charcuterie',collective:'Restauration collective'})[r.secteur] || r.secteur || '—') + '</div>';
             html += '<div>📞 ' + escapeHtml(r.telephone) + '</div>';
             html += '<div>🍽️ ' + escapeHtml(r.secteur) + (r.nb_repas_jour ? ' — ' + r.nb_repas_jour + ' repas/j' : '') + '</div>';
+            html += '<div>👤 ' + escapeHtml(r.responsable || '—') + '</div>';
+            html += '<div>📞 ' + escapeHtml(r.telephone || '—') + '</div>';
             html += '<div>💰 ' + escapeHtml(r.formule) + ' / ' + escapeHtml(r.engagement) + '</div>';
             if (r.code_genere) html += '<div style="color:#4ade80;font-weight:700">🔑 ' + escapeHtml(r.code_genere) + '</div>';
             html += '</div>';
             if (r.message) html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);font-style:italic;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:10px">💬 ' + escapeHtml(r.message) + '</div>';
+            // RGPD — preuve de consentement (horodatée) ou avertissement si demande antérieure.
+            if (r.rgpd_accepte_le) html += '<div style="font-size:11px;color:#4ade80;margin-bottom:10px">✅ Consentement RGPD accepté le ' + new Date(r.rgpd_accepte_le).toLocaleString('fr-FR') + '</div>';
+            else html += '<div style="font-size:11px;color:#f59e0b;margin-bottom:10px">⚠️ Consentement RGPD non enregistré (demande antérieure à cette fonction)</div>';
             if (r.statut === 'en_attente') {
               html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
               html += '<button onclick="validerDemande(\'' + r.id + '\')" style="background:linear-gradient(135deg,#4ade80,#22c55e);color:#0a0e1a;border:none;padding:8px 16px;border-radius:7px;font-weight:800;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">✅ Valider et envoyer code</button>';
@@ -20755,7 +20816,7 @@ function testEffacerDonnees() {
         if (!c || !window._supabase) return;
         c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Chargement…</div>';
 
-        window._supabase.from('comptes_clients').select('*').order('date_debut', { ascending: false }).then(function(res) {
+        window._supabase.rpc('admin_list_comptes', { p_pwd: _adminPwd }).then(function(res) {
           if (res.error) { c.innerHTML = _formCreerClient() + '<div style="color:#fca5a5;padding:20px">Erreur: ' + escapeHtml(res.error.message) + '</div>'; return; }
           var rows = res.data || [];
           var actifs = rows.filter(function(r) { return r.actif; });
@@ -20812,7 +20873,7 @@ function testEffacerDonnees() {
         if (!c || !window._supabase) return;
         c.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:40px">Chargement…</div>';
 
-        window._supabase.from('historique_admin').select('*').order('date_action', { ascending: false }).limit(100).then(function(res) {
+        window._supabase.rpc('admin_list_historique', { p_pwd: _adminPwd }).then(function(res) {
           if (res.error) { c.innerHTML = '<div style="color:#fca5a5;padding:20px">Erreur: ' + escapeHtml(res.error.message) + '</div>'; return; }
           var rows = res.data || [];
           if (rows.length === 0) {
@@ -20975,11 +21036,11 @@ function testEffacerDonnees() {
           document.getElementById('essaisListe').innerHTML = '<div style="color:#fca5a5;padding:12px">Base indisponible.</div>';
           return;
         }
-        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,adresse,actif,date_debut,date_expiration,responsable,telephone,email,derniere_connexion').or('code_acces.like.ESSAI-%,code_acces.like.EU3J-%,code_acces.like.CLIENT-%').then(function(res) {
+        window._supabase.rpc('admin_list_etablissements', { p_pwd: _adminPwd }).then(function(res) {
           var liste = document.getElementById('essaisListe');
           if (!liste) return;
           if (res.error) { liste.innerHTML = '<div style="color:#fca5a5;padding:12px">Erreur : ' + escapeHtml(res.error.message) + '</div>'; return; }
-          var rows = (res.data || []).sort(function(a,b){ return (b.date_debut||'').localeCompare(a.date_debut||''); });
+          var rows = (res.data || []).filter(function(r){ var _c=String(r.code_acces||''); return _c.indexOf('ESSAI-')===0||_c.indexOf('EU3J-')===0||_c.indexOf('CLIENT-')===0; }).sort(function(a,b){ return (b.date_debut||'').localeCompare(a.date_debut||''); });
           if (rows.length === 0) {
             liste.innerHTML = (estClients ? '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Aucun client pour l\'instant.</div>' : '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:20px">Aucun essai créé pour l\'instant.</div>');
             return;
@@ -21100,9 +21161,9 @@ function testEffacerDonnees() {
       // — MODIFICATION d'un compte (nom, secteur, mot de passe, expiration, verrouillage) —
       window.modifierEtab = function(id, code) {
         if (!window._supabase) return;
-        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,date_expiration,actif').eq('id', id).limit(1).then(function(res){
-          if (res.error || !res.data || !res.data[0]) { alert('Impossible de charger le compte.'); return; }
-          var r = res.data[0];
+        window._supabase.rpc('admin_get_etab', { p_pwd: _adminPwd, p_id: String(id), p_code: null }).then(function(res){
+          if (res.error || !res.data || !res.data.found) { alert('Impossible de charger le compte.'); return; }
+          var r = res.data.data;
           var ex = document.getElementById('modifEtabOverlay'); if (ex) ex.remove();
           var ov = document.createElement('div');
           ov.id = 'modifEtabOverlay';
@@ -21151,8 +21212,8 @@ function testEffacerDonnees() {
         var cfg = await getEssaiConfig();
         var cnt = 0;
         try {
-          var r = await window._supabase.from('etablissements').select('code_acces').like('code_acces', 'EU3J-%');
-          cnt = (r.data || []).length;
+          var r = await window._supabase.rpc('eu3j_stats', { p_email: '' });
+          cnt = (r.data && r.data.count) || 0;
         } catch(e) {}
         var pct = cfg.max > 0 ? Math.min(100, Math.round(cnt / cfg.max * 100)) : 0;
         var etat = cfg.active ? '<span style="color:#4ade80">🟢 Active</span>' : '<span style="color:#f59e0b">🟡 Suspendue</span>';
@@ -21199,97 +21260,38 @@ function testEffacerDonnees() {
       window.validerDemande = function(id) {
         if (!window._supabase) return;
         if (!confirm('Valider cette demande ?\n\nUn code d\'accès sera généré et un email envoyé au client.')) return;
-
-        // Récupérer la demande
-        window._supabase.from('demandes_inscription').select('*').eq('id', id).single().then(function(res) {
-          if (res.error || !res.data) { alert('Erreur: ' + (res.error && res.error.message)); return; }
+        // SEC — toute la validation (création compte + établissement + maj demande +
+        // historique) se fait CÔTÉ SERVEUR via la RPC admin_validate_demande :
+        // écritures atomiques, mot de passe HACHÉ, aucune écriture avec la clé anonyme.
+        var codeAcces = genererCodeAcces();
+        var motDePasse = genererMotDePasse();
+        window._supabase.rpc('admin_validate_demande', {
+          p_pwd: _adminPwd, p_id: id, p_code: codeAcces, p_password: motDePasse
+        }).then(function(res) {
+          if (res.error || !res.data || res.data.ok !== true) {
+            alert('Erreur validation : ' + ((res.error && res.error.message) || 'opération refusée'));
+            return;
+          }
           var d = res.data;
-          var codeAcces = genererCodeAcces();
-          var motDePasse = genererMotDePasse();
-          var dateDebut = new Date().toISOString().slice(0, 10);
-
-          // Créer compte client
-          var compte = {
-            code_acces: codeAcces,
-            mot_de_passe: motDePasse,
-            etablissement: d.etablissement,
-            email: d.email,
-            formule: d.formule,
-            engagement: d.engagement,
-            date_debut: dateDebut,
-            actif: true,
-            demande_id: d.id
-          };
-
-          window._supabase.from('comptes_clients').insert([compte]).then(function(ins) {
-            if (ins.error) { alert('Erreur création compte: ' + ins.error.message); return; }
-
-            // V100 : Créer aussi une ligne dans etablissements pour permettre la connexion
-            // FIX — boucherie et collective tombaient par erreur sur 'resto' →
-            // les clients de ces secteurs étaient enregistrés avec le mauvais
-            // secteur (et, avec le verrouillage, enfermés dans le mauvais métier).
-            var secteurMap = {
-              'resto_trad': 'resto',
-              'boulangerie': 'bp',
-              'fast_food': 'rapide',
-              'boucherie': 'boucherie',
-              'collective': 'collective'
-            };
-            var secteurInterne = secteurMap[d.secteur] || 'resto';
-            var etabRow = {
-              code_acces: codeAcces,
-              mot_de_passe: motDePasse,
-              nom: d.etablissement,
-              secteur: secteurInterne,
-              adresse: d.adresse || '',
-              siret: d.siret || '',
-              // Coordonnées de la fiche d'inscription, reprises dans le PMS du client
-              responsable: d.responsable || '',
-              telephone: d.telephone || '',
-              email: d.email || '',
-              actif: true
-            };
-            window._supabase.from('etablissements').insert([etabRow]).then(function(ie) {
-              if (ie.error) { console.warn('[V100] Erreur insert etablissements (login impossible):', ie.error.message); }
-              else { console.log('[V100] Etablissement créé pour connexion :', codeAcces); }
-            });
-
-            // Mettre à jour la demande
-            window._supabase.from('demandes_inscription').update({
-              statut: 'validee',
-              code_genere: codeAcces,
-              date_traitement: new Date().toISOString()
-            }).eq('id', id).then(function() {
-
-              // Historique
-              window._supabase.from('historique_admin').insert([{
-                action: 'Validation demande',
-                code_concerne: codeAcces,
-                motif: 'Validation pour ' + d.etablissement
-              }]).then(function(){});
-
-              // Email au client
-              if (window.emailjs && window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY && window.HACCP_CONFIG.EMAILJS_TEMPLATE_CLIENT) {
-                try {
-                  window.emailjs.send(
-                    window.HACCP_CONFIG.EMAILJS_SERVICE,
-                    window.HACCP_CONFIG.EMAILJS_TEMPLATE_CLIENT,
-                    {
-                      to_email: d.email,
-                      etablissement: d.etablissement,
-                      responsable: d.responsable,
-                      code_acces: codeAcces,
-                      mot_de_passe: motDePasse,
-                      formule: d.formule
-                    }
-                  );
-                } catch(e) { console.warn('Email client échec:', e); }
-              }
-
-              alert('✅ Validation réussie !\n\nCode généré : ' + codeAcces + '\nMot de passe : ' + motDePasse + '\n\nUn email est envoyé au client.');
-              loadAdminDemandes();
-            });
-          });
+          // Email au client (EmailJS, côté client — le mot de passe vient d'être généré)
+          if (window.emailjs && window.HACCP_CONFIG.EMAILJS_PUBLIC_KEY && window.HACCP_CONFIG.EMAILJS_TEMPLATE_CLIENT) {
+            try {
+              window.emailjs.send(
+                window.HACCP_CONFIG.EMAILJS_SERVICE,
+                window.HACCP_CONFIG.EMAILJS_TEMPLATE_CLIENT,
+                {
+                  to_email: d.email,
+                  etablissement: d.etablissement,
+                  responsable: d.responsable,
+                  code_acces: codeAcces,
+                  mot_de_passe: motDePasse,
+                  formule: d.formule
+                }
+              );
+            } catch(e) { console.warn('Email client échec:', e); }
+          }
+          alert('✅ Validation réussie !\n\nCode généré : ' + codeAcces + '\nMot de passe : ' + motDePasse + '\n\nUn email est envoyé au client.');
+          loadAdminDemandes();
         });
       };
 
@@ -21297,15 +21299,8 @@ function testEffacerDonnees() {
         if (!window._supabase) return;
         var motif = prompt('Motif du refus (sera enregistré) :');
         if (motif === null) return;
-        window._supabase.from('demandes_inscription').update({
-          statut: 'refusee',
-          date_traitement: new Date().toISOString()
-        }).eq('id', id).then(function(res) {
+        window._supabase.rpc('admin_refuse_demande', { p_pwd: _adminPwd, p_id: id, p_motif: motif }).then(function(res) {
           if (res.error) { alert('Erreur: ' + res.error.message); return; }
-          window._supabase.from('historique_admin').insert([{
-            action: 'Refus demande',
-            motif: motif || '(aucun motif)'
-          }]).then(function(){});
           loadAdminDemandes();
         });
       };
@@ -21452,36 +21447,45 @@ function testEffacerDonnees() {
       // existant n'est relu), et on synchronise le nom dans comptes_clients.
       window.modifierClient = function(code) {
         if (!window._supabase) return;
-        window._supabase.from('etablissements').select('id,code_acces,nom,secteur,multi_secteur,date_expiration,actif').eq('code_acces', code).limit(1).then(function(res){
-          if (res.error || !res.data || !res.data.length) { alert('Fiche d\'acc\u00e8s introuvable pour ' + code + (res.error ? ' (' + res.error.message + ')' : '')); return; }
-          var r = res.data[0];
-          var nom = prompt('Nom de l\'\u00e9tablissement :', r.nom || '');
-          if (nom === null) return;
-          nom = nom.trim();
-          if (!nom) { alert('Le nom ne peut pas \u00eatre vide.'); return; }
-          var secActuel = r.secteur || '';
-          var sect = prompt('Secteur (resto, bp, rapide, boucherie, collective) :', secActuel);
-          if (sect === null) return;
-          sect = sect.trim().toLowerCase();
-          var ok = ['resto','bp','rapide','boucherie','collective'];
-          if (ok.indexOf(sect) === -1) { alert('Secteur invalide. Valeurs possibles : ' + ok.join(', ')); return; }
-          var npwd = prompt('Nouveau mot de passe ? (laisser vide = inchang\u00e9)', '');
-          if (npwd === null) return;
-          npwd = npwd.trim();
-
-          var patch = { nom: nom, secteur: sect };
-          if (npwd) patch.mot_de_passe = npwd;
-          window._supabase.from('etablissements').update(patch).eq('code_acces', code).then(function(u){
-            if (u.error) { alert('Erreur modification : ' + u.error.message); return; }
-            // Synchroniser le nom affiché dans la fiche
-            window._supabase.from('comptes_clients').update({ etablissement: nom }).eq('code_acces', code).then(function(){});
-            window._supabase.from('historique_admin').insert([{
-              action: 'Modification client', code_concerne: code,
-              motif: 'Nom : ' + nom + ' \u2014 secteur : ' + sect + (npwd ? ' \u2014 mot de passe chang\u00e9' : '')
-            }]).then(function(){});
-            alert('\u2705 Client modifi\u00e9.' + (npwd ? '\n\nNouveau mot de passe : ' + npwd : ''));
-            loadAdminClients();
-          });
+        window._supabase.rpc('admin_get_etab', { p_pwd: _adminPwd, p_id: null, p_code: code }).then(function(res){
+          if (res.error || !res.data || !res.data.found) { alert('Fiche d\'accès introuvable pour ' + code + (res.error ? ' (' + res.error.message + ')' : '')); return; }
+          var r = res.data.data;
+          var ex = document.getElementById('modifClientOverlay'); if (ex) ex.remove();
+          var ov = document.createElement('div');
+          ov.id = 'modifClientOverlay';
+          ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,26,.7);z-index:99999;overflow:auto;padding:16px;box-sizing:border-box';
+          var SEC = [['resto','Restauration traditionnelle'],['bp','Boulangerie / Pâtisserie'],['rapide','Restauration rapide'],['boucherie','Boucherie / Charcuterie'],['collective','Restauration collective']];
+          var opts = SEC.map(function(o){ return '<option value="'+o[0]+'"'+(r.secteur===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+          var inp = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;margin-bottom:12px;background:#fff;color:#0f172a';
+          var lab = 'font-size:12px;color:#334155;font-weight:600;display:block;margin-bottom:4px';
+          ov.innerHTML = '<div style="max-width:460px;margin:28px auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.4)">'
+            + '<h3 style="margin:0 0 2px;color:#0f172a">✏️ Modifier ' + escapeHtml(code) + '</h3>'
+            + '<div style="font-size:12px;color:#64748b;margin-bottom:14px">Modifiez les informations puis enregistrez.</div>'
+            + '<label style="'+lab+'">Nom de l\'établissement</label><input id="mc_nom" value="' + escapeHtml(r.nom || '') + '" style="' + inp + '">'
+            + '<label style="'+lab+'">Secteur d\'activité</label><select id="mc_secteur" style="' + inp + '">' + opts + '</select>'
+            + '<label style="'+lab+'">Responsable</label><input id="mc_resp" value="' + escapeHtml(r.responsable || '') + '" style="' + inp + '">'
+            + '<label style="'+lab+'">Email</label><input id="mc_email" type="email" value="' + escapeHtml(r.email || '') + '" style="' + inp + '">'
+            + '<label style="'+lab+'">Téléphone</label><input id="mc_tel" type="tel" value="' + escapeHtml(r.telephone || '') + '" style="' + inp + '">'
+            + '<div style="font-size:11px;color:#94a3b8;margin:-4px 0 12px">Mot de passe : le client utilise « Mot de passe oublié » (réinitialisation sécurisée).</div>'
+            + '<div style="display:flex;gap:8px"><button onclick="sauverModifClient(\'' + escapeHtml(code) + '\')" style="flex:1;background:#16a34a;color:#fff;border:none;padding:11px;border-radius:9px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">💾 Enregistrer</button>'
+            + '<button onclick="document.getElementById(\'modifClientOverlay\').remove()" style="flex:1;background:#e2e8f0;color:#0f172a;border:none;padding:11px;border-radius:9px;cursor:pointer;font-family:Outfit,sans-serif">Annuler</button></div>'
+            + '</div>';
+          document.body.appendChild(ov);
+        });
+      };
+      window.sauverModifClient = function(code) {
+        if (!window._supabase) return;
+        var nom = ((document.getElementById('mc_nom') || {}).value || '').trim();
+        var sect = (document.getElementById('mc_secteur') || {}).value || 'resto';
+        var resp = ((document.getElementById('mc_resp') || {}).value || '').trim();
+        var email = ((document.getElementById('mc_email') || {}).value || '').trim();
+        var tel = ((document.getElementById('mc_tel') || {}).value || '').trim();
+        if (!nom) { alert('Le nom ne peut pas être vide.'); return; }
+        window._supabase.rpc('admin_update_client', { p_pwd: _adminPwd, p_code: code, p_nom: nom, p_secteur: sect, p_email: email, p_tel: tel, p_resp: resp }).then(function(u){
+          if (u.error || !u.data || u.data.ok !== true) { alert('Erreur modification : ' + ((u.error && u.error.message) || 'opération refusée')); return; }
+          var ov = document.getElementById('modifClientOverlay'); if (ov) ov.remove();
+          alert('✅ Client modifié.');
+          loadAdminClients();
         });
       };
 
@@ -22400,79 +22404,100 @@ function ouvrirMesRapports() {
   document.body.appendChild(overlay);
   overlay.scrollTop = 0;
 
+  // V285 — Affichage INSTANTANÉ : on remplit la liste tout de suite avec les contrôles
+  // déjà présents sur l'appareil (cache mémoire + localStorage), SANS attendre le réseau.
+  // Le cloud ne sert qu'à compléter avec d'éventuels contrôles d'AUTRES appareils : on
+  // le rafraîchit donc en arrière-plan, puis on re-remplit la liste quand il répond.
+  _peuplerListeRapports(content, true);
   (async function() {
-    try { if (typeof chargerControlesCloudCache === 'function') await chargerControlesCloudCache(); } catch(e) {}
-    var rows = window._histoCloudRows || {};
-    // FUSION local + cloud : « Mes rapports » lisait UNIQUEMENT le cloud, donc
-    // un contrôle validé mais pas encore synchronisé (réseau / watcher 3 s /
-    // onglet fermé vite) était invisible ici alors qu'il l'est dans le Pack.
-    // On complète avec les contrôles encore en localStorage du compte courant.
     try {
-      var etabKey = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : 'local';
-      var seenSig = {};
-      Object.keys(rows).forEach(function(t){
-        var rr = rows[t] || {}; var cc = rr.contenu || {};
-        var pp = cc.pageId || rr.module || '';
-        seenSig[pp + '|' + (cc.timestamp || t) + '|' + (cc.signe || cc.signataire || '') + '|' + (cc.uid || '')] = true;
-      });
-      if (typeof localStorage !== 'undefined') {
-        for (var li = 0; li < localStorage.length; li++) {
-          var lk = localStorage.key(li);
-          if (!lk || lk.indexOf('haccp_module_data_page-') !== 0) continue;
-          if (lk.indexOf('_' + etabKey) === -1) continue; // compte courant uniquement
-          var arr = [];
-          try { arr = JSON.parse(localStorage.getItem(lk) || '[]'); } catch(eP) { continue; }
-          if (!Array.isArray(arr)) continue;
-          arr.forEach(function(entry){
-            var c = (entry && entry.data) ? entry.data : entry;
-            if (!c) return;
-            if (typeof _secteurActifMatch === 'function' && !_secteurActifMatch(c)) return; // autre secteur
-            var pid = c.pageId || (entry && entry.pageId) || '';
-            var tsL = (entry && entry.timestamp) || c.timestamp || '';
-            if (!tsL) return;
-            var sig = pid + '|' + (c.timestamp || tsL) + '|' + (c.signe || c.signataire || '') + '|' + (c.uid || '');
-            if (seenSig[sig]) return; // déjà présent (cloud)
-            seenSig[sig] = true;
-            var keyTs = tsL;
-            while (rows[keyTs]) { keyTs = new Date(new Date(keyTs).getTime() + 1).toISOString(); }
-            rows[keyTs] = { module: (c.module || (pid ? pid.replace('page-','') : 'Contrôle')), contenu: c, photos: [] };
-          });
-        }
+      if (typeof chargerControlesCloudCache === 'function') {
+        await _packAvecDelaiMax(chargerControlesCloudCache(), 8000);
       }
-      window._histoCloudRows = rows;
-    } catch(eMerge) { console.warn('fusion local rapports:', eMerge && eMerge.message); }
-    var keys = Object.keys(rows).sort(function(a, b) { return new Date(b) - new Date(a); })
-      .filter(function(t){
-        var rr = rows[t] || {};
-        // Exclure les enregistrements INTERNES (équipe, enceintes, listes mémorisées
-        // « memo », configs…) : leur nom de module est entouré de doubles underscores
-        // (__xxx__). Ce ne sont PAS des contrôles → ils ne doivent pas apparaître dans
-        // « Mes rapports » (et ils ne s'ouvraient pas au clic).
-        var _mod = String(rr.module || (rr.contenu && rr.contenu.module) || '');
-        if (/^__.*__$/.test(_mod)) return false;
-        // isolation par secteur actif (cloud + local)
-        return (typeof _secteurActifMatch !== 'function') || _secteurActifMatch(rr.contenu || {});
-      });
-    if (keys.length === 0) {
-      content.innerHTML = '<div style="text-align:center;color:#6b7280;padding:30px 16px;font-size:14px">Aucun contrôle trouvé pour le moment.<br><span style="font-size:12px">Vos contrôles validés apparaîtront ici automatiquement.</span></div>';
-      return;
-    }
-    var html = '<div style="font-size:12px;color:#6b7280;margin-bottom:12px">' + keys.length + ' contrôle' + (keys.length > 1 ? 's' : '') + ' enregistré' + (keys.length > 1 ? 's' : '') + '. Touchez un contrôle pour ouvrir son rapport complet.</div>';
-    keys.forEach(function(ts) {
-      var r = rows[ts] || {};
-      var contenu = r.contenu || {};
-      var d = new Date(ts);
-      var ok = !isNaN(d.getTime());
-      var dateStr = ok ? (d.toLocaleDateString('fr-FR') + ' à ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0')) : '';
-      var sig = (contenu && (contenu.signe || contenu.signataire)) || '';
-      var tsAttr = String(ts).replace(/'/g, "\\'");
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:10px;background:#fff">' +
-                '<div style="font-size:13px;min-width:0"><strong style="color:#1e293b">' + _titreModuleLisible(r.module) + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
-                '<button type="button" class="btn-p" style="white-space:nowrap;padding:9px 14px;font-size:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer" onclick="reimprimerControleCloud(\'' + tsAttr + '\')">Voir / Imprimer</button>' +
-              '</div>';
-    });
-    content.innerHTML = html;
+    } catch(e) {}
+    var c = document.getElementById('mesRapportsListe');
+    if (c) _peuplerListeRapports(c, false);
   })();
+}
+
+// V285 — Construit (ou reconstruit) la liste « Mes rapports » à partir des données déjà
+// disponibles (cache cloud en mémoire + localStorage du compte courant). N'effectue
+// AUCUN appel réseau → instantané. `attenteCloud`=true affiche « Chargement… » au lieu
+// de « Aucun contrôle » tant que le rafraîchissement cloud en arrière-plan n'est pas fini.
+function _peuplerListeRapports(content, attenteCloud) {
+  if (!content) return;
+  var rows = window._histoCloudRows || {};
+  // FUSION local + cloud : « Mes rapports » lisait UNIQUEMENT le cloud, donc
+  // un contrôle validé mais pas encore synchronisé (réseau / watcher 3 s /
+  // onglet fermé vite) était invisible ici alors qu'il l'est dans le Pack.
+  // On complète avec les contrôles encore en localStorage du compte courant.
+  try {
+    var etabKey = (typeof ETAB_ID !== 'undefined' && ETAB_ID) ? String(ETAB_ID) : 'local';
+    var seenSig = {};
+    Object.keys(rows).forEach(function(t){
+      var rr = rows[t] || {}; var cc = rr.contenu || {};
+      var pp = cc.pageId || rr.module || '';
+      seenSig[pp + '|' + (cc.timestamp || t) + '|' + (cc.signe || cc.signataire || '') + '|' + (cc.uid || '')] = true;
+    });
+    if (typeof localStorage !== 'undefined') {
+      for (var li = 0; li < localStorage.length; li++) {
+        var lk = localStorage.key(li);
+        if (!lk || lk.indexOf('haccp_module_data_page-') !== 0) continue;
+        if (lk.indexOf('_' + etabKey) === -1) continue; // compte courant uniquement
+        var arr = [];
+        try { arr = JSON.parse(localStorage.getItem(lk) || '[]'); } catch(eP) { continue; }
+        if (!Array.isArray(arr)) continue;
+        arr.forEach(function(entry){
+          var c = (entry && entry.data) ? entry.data : entry;
+          if (!c) return;
+          if (typeof _secteurActifMatch === 'function' && !_secteurActifMatch(c)) return; // autre secteur
+          var pid = c.pageId || (entry && entry.pageId) || '';
+          var tsL = (entry && entry.timestamp) || c.timestamp || '';
+          if (!tsL) return;
+          var sig = pid + '|' + (c.timestamp || tsL) + '|' + (c.signe || c.signataire || '') + '|' + (c.uid || '');
+          if (seenSig[sig]) return; // déjà présent (cloud)
+          seenSig[sig] = true;
+          var keyTs = tsL;
+          while (rows[keyTs]) { keyTs = new Date(new Date(keyTs).getTime() + 1).toISOString(); }
+          rows[keyTs] = { module: (c.module || (pid ? pid.replace('page-','') : 'Contrôle')), contenu: c, photos: [] };
+        });
+      }
+    }
+    window._histoCloudRows = rows;
+  } catch(eMerge) { console.warn('fusion local rapports:', eMerge && eMerge.message); }
+  var keys = Object.keys(rows).sort(function(a, b) { return new Date(b) - new Date(a); })
+    .filter(function(t){
+      var rr = rows[t] || {};
+      // Exclure les enregistrements INTERNES (équipe, enceintes, listes mémorisées
+      // « memo », configs…) : leur nom de module est entouré de doubles underscores
+      // (__xxx__). Ce ne sont PAS des contrôles → ils ne doivent pas apparaître dans
+      // « Mes rapports » (et ils ne s'ouvraient pas au clic).
+      var _mod = String(rr.module || (rr.contenu && rr.contenu.module) || '');
+      if (/^__.*__$/.test(_mod)) return false;
+      // isolation par secteur actif (cloud + local)
+      return (typeof _secteurActifMatch !== 'function') || _secteurActifMatch(rr.contenu || {});
+    });
+  if (keys.length === 0) {
+    content.innerHTML = attenteCloud
+      ? '<div style="text-align:center;color:#6b7280;padding:30px 0;font-size:14px">Chargement de vos contrôles…</div>'
+      : '<div style="text-align:center;color:#6b7280;padding:30px 16px;font-size:14px">Aucun contrôle trouvé pour le moment.<br><span style="font-size:12px">Vos contrôles validés apparaîtront ici automatiquement.</span></div>';
+    return;
+  }
+  var html = '<div style="font-size:12px;color:#6b7280;margin-bottom:12px">' + keys.length + ' contrôle' + (keys.length > 1 ? 's' : '') + ' enregistré' + (keys.length > 1 ? 's' : '') + '. Touchez un contrôle pour ouvrir son rapport complet.</div>';
+  keys.forEach(function(ts) {
+    var r = rows[ts] || {};
+    var contenu = r.contenu || {};
+    var d = new Date(ts);
+    var ok = !isNaN(d.getTime());
+    var dateStr = ok ? (d.toLocaleDateString('fr-FR') + ' à ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0')) : '';
+    var sig = (contenu && (contenu.signe || contenu.signataire)) || '';
+    var tsAttr = String(ts).replace(/'/g, "\\'");
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:10px;background:#fff">' +
+              '<div style="font-size:13px;min-width:0"><strong style="color:#1e293b">' + _titreModuleLisible(r.module) + '</strong><br><span style="color:#64748b;font-size:12px">' + dateStr + (sig ? ' — ' + sig : '') + '</span></div>' +
+              '<button type="button" class="btn-p" style="white-space:nowrap;padding:9px 14px;font-size:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer" onclick="reimprimerControleCloud(\'' + tsAttr + '\')">Voir / Imprimer</button>' +
+            '</div>';
+  });
+  content.innerHTML = html;
 }
 
 (function() {
