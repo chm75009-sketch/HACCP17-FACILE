@@ -2,7 +2,7 @@
 // SW-7 — Jeton de version unique côté application. DOIT correspondre au nom de
 // cache du Service Worker (sw.js : 'haccp-pro-vXX'). Centralisé ici pour éviter
 // des numéros de version désynchronisés affichés dans l'app.
-var APP_BUILD = 'v364';
+var APP_BUILD = 'v365';
 try { if (window.history && 'scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch(e){}
 // MISE À JOUR FIABLE & UNIVERSELLE — on lit la version RÉELLEMENT déployée (ver.txt,
 // sans cache) et on compare à la version qui tourne. Si l'appareil est sur un vieux
@@ -21401,13 +21401,13 @@ function testEffacerDonnees() {
           _refreshAdminListe();
         }
 
-        window._supabase.from('etablissements').insert([etabRow]).then(function(res) {
+        window._supabase.rpc('admin_creer_etab', { p_pwd: _adminPwd, p_row: etabRow }).then(function(res) {
           if (res.error) {
             // Colonnes contact (responsable/telephone/email) peut-être absentes du
             // schéma → on réessaie sans elles pour ne jamais bloquer la création.
             var msg = (res.error && res.error.message) || '';
             if (/column|responsable|telephone|email|schema cache|PGRST/i.test(msg)) {
-              window._supabase.from('etablissements').insert([etabBase]).then(function(res2) {
+              window._supabase.rpc('admin_creer_etab', { p_pwd: _adminPwd, p_row: etabBase }).then(function(res2) {
                 if (res2.error) {
                   alert('Erreur création de l\'essai : ' + res2.error.message);
                   if (btn) { btn.disabled = false; btn.textContent = '🎁 Créer le code d\'essai'; }
@@ -21849,11 +21849,11 @@ function testEffacerDonnees() {
         }
 
         // 1) Accès (etablissements) — indispensable pour la connexion
-        window._supabase.from('etablissements').insert([etabRow]).then(function(re) {
+        window._supabase.rpc('admin_creer_etab', { p_pwd: _adminPwd, p_row: etabRow }).then(function(re) {
           if (re.error) {
             var m = (re.error && re.error.message) || '';
             if (/column|responsable|telephone|email|schema cache|PGRST/i.test(m)) {
-              window._supabase.from('etablissements').insert([etabBase]).then(function(re2){
+              window._supabase.rpc('admin_creer_etab', { p_pwd: _adminPwd, p_row: etabBase }).then(function(re2){
                 if (re2.error) { alert('Erreur cr\u00e9ation acc\u00e8s : ' + re2.error.message); if (btn){btn.disabled=false;btn.textContent='\ud83d\udc65 Cr\u00e9er le compte client';} return; }
                 window._supabase.rpc('admin_creer_compte', { p_pwd: _adminPwd, p_code_acces: compte.code_acces, p_mot_de_passe: compte.mot_de_passe, p_etablissement: compte.etablissement, p_email: compte.email, p_formule: compte.formule, p_engagement: compte.engagement, p_date_debut: compte.date_debut }).then(function(rc){
                   if (rc.error) { alert('Compte cr\u00e9\u00e9 pour la connexion mais erreur fiche : ' + rc.error.message); }
