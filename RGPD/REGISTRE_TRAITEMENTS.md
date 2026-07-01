@@ -1,7 +1,8 @@
 # Registre des activités de traitement (art. 30 RGPD)
 
-> HACCP Pro (HACCP17-FACILE) — Responsable : {{RAISON SOCIALE}}.
-> Dernière mise à jour : 2026-06-07.
+> HACCP Pro (HACCP17-FACILE) — Responsable : RTH NETGOCE (SARL), SIRET 444 244 776 00019,
+> 49 rue de Douai, 75009 Paris. Contact RGPD : r.t.h@orange.fr.
+> Dernière mise à jour : 2026-07-01.
 
 ## Traitement 1 — Gestion des comptes établissements
 - **Finalité** : créer et authentifier les comptes clients, facturer.
@@ -10,7 +11,7 @@
 - **Données** : nom commercial, SIRET, adresse, e-mail, code d'accès, mot de passe (haché).
 - **Destinataires** : éditeur, hébergeur (Supabase).
 - **Conservation** : durée du contrat + 3 ans (preuve, prescription commerciale).
-- **Transferts hors UE** : non (hébergement UE — {{À CONFIRMER}}).
+- **Transferts hors UE** : non (hébergement Supabase / AWS Irlande).
 - **Sécurité** : Auth (hash bcrypt), HTTPS, RLS.
 
 ## Traitement 2 — Enregistrements d'autocontrôle HACCP
@@ -41,6 +42,6 @@
 ## Sous-traitants (art. 28)
 | Sous-traitant | Rôle | Localisation | Garanties |
 |---|---|---|---|
-| Supabase | Base de données + stockage | {{RÉGION UE à confirmer}} | DPA, hébergement UE |
-| EmailJS | Envoi d'e-mails | {{À CONFIRMER}} | DPA |
-| GitHub Pages | Hébergement de l'app statique | {{À CONFIRMER}} | — |
+| Supabase (AWS) | Base de données + stockage | Union européenne — Irlande (eu-west-1) | DPA, hébergement UE |
+| EmailJS | Envoi d'e-mails | États-Unis | CCT / Data Privacy Framework |
+| GitHub Pages | Hébergement de l'app statique | États-Unis | CCT / Data Privacy Framework |

@@ -1,9 +1,9 @@
 # Procédure — Droit à l'effacement & résiliation
 
-> HACCP Pro (HACCP17-FACILE). Dernière mise à jour : 2026-06-07.
+> HACCP Pro (HACCP17-FACILE). Dernière mise à jour : 2026-07-01.
 
 ## 1. Réception de la demande
-- Canal : {{EMAIL CONTACT RGPD}}.
+- Canal : r.t.h@orange.fr.
 - Vérifier l'identité du demandeur (responsable de l'établissement).
 - Enregistrer la date (délai de réponse RGPD : **1 mois**).
 

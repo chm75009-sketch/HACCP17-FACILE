@@ -1,12 +1,11 @@
 # Politique de confidentialité — HACCP Pro (HACCP17-FACILE)
 
-> Dernière mise à jour : 2026-06-07.
-> Champs à personnaliser repérés par `{{À COMPLÉTER}}`.
+> Dernière mise à jour : 2026-07-01.
 
 ## 1. Responsable du traitement
-- **Éditeur** : {{RAISON SOCIALE}} — {{FORME JURIDIQUE}}, SIRET {{SIRET}}.
-- **Adresse** : {{ADRESSE}}.
-- **Contact / délégué** : {{EMAIL CONTACT RGPD}} (ou DPO si désigné).
+- **Éditeur** : RTH NETGOCE — SARL, SIRET 444 244 776 00019.
+- **Adresse** : 49 rue de Douai, 75009 Paris.
+- **Contact RGPD** : r.t.h@orange.fr — 06 61 47 61 65 (aucun DPO obligatoire au regard de l'activité).
 
 ## 2. Données que nous traitons
 HACCP Pro est un outil d'autocontrôle sanitaire pour les professionnels des
@@ -33,8 +32,9 @@ publicitaires.
 ## 4. Destinataires
 - L'établissement client lui-même (cloisonnement par compte).
 - **Sous-traitant d'hébergement** : Supabase (base de données et stockage),
-  région **{{RÉGION UE — à confirmer, ex. eu-central-1}}**.
-- **Envoi d'e-mails** : EmailJS (souscription / contact), le cas échéant.
+  **Union européenne — AWS région Irlande (eu-west-1)**.
+- **Envoi d'e-mails** : EmailJS (souscription / contact) — États-Unis, garanties
+  appropriées (clauses contractuelles types / Data Privacy Framework).
 - Sur réquisition : autorités de contrôle (DDPP) à la demande de l'établissement.
 
 ## 5. Durées de conservation
@@ -46,7 +46,7 @@ définitive sous 30 jours (cf. `PROCEDURE_DROIT_OUBLI.md`).
 ## 6. Vos droits (art. 15 à 22 RGPD)
 Vous disposez des droits d'**accès**, **rectification**, **effacement**,
 **limitation**, **opposition** et **portabilité**. Pour les exercer :
-{{EMAIL CONTACT RGPD}}. Réponse sous 1 mois. Réclamation possible auprès de la
+r.t.h@orange.fr. Réponse sous 1 mois. Réclamation possible auprès de la
 **CNIL** (cnil.fr).
 
 ## 7. Sécurité

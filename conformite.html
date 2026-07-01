@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centre de confidentialité & conformité RGPD — HACCP Pro</title>
+<meta name="description" content="Centre de confidentialité HACCP Pro : ce que nous faisons de vos données, vos droits RGPD, et des outils pour exporter ou effacer vos données en un clic. Édité par RTH NETGOCE.">
+<!-- 3.1 — Anti-clickjacking (GitHub Pages ne permet pas l'en-tête X-Frame-Options : protection par script) -->
+<script>if (self !== top) { try { top.location = self.location; } catch(e) { document.documentElement.style.display='none'; } }</script>
+<style>
+  :root{
+    --ink:#0f172a;--body:#475569;--dim:#94a3b8;--line:#e2e8f0;
+    --indigo:#4338ca;--indigo-soft:#eef2ff;--indigo-ink:#3730a3;
+    --green:#059669;--green-soft:#ecfdf5;--green-line:#a7f3d0;
+    --amber:#b45309;--amber-soft:#fff7ed;--amber-line:#fed7aa;
+    --card:#ffffff;--bg:#f8fafc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6}
+  .wrap{max-width:820px;margin:0 auto;padding:20px 18px 72px}
+  a{color:var(--indigo)}
+  .top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+  .back{text-decoration:none;color:var(--indigo);font-weight:700;font-size:13px}
+  .nav a{display:inline-block;background:var(--indigo-soft);color:var(--indigo);text-decoration:none;padding:7px 12px;border-radius:9px;font-size:12px;font-weight:700;margin-left:6px;margin-bottom:4px}
+
+  /* Hero */
+  .hero{position:relative;overflow:hidden;background:linear-gradient(150deg,#0a0e1a 0%,#1a2535 100%);border-radius:22px;padding:30px 24px;color:#fff;box-shadow:0 18px 46px rgba(10,14,26,.28)}
+  .hero::before{content:'';position:absolute;top:-90px;right:-70px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.20) 0%,transparent 70%);pointer-events:none}
+  .hero .badge-shield{width:52px;height:52px;border-radius:15px;background:linear-gradient(135deg,#10b981,#34d399);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(16,185,129,.45);font-size:26px}
+  .hero h1{font-size:25px;font-weight:900;letter-spacing:-.4px;margin:16px 0 6px;line-height:1.15;position:relative;z-index:1}
+  .hero h1 em{color:#34d399;font-style:normal}
+  .hero p{font-size:13px;color:rgba(255,255,255,.72);margin:0;max-width:560px;position:relative;z-index:1}
+  .hero .maj{font-size:11px;color:rgba(255,255,255,.4);margin-top:14px;position:relative;z-index:1}
+
+  /* Trust badges */
+  .trust{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0 8px}
+  .tb{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .tb .ico{font-size:20px;line-height:1;flex-shrink:0}
+  .tb b{display:block;font-size:12.5px;color:var(--ink)}
+  .tb span{font-size:11px;color:var(--dim);line-height:1.4}
+
+  section{margin-top:30px}
+  h2{font-size:18px;color:var(--ink);margin:0 0 4px;letter-spacing:-.2px}
+  h2 .em{font-size:19px;margin-right:7px}
+  .lead{font-size:13px;color:var(--body);margin:0 0 14px}
+  p,li{color:var(--body);font-size:13px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card+.card{margin-top:10px}
+
+  /* Tool cards (self-service) */
+  .tool{display:flex;gap:14px;align-items:flex-start}
+  .tool .t-ico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
+  .t-ico.g{background:var(--green-soft);border:1px solid var(--green-line)}
+  .t-ico.i{background:var(--indigo-soft);border:1px solid #c7d2fe}
+  .t-ico.a{background:var(--amber-soft);border:1px solid var(--amber-line)}
+  .tool h3{font-size:14px;margin:0 0 3px;color:var(--ink)}
+  .tool p{margin:0 0 10px;font-size:12.5px}
+  .btn{appearance:none;border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px;border-radius:11px;padding:10px 16px;display:inline-flex;align-items:center;gap:7px;transition:transform .12s,box-shadow .15s,filter .15s}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 6px 16px rgba(5,150,105,.28)}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .btn.indigo{background:var(--indigo-soft);color:var(--indigo)}
+  .btn.ghost{background:#f1f5f9;color:#334155}
+  .btn.danger{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+  .btn.danger:hover{background:#fee2e2}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+  .out{margin-top:12px;font-size:12px;border-radius:11px;padding:11px 13px;display:none}
+  .out.show{display:block}
+  .out.ok{background:var(--green-soft);border:1px solid var(--green-line);color:#065f46}
+  .out.err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c}
+  .out.info{background:var(--indigo-soft);border:1px solid #c7d2fe;color:var(--indigo-ink)}
+  .inv{margin-top:12px;display:none}
+  .inv.show{display:block}
+  .inv table{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .inv th{background:var(--indigo-soft);color:var(--indigo-ink);text-align:left;padding:7px 10px;font-size:11px}
+  .inv td{padding:7px 10px;border-top:1px solid #eef2f7;color:var(--body);vertical-align:top}
+  .inv td.sz{font-family:'JetBrains Mono',ui-monospace,monospace;color:var(--dim);white-space:nowrap;text-align:right}
+  .inv tfoot td{font-weight:700;color:var(--ink);border-top:2px solid var(--line);background:#fafafa}
+
+  /* Rights grid */
+  .rights{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+  .right{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px}
+  .right .rh{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .right .rh .em{font-size:16px}
+  .right b{font-size:13px;color:var(--ink)}
+  .right p{margin:0;font-size:12px;color:var(--body)}
+
+  /* Tables */
+  table.data{border-collapse:collapse;width:100%;background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--line);font-size:12.5px}
+  table.data th{background:var(--indigo-soft);color:var(--indigo-ink);text-align:left;padding:9px 11px;font-size:11.5px;vertical-align:top}
+  table.data td{padding:9px 11px;border-top:1px solid #eef2f7;color:var(--body);vertical-align:top}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:2px 9px}
+  .pill.ue{background:var(--green-soft);color:#065f46;border:1px solid var(--green-line)}
+  .pill.us{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber-line)}
+
+  .contact{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+  .contact .who{font-size:13px;color:var(--body)}
+  .contact a.mail{margin-left:auto}
+  .maj{font-size:11px;color:var(--dim);margin-top:30px;text-align:center;line-height:1.6}
+  .note{font-size:11.5px;color:var(--dim);margin-top:6px}
+  @media(max-width:520px){.hero{padding:24px 18px}.hero h1{font-size:22px}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="top">
+      <a class="back" href="index.html">← Retour</a>
+      <div class="nav">
+        <a href="politique-confidentialite.html">Confidentialité</a>
+        <a href="registre-traitements.html">Registre RGPD</a>
+        <a href="mentions.html">Mentions légales</a>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="badge-shield">🛡️</div>
+      <h1>Vos données vous appartiennent.<br><em>Voici tout ce que nous en faisons.</em></h1>
+      <p>HACCP Pro est un outil d'autocontrôle sanitaire. Nous collectons le strict nécessaire, nous ne vendons jamais rien, et vous gardez la main : exportez ou effacez vos données quand vous voulez, depuis cette page.</p>
+      <div class="maj">Édité par RTH NETGOCE · Dernière mise à jour : 01/07/2026</div>
+    </div>
+
+    <!-- TRUST BADGES -->
+    <div class="trust">
+      <div class="tb"><div class="ico">🇪🇺</div><div><b>Hébergement UE</b><span>Base &amp; photos chez Supabase (AWS Irlande). Aucune donnée d'autocontrôle hors Union européenne.</span></div></div>
+      <div class="tb"><div class="ico">🔒</div><div><b>Chiffré &amp; cloisonné</b><span>HTTPS de bout en bout, Row Level Security : chaque établissement ne voit que ses données.</span></div></div>
+      <div class="tb"><div class="ico">🚫</div><div><b>Zéro publicité</b><span>Aucun cookie publicitaire, aucun traceur tiers, aucune revente de données.</span></div></div>
+      <div class="tb"><div class="ico">🔑</div><div><b>Mots de passe hachés</b><span>Jamais stockés en clair (bcrypt). L'accès admin est protégé par coffre-fort (Vault).</span></div></div>
+    </div>
+
+    <!-- SELF-SERVICE TOOLS -->
+    <section>
+      <h2><span class="em">⚙️</span>Vos données, en libre-service</h2>
+      <p class="lead">Ces outils agissent sur les données conservées <strong>par cet appareil</strong> (brouillons, préférences, session hors-ligne). Rien n'est envoyé : tout se passe dans votre navigateur.</p>
+
+      <div class="card">
+        <div class="tool">
+          <div class="t-ico g">📦</div>
+          <div style="flex:1;min-width:0">
+            <h3>Exporter mes données (portabilité)</h3>
+            <p>Téléchargez, dans un fichier lisible (JSON), l'ensemble des données que HACCP Pro conserve sur cet appareil. Idéal avant de changer de téléphone ou de nettoyer votre navigateur.</p>
+            <div class="btn-row">
+              <button class="btn primary" onclick="exportData()">📦 Exporter mes données</button>
+              <button class="btn ghost" onclick="toggleInventory()">👁️ Voir le détail</button>
+            </div>
+            <div id="expOut" class="out"></div>
+            <div id="inv" class="inv"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tool">
+          <div class="t-ico a">🧹</div>
+          <div style="flex:1;min-width:0">
+            <h3>Effacer mes données locales (droit à l'effacement)</h3>
+            <p>Supprime de <strong>cet appareil</strong> les brouillons, préférences et la session. Vos relevés déjà synchronisés restent en sécurité côté serveur — pour un effacement complet côté serveur, voir plus bas.</p>
+            <div class="out info show" style="margin:0 0 10px">💡 Conseil : <strong>exportez d'abord</strong> vos données ci-dessus. Un brouillon non encore synchronisé serait définitivement perdu.</div>
+            <div class="btn-row">
+              <button class="btn danger" onclick="eraseLocal()">🧹 Effacer les données de cet appareil</button>
+            </div>
+            <div id="eraseOut" class="out"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tool">
+          <div class="t-ico i">✉️</div>
+          <div style="flex:1;min-width:0">
+            <h3>Effacement complet / exercer un autre droit</h3>
+            <p>Pour l'effacement de votre compte et de vos données côté serveur, ou pour exercer l'un de vos droits (accès, rectification, limitation, opposition), écrivez-nous : réponse sous 1&nbsp;mois.</p>
+            <div class="btn-row">
+              <a class="btn indigo" href="mailto:r.t.h@orange.fr?subject=Demande%20RGPD%20-%20HACCP%20Pro&amp;body=Bonjour%2C%0A%0AJe%20souhaite%20exercer%20le%20droit%20suivant%20(acc%C3%A8s%20%2F%20rectification%20%2F%20effacement%20%2F%20limitation%20%2F%20opposition%20%2F%20portabilit%C3%A9)%20%3A%0A%0A-%20Droit%20concern%C3%A9%20%3A%20%0A-%20%C3%89tablissement%20%2F%20identifiant%20de%20compte%20%3A%20%0A%0AMerci.">✉️ Envoyer une demande RGPD</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT WE COLLECT -->
+    <section>
+      <h2><span class="em">📋</span>Ce que nous collectons, et pourquoi</h2>
+      <p class="lead">En clair, sans jargon. Le détail juridique complet est dans la <a href="politique-confidentialite.html">Politique de confidentialité</a> et le <a href="registre-traitements.html">Registre des traitements</a>.</p>
+      <table class="data">
+        <thead><tr><th style="width:32%">Donnée</th><th style="width:38%">Pourquoi</th><th>Combien de temps</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Identité de l'établissement</strong><br><span style="color:var(--dim)">nom, SIRET, adresse, e-mail, téléphone</span></td><td>Créer et gérer votre compte, facturer.</td><td>Durée du contrat + 3&nbsp;ans</td></tr>
+          <tr><td><strong>Relevés d'autocontrôle</strong><br><span style="color:var(--dim)">températures, réception, nettoyage, non-conformités</span></td><td>Traçabilité sanitaire obligatoire (preuve DDPP).</td><td>Année en cours + 3&nbsp;ans</td></tr>
+          <tr><td><strong>Signatures &amp; noms des agents</strong></td><td>Prouver qui a réalisé chaque contrôle.</td><td>Idem relevés associés</td></tr>
+          <tr><td><strong>Photos de traçabilité</strong><br><span style="color:var(--dim)">bons de livraison, étiquettes…</span></td><td>Preuve documentaire en cas de contrôle.</td><td>Idem relevés associés</td></tr>
+          <tr><td><strong>Données techniques</strong><br><span style="color:var(--dim)">adresse IP, journaux, session</span></td><td>Sécurité et prévention de la fraude.</td><td>12&nbsp;mois (journaux)</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Bases légales : exécution du contrat, obligation légale (Paquet Hygiène — règlement (CE) 852/2004, arrêté du 21/12/2009) et intérêt légitime (sécurité).</p>
+    </section>
+
+    <!-- YOUR RIGHTS -->
+    <section>
+      <h2><span class="em">⚖️</span>Vos droits RGPD</h2>
+      <p class="lead">Vous pouvez les exercer à tout moment, gratuitement, par e-mail à <a href="mailto:r.t.h@orange.fr">r.t.h@orange.fr</a>. Réponse sous 1&nbsp;mois.</p>
+      <div class="rights">
+        <div class="right"><div class="rh"><span class="em">👁️</span><b>Accès</b></div><p>Savoir quelles données nous détenons sur vous et en obtenir une copie.</p></div>
+        <div class="right"><div class="rh"><span class="em">✏️</span><b>Rectification</b></div><p>Corriger une information inexacte ou incomplète.</p></div>
+        <div class="right"><div class="rh"><span class="em">🗑️</span><b>Effacement</b></div><p>Faire supprimer vos données, sous réserve des obligations légales de conservation.</p></div>
+        <div class="right"><div class="rh"><span class="em">⏸️</span><b>Limitation</b></div><p>Geler l'utilisation de vos données le temps d'une vérification.</p></div>
+        <div class="right"><div class="rh"><span class="em">✋</span><b>Opposition</b></div><p>Vous opposer à un traitement fondé sur l'intérêt légitime.</p></div>
+        <div class="right"><div class="rh"><span class="em">📤</span><b>Portabilité</b></div><p>Récupérer vos données dans un format réutilisable (bouton d'export ci-dessus).</p></div>
+      </div>
+      <p class="note">En cas de désaccord, vous pouvez saisir la <strong>CNIL</strong> — <a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a>.</p>
+    </section>
+
+    <!-- SUBPROCESSORS -->
+    <section>
+      <h2><span class="em">🤝</span>Nos sous-traitants (transparence totale)</h2>
+      <p class="lead">Les seuls tiers techniques qui interviennent, et où sont vos données.</p>
+      <table class="data">
+        <thead><tr><th>Sous-traitant</th><th>Rôle</th><th>Localisation</th><th>Garanties</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Supabase</strong> (AWS)</td><td>Base de données &amp; stockage des photos</td><td><span class="pill ue">🇪🇺 UE — Irlande</span></td><td>DPA, hébergement UE</td></tr>
+          <tr><td><strong>EmailJS</strong></td><td>Envoi des e-mails (confirmation, code d'accès)</td><td><span class="pill us">🇺🇸 États-Unis</span></td><td>Garanties appropriées (CCT / Data Privacy Framework)</td></tr>
+          <tr><td><strong>GitHub Pages</strong></td><td>Hébergement de l'interface (fichiers statiques)</td><td><span class="pill us">🇺🇸 États-Unis</span></td><td>Garanties appropriées (CCT)</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Aucune donnée d'autocontrôle n'est hébergée hors UE. Les transferts vers les États-Unis se limitent à l'acheminement d'e-mails et au service des fichiers de l'interface.</p>
+    </section>
+
+    <!-- CONTACT -->
+    <section>
+      <h2><span class="em">📮</span>Un contact, une seule adresse</h2>
+      <div class="contact">
+        <div class="who"><strong>RTH NETGOCE</strong> — 49 rue de Douai, 75009 Paris<br>Responsable de publication : Léa Chikhaoui-Auguste · Aucun DPO obligatoire au regard de l'activité.</div>
+        <a class="btn indigo mail" href="mailto:r.t.h@orange.fr">✉️ r.t.h@orange.fr</a>
+      </div>
+    </section>
+
+    <p class="maj">
+      RTH NETGOCE — SARL au capital de 8 000 € · SIRET 444 244 776 00019 · RCS Paris 444 244 776<br>
+      49 rue de Douai, 75009 Paris — r.t.h@orange.fr — 06 61 47 61 65<br>
+      Documents : <a href="mentions.html">Mentions légales</a> · <a href="politique-confidentialite.html">Confidentialité</a> · <a href="registre-traitements.html">Registre RGPD</a> · <a href="cgu.html">CGU</a> · <a href="cgv.html">CGV</a>
+    </p>
+  </div>
+
+<script>
+/* Centre de confidentialité — outils en libre-service (100 % côté navigateur).
+   Empreinte locale de HACCP Pro : toutes les clés localStorage préfixées « haccp »
+   (haccp_, haccp-, haccpXxx) et les brouillons « etab… ». On les rassemble de façon
+   générique pour rester juste même si de nouvelles clés apparaissent. */
+var APP_NAME = 'HACCP Pro';
+function _estCleHaccp(k){ return /^haccp/i.test(k) || /^etab([:_]|lissements)/i.test(k); }
+
+function _clesLocales(){
+  var out = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && _estCleHaccp(k)) out.push(k);
+    }
+  } catch(e){}
+  out.sort();
+  return out;
+}
+
+function _octets(s){ try { return new Blob([s]).size; } catch(e){ return (s ? s.length : 0); } }
+function _humain(n){
+  if (n < 1024) return n + ' o';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' Ko';
+  return (n/1024/1024).toFixed(2) + ' Mo';
+}
+function _msg(id, txt, type){
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = txt;
+  el.className = 'out show ' + (type || 'info');
+}
+
+/* Libellés lisibles pour les clés les plus courantes (transparence). */
+function _libelle(k){
+  var map = {
+    'haccp_etab': 'Établissement (données du compte, cet appareil)',
+    'haccp_etab_data': 'Données de l\'établissement',
+    'haccp_etab_id': 'Identifiant de votre établissement',
+    'haccp_etab_nom': 'Nom de votre établissement',
+    'haccp_equipe': 'Membres de votre équipe',
+    'haccp_fournisseurs': 'Vos fournisseurs',
+    'haccp_enceintes_config': 'Configuration des enceintes / frigos',
+    'haccp_friteuses_config': 'Configuration des friteuses',
+    'haccp_historique': 'Historique d\'utilisation',
+    'haccp_formule': 'Formule / abonnement',
+    'haccp_last_code': 'Dernier code d\'accès mémorisé',
+    'haccp_deconnecte': 'État de connexion'
+  };
+  if (map[k]) return map[k];
+  if (k.indexOf('haccp_brouillon_') === 0) return 'Brouillon d\'audit en cours';
+  if (k.indexOf('haccp_memo_') === 0) return 'Mémoire de saisie (aide au remplissage)';
+  if (k.indexOf('haccp_etiq_') === 0) return 'Modèle d\'étiquette';
+  if (k.indexOf('haccp_insp_') === 0) return 'Auto-inspection';
+  if (k.indexOf('etab') === 0) return 'Brouillon lié à un client';
+  return k;
+}
+
+function exportData(){
+  var cles = _clesLocales();
+  if (!cles.length){ _msg('expOut', 'Aucune donnée HACCP Pro n\'est stockée sur cet appareil.', 'info'); return; }
+  var data = {};
+  var total = 0;
+  cles.forEach(function(k){
+    var v = null;
+    try { v = localStorage.getItem(k); } catch(e){}
+    data[k] = v;
+    total += _octets(k) + _octets(v || '');
+  });
+  var build = '';
+  try { build = String(window.APP_BUILD || ''); } catch(e){}
+  var paquet = {
+    application: APP_NAME,
+    editeur: 'RTH NETGOCE',
+    a_propos: 'Export de vos données conservées localement par HACCP Pro sur cet appareil (droit à la portabilité, art. 20 RGPD).',
+    version: build || undefined,
+    exporte_le: new Date().toISOString(),
+    nombre_de_cles: cles.length,
+    donnees: data
+  };
+  var json = JSON.stringify(paquet, null, 2);
+  var d = new Date();
+  var stamp = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  try {
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'haccp-pro-mes-donnees-' + stamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    _msg('expOut', '✅ Export réussi — <strong>' + cles.length + '</strong> élément(s), ' + _humain(total) + '. Le fichier a été téléchargé.', 'ok');
+  } catch(e){
+    _msg('expOut', '❌ L\'export a échoué sur ce navigateur. Vous pouvez utiliser « Voir le détail » puis copier les données.', 'err');
+  }
+}
+
+function toggleInventory(){
+  var box = document.getElementById('inv');
+  if (box.classList.contains('show')){ box.classList.remove('show'); box.innerHTML=''; return; }
+  var cles = _clesLocales();
+  if (!cles.length){ box.innerHTML = '<div class="out info show" style="margin:0">Aucune donnée HACCP Pro sur cet appareil.</div>'; box.classList.add('show'); return; }
+  var total = 0, rows = '';
+  cles.forEach(function(k){
+    var v = null; try { v = localStorage.getItem(k); } catch(e){}
+    var sz = _octets(k) + _octets(v || ''); total += sz;
+    rows += '<tr><td>' + _libelle(k).replace(/</g,'&lt;') + '<br><span style="color:var(--dim);font-size:10.5px">' + k.replace(/</g,'&lt;') + '</span></td><td class="sz">' + _humain(sz) + '</td></tr>';
+  });
+  box.innerHTML =
+    '<table><thead><tr><th>Donnée conservée sur cet appareil</th><th style="text-align:right">Taille</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '<tfoot><tr><td>' + cles.length + ' élément(s)</td><td class="sz">' + _humain(total) + '</td></tr></tfoot></table>';
+  box.classList.add('show');
+}
+
+function eraseLocal(){
+  var cles = _clesLocales();
+  if (!cles.length){ _msg('eraseOut', 'Rien à effacer : aucune donnée HACCP Pro sur cet appareil.', 'info'); return; }
+  var ok = window.confirm(
+    'Effacer ' + cles.length + ' élément(s) de CET appareil ?\n\n' +
+    'Cela supprime les brouillons, préférences et la session enregistrés localement.\n' +
+    'Un brouillon non encore synchronisé sera définitivement perdu.\n\n' +
+    'Vos relevés déjà synchronisés restent en sécurité côté serveur.'
+  );
+  if (!ok) return;
+  var n = 0;
+  cles.forEach(function(k){ try { localStorage.removeItem(k); n++; } catch(e){} });
+  /* Nettoyage best-effort de la base de sauvegarde locale (IndexedDB). */
+  try { if (window.indexedDB && indexedDB.deleteDatabase) indexedDB.deleteDatabase('HACCPBackupDB'); } catch(e){}
+  _msg('eraseOut', '✅ ' + n + ' élément(s) effacé(s) de cet appareil. Pour un effacement côté serveur, envoyez-nous une demande RGPD ci-dessus.', 'ok');
+}
+</script>
+</body>
+</html>
