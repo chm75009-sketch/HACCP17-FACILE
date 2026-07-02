@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clarté — Mise en conformité RGPD & AI Act pour les entreprises | RTH NETGOCE</title>
+<meta name="description" content="Clarté, par RTH NETGOCE : la mise en conformité RGPD ET AI Act (Règlement UE 2024/1689) pensée pour les TPE/PME. Audit, registre, documentation, plan d'action, formation et suivi. Diagnostic offert.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0c1024;--body:#3f4661;--dim:#8b93ad;--line:#e7e9f3;
+    --bg:#ffffff;--bg2:#f7f8fc;--card:#ffffff;
+    --indigo:#4f46e5;--indigo2:#7c69f5;--indigo-ink:#3730a3;--indigo-soft:#eef0ff;
+    --gold:#f5b301;--gold-soft:#fff6e0;
+    --teal:#0ea5a3;--teal-soft:#e6fbfa;
+    --green:#12a150;--danger:#e5484d;
+    --radius:18px;--shadow:0 10px 40px rgba(19,24,54,.08);--shadow-lg:0 30px 70px rgba(19,24,54,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Manrope',system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3{line-height:1.12;letter-spacing:-.02em}
+  .serif{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:-.01em}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+  .em{font-size:1.05em}
+
+  /* NAV */
+  header{position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);background:rgba(255,255,255,.82);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:66px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em}
+  .brand .dot{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--indigo),var(--indigo2));display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(79,70,229,.4)}
+  .brand small{font-weight:600;color:var(--dim);font-size:11px;margin-left:2px}
+  .menu{display:flex;gap:26px;align-items:center}
+  .menu a{font-size:14px;font-weight:600;color:var(--body);transition:color .15s}
+  .menu a:hover{color:var(--indigo)}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:inherit;font-weight:700;font-size:14px;border-radius:12px;padding:12px 20px;cursor:pointer;border:none;transition:transform .12s,box-shadow .18s,filter .15s;white-space:nowrap}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff;box-shadow:0 10px 26px rgba(79,70,229,.34)}
+  .btn-primary:hover{filter:brightness(1.06);box-shadow:0 14px 34px rgba(79,70,229,.42)}
+  .btn-ghost{background:var(--indigo-soft);color:var(--indigo-ink)}
+  .btn-lg{padding:15px 28px;font-size:15px;border-radius:14px}
+  .btn-light{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.28)}
+  .btn-light:hover{background:rgba(255,255,255,.22)}
+  @media(max-width:820px){.menu{display:none}}
+
+  /* HERO */
+  .hero{position:relative;overflow:hidden;background:radial-gradient(1100px 520px at 78% -8%,rgba(245,179,1,.20),transparent 55%),radial-gradient(900px 620px at 12% 8%,rgba(124,105,245,.20),transparent 55%),linear-gradient(180deg,#0c1024 0%,#141a3a 100%);color:#fff}
+  .hero::after{content:'';position:absolute;inset:0;background:radial-gradient(700px 300px at 50% 120%,rgba(14,165,163,.16),transparent 60%);pointer-events:none}
+  .hero .wrap{position:relative;z-index:1;padding:78px 22px 92px;text-align:center}
+  .kicker{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);border-radius:100px;padding:7px 15px;font-size:12.5px;font-weight:700;color:#e7e9ff;margin-bottom:26px}
+  .kicker b{color:var(--gold)}
+  .hero h1{font-size:clamp(34px,5.4vw,60px);font-weight:800;max-width:900px;margin:0 auto 20px}
+  .hero h1 .grad{background:linear-gradient(105deg,#a5b4fc,#c4b5fd 40%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.lead{font-size:clamp(16px,2vw,19px);color:rgba(255,255,255,.76);max-width:640px;margin:0 auto 34px}
+  .hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .trustbar{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin-top:44px;opacity:.9}
+  .trustbar div{display:flex;align-items:center;gap:9px;font-size:12.5px;color:rgba(255,255,255,.66);font-weight:600}
+  .trustbar .ic{width:22px;height:22px;border-radius:7px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:12px}
+
+  /* STATS STRIP */
+  .stats{background:var(--ink);color:#fff;border-top:1px solid rgba(255,255,255,.08)}
+  .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:26px 22px}
+  .stat b{display:block;font-size:clamp(22px,3vw,30px);font-weight:800;font-family:'Fraunces',serif}
+  .stat b.warn{color:var(--gold)}.stat b.dng{color:#ff9ea1}
+  .stat span{font-size:12px;color:rgba(255,255,255,.6);font-weight:600}
+  @media(max-width:720px){.stats .wrap{grid-template-columns:repeat(2,1fr)}}
+
+  section{padding:78px 0}
+  .sec-tag{display:inline-block;font-size:12.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:12px}
+  .sec-h{font-size:clamp(26px,3.6vw,40px);font-weight:800;max-width:640px;margin-bottom:14px}
+  .sec-sub{font-size:17px;color:var(--body);max-width:600px;margin-bottom:44px}
+  .center{text-align:center}.center .sec-h,.center .sec-sub{margin-left:auto;margin-right:auto}
+
+  /* TWO PILLARS */
+  .pillars{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:820px){.pillars{grid-template-columns:1fr}}
+  .pillar{border:1px solid var(--line);border-radius:22px;padding:30px;background:var(--card);box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .pillar::before{content:'';position:absolute;top:-40px;right:-40px;width:150px;height:150px;border-radius:50%;opacity:.14}
+  .pillar.p1::before{background:var(--indigo)}.pillar.p2::before{background:var(--gold)}
+  .pillar .tag{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;border-radius:100px;padding:6px 12px;margin-bottom:16px}
+  .pillar.p1 .tag{background:var(--indigo-soft);color:var(--indigo-ink)}
+  .pillar.p2 .tag{background:var(--gold-soft);color:#8a6100}
+  .pillar h3{font-size:22px;font-weight:800;margin-bottom:8px}
+  .pillar p{font-size:14.5px;color:var(--body);margin-bottom:18px}
+  .pillar ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+  .pillar li{display:flex;gap:11px;font-size:14px;color:var(--body)}
+  .pillar li .ck{flex-shrink:0;width:20px;height:20px;border-radius:6px;background:var(--teal-soft);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;margin-top:2px}
+  .pillar.p2 li .ck{background:var(--gold-soft);color:#b07d00}
+
+  /* TIMELINE (AI Act) */
+  .timeline{margin-top:40px;background:var(--bg2);border:1px solid var(--line);border-radius:22px;padding:30px}
+  .timeline h4{font-size:15px;font-weight:800;margin-bottom:22px;display:flex;align-items:center;gap:9px}
+  .tl{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
+  .tl::before{content:'';position:absolute;left:8%;right:8%;top:13px;height:2px;background:linear-gradient(90deg,var(--indigo),var(--gold))}
+  .tl .node{position:relative;text-align:center;padding:0 8px}
+  .tl .node .pt{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--indigo);margin:6px auto 14px;position:relative;z-index:1}
+  .tl .node:nth-child(3) .pt{border-color:#8b7ef0}
+  .tl .node:nth-child(4) .pt{border-color:var(--gold)}
+  .tl .node b{display:block;font-size:14px;font-weight:800;font-family:'Fraunces',serif}
+  .tl .node span{font-size:11.5px;color:var(--dim);line-height:1.4;display:block;margin-top:3px}
+  @media(max-width:720px){.tl{grid-template-columns:1fr;gap:16px}.tl::before{left:14px;right:auto;top:0;bottom:0;width:2px;height:auto}.tl .node{text-align:left;padding-left:36px}.tl .node .pt{position:absolute;left:8px;top:2px;margin:0}}
+
+  /* CONCERNED CHECKLIST */
+  .concerned{background:linear-gradient(135deg,#0c1024,#1a2148);color:#fff;border-radius:26px;padding:44px;box-shadow:var(--shadow-lg)}
+  .concerned h3{font-size:clamp(22px,3vw,30px);font-weight:800;margin-bottom:8px}
+  .concerned>p{color:rgba(255,255,255,.7);margin-bottom:26px;max-width:560px}
+  .cl-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 26px}
+  @media(max-width:720px){.cl-grid{grid-template-columns:1fr}.concerned{padding:30px}}
+  .cl-grid div{display:flex;gap:12px;font-size:14.5px;color:rgba(255,255,255,.9);align-items:flex-start}
+  .cl-grid .q{flex-shrink:0;width:24px;height:24px;border-radius:8px;background:rgba(245,179,1,.16);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;margin-top:1px}
+  .concerned .foot{margin-top:26px;padding-top:22px;border-top:1px solid rgba(255,255,255,.12);font-size:15px;color:#fff}
+  .concerned .foot b{color:var(--gold)}
+
+  /* OFFER / PRICING */
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
+  @media(max-width:920px){.plans{grid-template-columns:1fr;max-width:440px;margin:0 auto}}
+  .plan{border:1px solid var(--line);border-radius:24px;padding:32px 28px;background:var(--card);box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative}
+  .plan.pop{border:2px solid var(--indigo);box-shadow:0 30px 70px rgba(79,70,229,.22);transform:translateY(-6px)}
+  .plan .ribbon{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff;font-size:11.5px;font-weight:800;letter-spacing:.04em;padding:6px 16px;border-radius:100px;box-shadow:0 8px 20px rgba(79,70,229,.4);white-space:nowrap}
+  .plan h3{font-size:20px;font-weight:800;margin-bottom:4px}
+  .plan .pdesc{font-size:13px;color:var(--dim);margin-bottom:20px;min-height:36px}
+  .plan .price{display:flex;align-items:baseline;gap:6px;margin-bottom:4px}
+  .plan .price .from{font-size:12px;color:var(--dim);font-weight:600}
+  .plan .price b{font-size:38px;font-weight:800;font-family:'Fraunces',serif;letter-spacing:-.02em}
+  .plan .price .ht{font-size:13px;color:var(--dim);font-weight:600}
+  .plan .price-note{font-size:12px;color:var(--dim);margin-bottom:22px}
+  .plan ul{list-style:none;display:flex;flex-direction:column;gap:11px;margin-bottom:26px;flex:1}
+  .plan li{display:flex;gap:10px;font-size:13.5px;color:var(--body)}
+  .plan li .ck{flex-shrink:0;width:19px;height:19px;border-radius:6px;background:var(--indigo-soft);color:var(--indigo);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;margin-top:2px}
+  .plan.pop li .ck{background:var(--indigo);color:#fff}
+  .plan .btn{width:100%;justify-content:center}
+  .tarif-note{text-align:center;font-size:12.5px;color:var(--dim);margin-top:26px}
+
+  /* METHOD STEPS */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  @media(max-width:820px){.steps{grid-template-columns:1fr}}
+  .step{border:1px solid var(--line);border-radius:20px;padding:26px;background:var(--card);box-shadow:var(--shadow);position:relative}
+  .step .n{font-family:'Fraunces',serif;font-size:15px;font-weight:700;width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 8px 18px rgba(79,70,229,.3)}
+  .step h4{font-size:17px;font-weight:800;margin-bottom:7px}
+  .step p{font-size:13.5px;color:var(--body)}
+  .step .badge{display:inline-block;margin-top:12px;font-size:11px;font-weight:700;border-radius:100px;padding:4px 11px;background:var(--gold-soft);color:#8a6100}
+
+  /* DELIVERABLES */
+  .deliv{background:var(--bg2)}
+  .dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:820px){.dgrid{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.dgrid{grid-template-columns:1fr}}
+  .dcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;gap:14px;align-items:flex-start;transition:transform .15s,box-shadow .18s}
+  .dcard:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+  .dcard .di{flex-shrink:0;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px}
+  .dcard.rg .di{background:var(--indigo-soft)}
+  .dcard.ia .di{background:var(--gold-soft)}
+  .dcard b{display:block;font-size:14.5px;margin-bottom:3px}
+  .dcard span{font-size:12.5px;color:var(--dim);line-height:1.5}
+  .dcard .lbl{display:inline-block;margin-top:8px;font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 8px;border-radius:100px}
+  .dcard.rg .lbl{background:var(--indigo-soft);color:var(--indigo-ink)}
+  .dcard.ia .lbl{background:var(--gold-soft);color:#8a6100}
+
+  /* WHY US */
+  .why{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:820px){.why{grid-template-columns:1fr}}
+  .whyc{display:flex;gap:16px;padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--card)}
+  .whyc .wi{flex-shrink:0;width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,var(--teal-soft),#fff);border:1px solid var(--teal-soft);display:flex;align-items:center;justify-content:center;font-size:22px}
+  .whyc b{display:block;font-size:16px;margin-bottom:4px}
+  .whyc p{font-size:13.5px;color:var(--body)}
+
+  /* FAQ */
+  .faq{max-width:760px;margin:0 auto}
+  .qa{border:1px solid var(--line);border-radius:15px;margin-bottom:12px;background:var(--card);overflow:hidden}
+  .qa button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:16px;background:none;border:none;padding:20px 22px;cursor:pointer;font-family:inherit;font-size:16px;font-weight:700;color:var(--ink);text-align:left}
+  .qa .plus{flex-shrink:0;width:26px;height:26px;border-radius:8px;background:var(--indigo-soft);color:var(--indigo);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;transition:transform .2s}
+  .qa.open .plus{transform:rotate(45deg)}
+  .qa .a{max-height:0;overflow:hidden;transition:max-height .28s ease}
+  .qa .a p{padding:0 22px 22px;font-size:14.5px;color:var(--body)}
+  .qa.open .a{max-height:340px}
+
+  /* FINAL CTA */
+  .final{position:relative;overflow:hidden;background:radial-gradient(700px 340px at 82% 10%,rgba(245,179,1,.22),transparent 55%),radial-gradient(700px 420px at 8% 90%,rgba(124,105,245,.28),transparent 55%),linear-gradient(135deg,#0c1024,#161d42);color:#fff;border-radius:30px;padding:60px 44px;text-align:center;box-shadow:var(--shadow-lg)}
+  .final h2{font-size:clamp(28px,4vw,44px);font-weight:800;margin-bottom:14px;max-width:640px;margin-left:auto;margin-right:auto}
+  .final p{color:rgba(255,255,255,.76);font-size:17px;max-width:520px;margin:0 auto 30px}
+  .final .hero-cta{margin-bottom:10px}
+  .final small{display:block;color:rgba(255,255,255,.5);font-size:12.5px;margin-top:18px}
+  @media(max-width:620px){.final{padding:42px 24px}}
+
+  /* FOOTER */
+  footer{background:var(--ink);color:rgba(255,255,255,.62);padding:52px 0 40px;font-size:13px}
+  .fgrid{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;margin-bottom:30px}
+  footer .brand{color:#fff;margin-bottom:12px}
+  footer .brand small{color:rgba(255,255,255,.5)}
+  footer p{max-width:340px;line-height:1.7}
+  footer .flinks{display:flex;gap:40px;flex-wrap:wrap}
+  footer .flinks b{color:#fff;display:block;margin-bottom:10px;font-size:13px}
+  footer .flinks a{display:block;color:rgba(255,255,255,.6);margin-bottom:7px;transition:color .15s}
+  footer .flinks a:hover{color:#fff}
+  .fbar{border-top:1px solid rgba(255,255,255,.1);padding-top:22px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-size:12px;color:rgba(255,255,255,.45)}
+  .disclaimer{max-width:1120px;margin:14px auto 0;padding:0 22px;font-size:11px;color:rgba(255,255,255,.35);line-height:1.6}
+
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.16,1,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top">
+      <span class="dot">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg>
+      </span>
+      Clarté <small>par RTH NETGOCE</small>
+    </a>
+    <nav class="menu">
+      <a href="#enjeux">Les enjeux</a>
+      <a href="#offre">L'offre</a>
+      <a href="#methode">Méthode</a>
+      <a href="#tarifs">Tarifs</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary" href="#contact">Diagnostic offert →</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker">🛡️ RGPD <span style="opacity:.5">+</span> <b>AI Act</b> · Règlement UE 2024/1689 · Échéances 2025-2026</div>
+    <h1>Mettez votre entreprise en conformité <span class="grad">données &amp; intelligence artificielle</span></h1>
+    <p class="lead">Le RGPD et le nouveau règlement européen sur l'IA imposent des obligations concrètes — même aux petites structures. Clarté les transforme en un avantage de confiance, avec un accompagnement clair, forfaitaire et sans jargon.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary btn-lg" href="#contact">Obtenir mon diagnostic offert</a>
+      <a class="btn btn-light btn-lg" href="#offre">Découvrir l'offre</a>
+    </div>
+    <div class="trustbar">
+      <div><span class="ic">⚖️</span> Conforme RGPD &amp; Règlement IA</div>
+      <div><span class="ic">🇪🇺</span> Cadre européen à jour</div>
+      <div><span class="ic">🤝</span> Pensé pour les TPE/PME</div>
+      <div><span class="ic">📄</span> Livrables prêts à présenter</div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="wrap">
+    <div class="stat"><b class="dng">20 M€ / 4%</b><span>Sanction RGPD max. (CA mondial)</span></div>
+    <div class="stat"><b class="dng">35 M€ / 7%</b><span>Sanction AI Act max. (pratiques interdites)</span></div>
+    <div class="stat"><b class="warn">02/2025</b><span>1res obligations IA en vigueur</span></div>
+    <div class="stat"><b>08/2026</b><span>Application générale de l'AI Act</span></div>
+  </div>
+</div>
+
+<!-- ENJEUX / DEUX PILIERS -->
+<section id="enjeux">
+  <div class="wrap">
+    <div class="center">
+      <span class="sec-tag">Deux réglementations, un seul chantier</span>
+      <h2 class="sec-h">Vos données et votre IA relèvent des mêmes exigences de confiance</h2>
+      <p class="sec-sub">Les traiter séparément coûte du temps et de l'argent. Clarté mène les deux mises en conformité de front, là où elles se recoupent.</p>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar p1 reveal">
+        <span class="tag">🔐 Volet 1 — RGPD</span>
+        <h3>Protection des données personnelles</h3>
+        <p>En vigueur depuis 2018, applicable à toute entreprise qui traite des données (clients, salariés, prospects). Les contrôles CNIL et les plaintes se multiplient.</p>
+        <ul>
+          <li><span class="ck">✓</span> Registre des activités de traitement (art. 30) — obligatoire</li>
+          <li><span class="ck">✓</span> Information des personnes &amp; recueil des consentements</li>
+          <li><span class="ck">✓</span> Gestion des droits (accès, effacement, portabilité…)</li>
+          <li><span class="ck">✓</span> Sécurité &amp; procédure en cas de violation (72 h)</li>
+          <li><span class="ck">✓</span> Analyses d'impact (AIPD) quand elles s'imposent</li>
+        </ul>
+      </div>
+
+      <div class="pillar p2 reveal">
+        <span class="tag">🤖 Volet 2 — AI Act</span>
+        <h3>Règlement européen sur l'IA</h3>
+        <p>Règlement (UE) 2024/1689, entré en vigueur en août 2024. Il s'applique aussi aux entreprises qui <em>utilisent</em> de l'IA (chatbots, outils de recrutement, IA générative…), pas seulement à celles qui la conçoivent.</p>
+        <ul>
+          <li><span class="ck">✓</span> Cartographie de vos systèmes d'IA &amp; classification par risque</li>
+          <li><span class="ck">✓</span> Littératie IA : formation des équipes (art. 4, depuis 02/2025)</li>
+          <li><span class="ck">✓</span> Obligations de transparence (contenus générés, chatbots)</li>
+          <li><span class="ck">✓</span> Vérification de l'absence de pratiques interdites</li>
+          <li><span class="ck">✓</span> Politique interne d'usage responsable de l'IA</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="timeline reveal">
+      <h4>📅 Le calendrier de l'AI Act — anticipez plutôt que subir</h4>
+      <div class="tl">
+        <div class="node"><div class="pt"></div><b>Août 2024</b><span>Entrée en vigueur du règlement</span></div>
+        <div class="node"><div class="pt"></div><b>Fév. 2025</b><span>Pratiques interdites + obligation de littératie IA</span></div>
+        <div class="node"><div class="pt"></div><b>Août 2025</b><span>Modèles d'IA à usage général &amp; gouvernance</span></div>
+        <div class="node"><div class="pt"></div><b>Août 2026</b><span>Application générale (systèmes à haut risque, transparence)</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONCERNED -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="concerned reveal">
+      <h3>Pensez-vous ne pas être concerné ? Vérifions.</h3>
+      <p>Si vous cochez ne serait-ce qu'<b>une</b> de ces cases, la conformité RGPD et/ou AI Act vous concerne directement.</p>
+      <div class="cl-grid">
+        <div><span class="q">?</span> Vous avez un fichier clients, prospects ou une newsletter</div>
+        <div><span class="q">?</span> Vous employez du personnel (données RH, paie)</div>
+        <div><span class="q">?</span> Votre site utilise des cookies ou un formulaire</div>
+        <div><span class="q">?</span> Vous utilisez ChatGPT ou une IA générative au travail</div>
+        <div><span class="q">?</span> Vous avez un chatbot ou un assistant automatisé</div>
+        <div><span class="q">?</span> Vous utilisez un outil d'aide au recrutement ou au scoring</div>
+        <div><span class="q">?</span> Vous sous-traitez de l'hébergement ou du marketing</div>
+        <div><span class="q">?</span> Vous faites de la vidéosurveillance ou du tracking</div>
+      </div>
+      <div class="foot">👉 <b>La quasi-totalité des entreprises est concernée.</b> La vraie question n'est pas « suis-je concerné ? » mais « suis-je prêt en cas de contrôle ou de plainte ? »</div>
+    </div>
+  </div>
+</section>
+
+<!-- OFFRE / TARIFS -->
+<section id="offre">
+  <div class="wrap">
+    <div class="center">
+      <span class="sec-tag">L'offre Clarté</span>
+      <h2 class="sec-h">Trois formules claires, un seul objectif : votre sérénité</h2>
+      <p class="sec-sub">Chaque formule couvre le RGPD <strong>et</strong> l'AI Act. On part de votre réalité, pas d'un modèle générique.</p>
+    </div>
+
+    <div class="plans" id="tarifs">
+      <!-- ESSENTIEL -->
+      <div class="plan reveal">
+        <h3>Essentiel</h3>
+        <div class="pdesc">Pour démarrer sereinement — micro-entreprises &amp; petites structures.</div>
+        <div class="price"><span class="from">dès</span><b>890</b><span class="ht">€ HT</span></div>
+        <div class="price-note">Prestation ponctuelle · forfait fixe</div>
+        <ul>
+          <li><span class="ck">✓</span> Diagnostic de conformité RGPD &amp; IA</li>
+          <li><span class="ck">✓</span> Registre des traitements initial</li>
+          <li><span class="ck">✓</span> Mentions légales &amp; politique de confidentialité</li>
+          <li><span class="ck">✓</span> Cartographie IA simplifiée</li>
+          <li><span class="ck">✓</span> Plan d'action priorisé</li>
+        </ul>
+        <a class="btn btn-ghost" href="#contact">Choisir Essentiel</a>
+      </div>
+
+      <!-- CONFORMITÉ (POP) -->
+      <div class="plan pop reveal">
+        <span class="ribbon">★ Le plus choisi</span>
+        <h3>Conformité</h3>
+        <div class="pdesc">La mise en conformité complète, clé en main — la référence pour les PME.</div>
+        <div class="price"><span class="from">dès</span><b>2 400</b><span class="ht">€ HT</span></div>
+        <div class="price-note">Prestation complète · paiement en 3× possible</div>
+        <ul>
+          <li><span class="ck">✓</span> <strong>Tout Essentiel</strong>, en version approfondie</li>
+          <li><span class="ck">✓</span> Audit complet des traitements &amp; sous-traitants</li>
+          <li><span class="ck">✓</span> Classification des risques IA (annexe III)</li>
+          <li><span class="ck">✓</span> Politique interne d'usage de l'IA</li>
+          <li><span class="ck">✓</span> Procédures droits &amp; violations (72 h)</li>
+          <li><span class="ck">✓</span> Formation « littératie IA » (1 session équipe)</li>
+          <li><span class="ck">✓</span> Attestation de conformité</li>
+        </ul>
+        <a class="btn btn-primary" href="#contact">Choisir Conformité</a>
+      </div>
+
+      <!-- SÉRÉNITÉ -->
+      <div class="plan reveal">
+        <h3>Sérénité</h3>
+        <div class="pdesc">Conformité + accompagnement continu, comme un DPO externalisé.</div>
+        <div class="price"><span class="from">dès</span><b>3 900</b><span class="ht">€ HT</span></div>
+        <div class="price-note">+ suivi dès 149 €/mois · engagement annuel</div>
+        <ul>
+          <li><span class="ck">✓</span> <strong>Tout Conformité</strong></li>
+          <li><span class="ck">✓</span> DPO / référent conformité externalisé</li>
+          <li><span class="ck">✓</span> Veille réglementaire RGPD &amp; AI Act</li>
+          <li><span class="ck">✓</span> Assistance en cas de contrôle ou de plainte</li>
+          <li><span class="ck">✓</span> Revue annuelle &amp; mise à jour des documents</li>
+          <li><span class="ck">✓</span> Point de contact prioritaire</li>
+        </ul>
+        <a class="btn btn-ghost" href="#contact">Parler à un expert</a>
+      </div>
+    </div>
+    <p class="tarif-note">💡 Tarifs indicatifs HT, à personnaliser selon la taille et l'activité de votre structure. Devis gratuit après le diagnostic.</p>
+  </div>
+</section>
+
+<!-- METHODE -->
+<section id="methode" class="deliv">
+  <div class="wrap">
+    <div class="center">
+      <span class="sec-tag">La méthode Clarté</span>
+      <h2 class="sec-h">Un parcours balisé, du diagnostic à la sérénité durable</h2>
+      <p class="sec-sub">Une démarche éprouvée, transparente à chaque étape — vous savez toujours où vous en êtes.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><div class="n">01</div><h4>Diagnostic</h4><p>État des lieux de vos traitements de données et de vos usages de l'IA. On identifie les écarts et les priorités. <em>Offert et sans engagement.</em></p></div>
+      <div class="step reveal"><div class="n">02</div><h4>Cartographie</h4><p>Registre des traitements (RGPD) et inventaire de vos systèmes d'IA, avec classification par niveau de risque.</p></div>
+      <div class="step reveal"><div class="n">03</div><h4>Documentation</h4><p>Rédaction de tous les documents obligatoires : registre, politiques, mentions, procédures, politique d'usage de l'IA.</p></div>
+      <div class="step reveal"><div class="n">04</div><h4>Sécurisation</h4><p>Plan d'action priorisé : mesures techniques et organisationnelles, contrats sous-traitants, transparence IA.</p></div>
+      <div class="step reveal"><div class="n">05</div><h4>Formation</h4><p>Sensibilisation de vos équipes au RGPD et à la littératie IA (obligation art. 4 de l'AI Act).<span class="badge">Obligation AI Act</span></p></div>
+      <div class="step reveal"><div class="n">06</div><h4>Suivi</h4><p>Veille réglementaire, mises à jour et assistance en cas de contrôle — pour rester conforme dans le temps.<span class="badge">Formule Sérénité</span></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- LIVRABLES -->
+<section>
+  <div class="wrap">
+    <div class="center">
+      <span class="sec-tag">Ce que vous recevez</span>
+      <h2 class="sec-h">Des livrables concrets, à jour et prêts à présenter</h2>
+      <p class="sec-sub">En cas de contrôle CNIL ou d'audit, vous sortez un dossier complet. Rien de théorique.</p>
+    </div>
+    <div class="dgrid">
+      <div class="dcard rg reveal"><div class="di">📋</div><div><b>Registre des traitements</b><span>Le document socle exigé par l'article 30 du RGPD.</span><span class="lbl">RGPD</span></div></div>
+      <div class="dcard rg reveal"><div class="di">📜</div><div><b>Politique de confidentialité &amp; mentions</b><span>Pour votre site, vos formulaires et vos contrats.</span><span class="lbl">RGPD</span></div></div>
+      <div class="dcard rg reveal"><div class="di">⚖️</div><div><b>Procédures d'exercice des droits</b><span>Accès, rectification, effacement, portabilité — cadrés.</span><span class="lbl">RGPD</span></div></div>
+      <div class="dcard rg reveal"><div class="di">🚨</div><div><b>Procédure de violation de données</b><span>Réagir et notifier sous 72 h, sans paniquer.</span><span class="lbl">RGPD</span></div></div>
+      <div class="dcard ia reveal"><div class="di">🗺️</div><div><b>Cartographie des systèmes d'IA</b><span>Inventaire &amp; classification par niveau de risque.</span><span class="lbl">AI ACT</span></div></div>
+      <div class="dcard ia reveal"><div class="di">🤖</div><div><b>Politique d'usage de l'IA</b><span>Règles internes d'un usage responsable et transparent.</span><span class="lbl">AI ACT</span></div></div>
+      <div class="dcard ia reveal"><div class="di">🎓</div><div><b>Kit de formation « littératie IA »</b><span>Support pour sensibiliser vos équipes (art. 4).</span><span class="lbl">AI ACT</span></div></div>
+      <div class="dcard rg reveal"><div class="di">✅</div><div><b>Plan d'action priorisé</b><span>Qui fait quoi, quand — clair et réaliste.</span><span class="lbl">RGPD + IA</span></div></div>
+      <div class="dcard ia reveal"><div class="di">🏅</div><div><b>Attestation de conformité</b><span>Un gage de confiance à montrer clients &amp; partenaires.</span><span class="lbl">RGPD + IA</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY US -->
+<section class="deliv">
+  <div class="wrap">
+    <div class="center">
+      <span class="sec-tag">Pourquoi Clarté</span>
+      <h2 class="sec-h">L'expertise réglementaire, sans la complexité</h2>
+      <p class="sec-sub">Éditée par RTH NETGOCE, déjà éditeur d'outils de conformité pour les professionnels.</p>
+    </div>
+    <div class="why">
+      <div class="whyc reveal"><div class="wi">🎯</div><div><b>Une approche 2-en-1 unique</b><p>RGPD et AI Act traités ensemble, là où ils se recoupent. Vous économisez du temps et évitez de payer deux prestations distinctes.</p></div></div>
+      <div class="whyc reveal"><div class="wi">🗣️</div><div><b>Zéro jargon</b><p>On traduit le droit en actions concrètes. Vous comprenez ce que vous signez et pourquoi vous le faites.</p></div></div>
+      <div class="whyc reveal"><div class="wi">💶</div><div><b>Des forfaits clairs</b><p>Un prix annoncé, pas de facturation au compteur qui dérape. Vous savez à quoi vous engager dès le départ.</p></div></div>
+      <div class="whyc reveal"><div class="wi">🧭</div><div><b>Accompagnement humain</b><p>Un interlocuteur dédié, disponible, qui connaît votre dossier — pas un formulaire anonyme.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="center">
+      <span class="sec-tag">Questions fréquentes</span>
+      <h2 class="sec-h">Ce que les entreprises nous demandent</h2>
+    </div>
+    <div class="faq">
+      <div class="qa"><button>Ma structure est petite, suis-je vraiment concerné ?<span class="plus">+</span></button><div class="a"><p>Oui. Le RGPD s'applique dès que vous traitez des données personnelles (clients, salariés, prospects), sans seuil d'effectif. L'AI Act s'applique dès que vous utilisez un système d'IA, même acheté sur étagère. Les obligations sont proportionnées à votre taille et à vos risques — c'est justement ce que le diagnostic détermine.</p></div></div>
+      <div class="qa"><button>Nous n'avons pas d'IA « maison », juste ChatGPT. Est-ce concerné ?<span class="plus">+</span></button><div class="a"><p>Absolument. L'AI Act vise aussi les <em>déployeurs</em> : les entreprises qui utilisent des outils d'IA existants. Utiliser une IA générative, un chatbot ou un outil de tri de CV crée des obligations — notamment de transparence et de formation de vos équipes (littératie IA, en vigueur depuis février 2025).</p></div></div>
+      <div class="qa"><button>Que risque-t-on réellement en cas de non-conformité ?<span class="plus">+</span></button><div class="a"><p>Au-delà des sanctions financières (jusqu'à 20 M€ ou 4 % du CA pour le RGPD, jusqu'à 35 M€ ou 7 % pour les pratiques d'IA interdites), le risque courant pour une TPE/PME est le contrôle CNIL, la plainte d'un client ou d'un salarié, la mise en demeure, et l'atteinte à la réputation. La conformité est aussi devenue un critère dans les appels d'offres.</p></div></div>
+      <div class="qa"><button>Combien de temps prend la mise en conformité ?<span class="plus">+</span></button><div class="a"><p>Le diagnostic se fait sous quelques jours. Une formule Essentiel se boucle généralement en 1 à 2 semaines, une formule Conformité en 3 à 6 semaines selon la disponibilité de vos informations. On avance à votre rythme, avec des étapes claires.</p></div></div>
+      <div class="qa"><button>Le diagnostic est-il vraiment gratuit ?<span class="plus">+</span></button><div class="a"><p>Oui, le diagnostic initial est offert et sans engagement. Il vous donne une vision claire de vos écarts et une estimation. Vous décidez ensuite, en toute connaissance de cause, si vous souhaitez aller plus loin.</p></div></div>
+      <div class="qa"><button>Faut-il obligatoirement désigner un DPO ?<span class="plus">+</span></button><div class="a"><p>Pas toujours — la désignation d'un délégué à la protection des données n'est obligatoire que dans certains cas. Quand elle ne l'est pas, notre formule Sérénité vous offre un référent conformité externalisé qui en joue le rôle, sans le coût d'un recrutement.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section id="contact">
+  <div class="wrap">
+    <div class="final reveal">
+      <h2>Faites le premier pas vers la conformité, dès aujourd'hui</h2>
+      <p>Un diagnostic offert, une vision claire de vos obligations RGPD &amp; IA, et un plan d'action concret. Sans engagement.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="mailto:r.t.h@orange.fr?subject=Demande%20de%20diagnostic%20Clart%C3%A9%20(RGPD%20%2B%20AI%20Act)&amp;body=Bonjour%2C%0A%0AJe%20souhaite%20b%C3%A9n%C3%A9ficier%20d'un%20diagnostic%20de%20conformit%C3%A9%20RGPD%20%26%20AI%20Act%20pour%20mon%20entreprise.%0A%0A-%20Nom%20de%20l'entreprise%20%3A%0A-%20Secteur%20d'activit%C3%A9%20%3A%0A-%20Effectif%20approximatif%20%3A%0A-%20Utilisez-vous%20des%20outils%20d'IA%20(lesquels)%20%3A%0A-%20T%C3%A9l%C3%A9phone%20%3A%0A%0AMerci%20!">✉️ Demander mon diagnostic offert</a>
+        <a class="btn btn-light btn-lg" href="tel:+33661476165">📞 06 61 47 61 65</a>
+      </div>
+      <small>Réponse sous 48 h ouvrées · RTH NETGOCE · r.t.h@orange.fr</small>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="fgrid">
+      <div>
+        <div class="brand" style="font-size:18px">
+          <span class="dot" style="width:26px;height:26px;border-radius:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="#fff"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
+          Clarté <small>par RTH NETGOCE</small>
+        </div>
+        <p>La mise en conformité RGPD &amp; AI Act, enfin claire et accessible pour les TPE et PME.</p>
+      </div>
+      <div class="flinks">
+        <div>
+          <b>Offre</b>
+          <a href="#enjeux">Les enjeux</a>
+          <a href="#offre">Les formules</a>
+          <a href="#methode">La méthode</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <div>
+          <b>Contact</b>
+          <a href="mailto:r.t.h@orange.fr">r.t.h@orange.fr</a>
+          <a href="tel:+33661476165">06 61 47 61 65</a>
+          <a href="#contact">Diagnostic offert</a>
+        </div>
+      </div>
+    </div>
+    <div class="fbar">
+      <span>© 2026 RTH NETGOCE — SARL au capital de 8 000 € · SIRET 444 244 776 00019 · RCS Paris · 49 rue de Douai, 75009 Paris</span>
+      <span>Autorité de contrôle : CNIL — cnil.fr</span>
+    </div>
+  </div>
+  <p class="disclaimer">Clarté est une prestation d'accompagnement à la conformité éditée par RTH NETGOCE. Références réglementaires : Règlement (UE) 2016/679 (RGPD) et Règlement (UE) 2024/1689 (règlement sur l'intelligence artificielle). Les dates et seuils mentionnés sont donnés à titre informatif et n'ont pas valeur de conseil juridique ; l'accompagnement est adapté à chaque situation. Tarifs indicatifs HT susceptibles d'évolution.</p>
+</footer>
+
+<script>
+  // FAQ accordéon
+  document.querySelectorAll('.qa button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var qa = b.parentElement;
+      var wasOpen = qa.classList.contains('open');
+      document.querySelectorAll('.qa').forEach(function(x){ x.classList.remove('open'); });
+      if(!wasOpen) qa.classList.add('open');
+    });
+  });
+  // Révélation au défilement
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold:.12 });
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+</script>
+</body>
+</html>
