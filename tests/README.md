@@ -33,6 +33,8 @@ node run_tests24.js  # Panneau admin — création essai/client (secteurs, multi
 node run_tests25.js  # Panneau admin complet (connexion, onglets, demandes, refus, historique)
 node run_tests26.js  # Admin — validation demande (5 secteurs) + campagne essais (plafond)
 node run_tests27.js  # PMS par secteur (contenu réglementaire) + générateur de PMS pré-rempli
+node run_tests28.js  # Non-régression des correctifs d'audit (virgule décimale, échappement XSS)
+node run_tests29.js  # Usine Boulangerie (build mono-secteur : habillage, verrou de secteur)
 ```
 Chaque fichier affiche « X passed, Y failed ». Tout doit être à 0 failed.
 
